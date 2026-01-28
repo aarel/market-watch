@@ -15,6 +15,20 @@ Thumbs.db
 
 # Test results
 test_results/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Data files
+logs/
+data/
 
 # Observability logs
 logs/observability/
+
+# Documentation artifacts
+*.md.backup
+INTEGRATION_TEST_SUMMARY.md
+TIMEZONE_FIX_SUMMARY.md
+UNIVERSE_GUARDRAILS_ANALYSIS.md

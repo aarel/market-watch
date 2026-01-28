@@ -1,5 +1,7 @@
 # Market Watch Trading Bot
 
+![Tests](https://github.com/USERNAME/REPO/actions/workflows/tests.yml/badge.svg)
+
 Autonomous trading bot with web UI, multiple trading strategies, and backtesting capabilities. Connects to Alpaca brokerage for commission-free paper and live trading.
 
 ## Quick Start
