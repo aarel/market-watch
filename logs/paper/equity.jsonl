@@ -1,1 +1,2 @@
 {"equity": 100000, "portfolio_value": 100000, "cash": 50000, "universe": "paper", "timestamp": "2026-01-27T10:39:54.092923"}
+{"session_id": "paper_session", "equity": 50000, "universe": "paper", "data_lineage_id": "unknown_lineage", "validity_class": "PAPER_ONLY", "timestamp": "2026-01-28T07:05:55.073051+00:00"}
