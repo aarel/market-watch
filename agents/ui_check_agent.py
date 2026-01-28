@@ -3,7 +3,7 @@ import asyncio
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
@@ -49,7 +49,7 @@ class UICheckAgent(BaseAgent):
             await asyncio.sleep(self.interval_minutes * 60)
 
     def _check_once(self):
-        started = datetime.utcnow()
+        started = datetime.now(timezone.utc)
         status = "ok"
         detail = {}
         try:

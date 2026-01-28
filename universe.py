@@ -311,7 +311,7 @@ def validate_universe_transition(
         "from_universe": from_universe.value,
         "to_universe": to_universe.value,
         "reason": reason,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "transition_id": uuid.uuid4().hex,
         "warning": "This is a destructive transition requiring teardown and rebuild"
     }

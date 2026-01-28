@@ -1,5 +1,5 @@
 """Server package entrypoint with legacy compatibility helpers for tests."""
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import json
 
@@ -80,7 +80,7 @@ async def get_observability_expectations():
 
 async def _run_observability_eval():
     # Placeholder evaluator: mark latest eval timestamp
-    state.observability = {"generated_at": datetime.utcnow().isoformat()}
+    state.observability = {"generated_at": datetime.now(timezone.utc).isoformat()}
 
 
 async def run_observability_eval():

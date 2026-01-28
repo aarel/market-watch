@@ -34,7 +34,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_equity_requires_session_id(self):
         """Equity snapshot must have session_id."""
-        snapshot = {"equity": 100000}
+        snapshot = {"equity": 100000, "universe": "simulation", "data_lineage_id": "test_lineage"}
 
         with self.assertRaises(SchemaValidationError) as ctx:
             self.store.record_equity(snapshot)
@@ -43,7 +43,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_equity_rejects_empty_session_id(self):
         """Equity snapshot cannot have empty session_id."""
-        snapshot = {"session_id": "", "equity": 100000}
+        snapshot = {"session_id": "", "equity": 100000, "universe": "simulation", "data_lineage_id": "test_lineage"}
 
         with self.assertRaises(SchemaValidationError) as ctx:
             self.store.record_equity(snapshot)
@@ -57,7 +57,8 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
         snapshot = {
             "session_id": self.test_session_id,
             "universe": "live",  # Wrong universe!
-            "equity": 100000
+            "equity": 100000,
+            "data_lineage_id": "test_lineage"
         }
 
         with self.assertRaises(SchemaValidationError) as ctx:
@@ -73,7 +74,8 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
             "session_id": self.test_session_id,
             "equity": 100000,
             "portfolio_value": 100000,
-            "cash": 50000
+            "cash": 50000,
+            "data_lineage_id": "test_lineage"
         }
 
         # Should not raise
@@ -88,7 +90,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_trade_requires_session_id(self):
         """Trade record must have session_id."""
-        trade = {"symbol": "AAPL", "side": "buy", "qty": 10}
+        trade = {"symbol": "AAPL", "side": "buy", "qty": 10, "universe": "simulation", "data_lineage_id": "test_lineage"}
 
         with self.assertRaises(SchemaValidationError) as ctx:
             self.store.record_trade(trade)
@@ -97,7 +99,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_trade_rejects_empty_session_id(self):
         """Trade record cannot have empty session_id."""
-        trade = {"session_id": "", "symbol": "AAPL", "side": "buy", "qty": 10}
+        trade = {"session_id": "", "symbol": "AAPL", "side": "buy", "qty": 10, "universe": "simulation", "data_lineage_id": "test_lineage"}
 
         with self.assertRaises(SchemaValidationError) as ctx:
             self.store.record_trade(trade)
@@ -107,7 +109,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_trade_requires_symbol(self):
         """Trade record must have symbol."""
-        trade = {"session_id": self.test_session_id, "side": "buy", "qty": 10}
+        trade = {"session_id": self.test_session_id, "side": "buy", "qty": 10, "universe": "simulation", "data_lineage_id": "test_lineage"}
 
         with self.assertRaises(SchemaValidationError) as ctx:
             self.store.record_trade(trade)
@@ -116,7 +118,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_trade_requires_side(self):
         """Trade record must have side."""
-        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "qty": 10}
+        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "qty": 10, "universe": "simulation", "data_lineage_id": "test_lineage"}
 
         with self.assertRaises(SchemaValidationError) as ctx:
             self.store.record_trade(trade)
@@ -125,7 +127,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_trade_validates_side_values(self):
         """Trade side must be 'buy' or 'sell'."""
-        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "side": "hold", "qty": 10}
+        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "side": "hold", "qty": 10, "universe": "simulation", "data_lineage_id": "test_lineage"}
 
         with self.assertRaises(SchemaValidationError) as ctx:
             self.store.record_trade(trade)
@@ -142,7 +144,8 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
             "universe": "paper",  # Wrong universe!
             "symbol": "AAPL",
             "side": "buy",
-            "qty": 10
+            "qty": 10,
+            "data_lineage_id": "test_lineage"
         }
 
         with self.assertRaises(SchemaValidationError) as ctx:
@@ -160,7 +163,8 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
             "side": "buy",
             "qty": 10,
             "filled_avg_price": 150.0,
-            "notional": 1500.0
+            "notional": 1500.0,
+            "data_lineage_id": "test_lineage"
         }
 
         # Should not raise
@@ -176,7 +180,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_equity_auto_tagged_with_universe(self):
         """Store automatically tags equity with universe."""
-        snapshot = {"session_id": self.test_session_id, "equity": 100000}
+        snapshot = {"session_id": self.test_session_id, "equity": 100000, "data_lineage_id": "test_lineage"}
         self.store.record_equity(snapshot)
 
         loaded = self.store.load_equity(period="all")
@@ -184,7 +188,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_trade_auto_tagged_with_universe(self):
         """Store automatically tags trade with universe."""
-        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "side": "buy"}
+        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "side": "buy", "data_lineage_id": "test_lineage"}
         self.store.record_trade(trade)
 
         loaded = self.store.load_trades(period="all")
@@ -192,7 +196,7 @@ class TestAnalyticsSchemaValidation(unittest.TestCase):
 
     def test_trade_auto_tagged_with_validity_class(self):
         """Store automatically tags trade with validity_class."""
-        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "side": "buy"}
+        trade = {"session_id": self.test_session_id, "symbol": "AAPL", "side": "buy", "data_lineage_id": "test_lineage"}
         self.store.record_trade(trade)
 
         loaded = self.store.load_trades(period="all")

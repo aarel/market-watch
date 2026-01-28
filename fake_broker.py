@@ -7,7 +7,7 @@ connecting to a real brokerage or requiring a live market.
 """
 import random
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from pathlib import Path
 import pandas as pd
@@ -59,7 +59,7 @@ class FakeBroker:
         self._asset_name_cache = {}
         self._alpaca_client = self._try_init_alpaca()
         self._replay_mode = config.SIM_REPLAY_ENABLED
-        self._replay_date = config.SIM_REPLAY_DATE or datetime.utcnow().date().strftime("%Y%m%d")
+        self._replay_date = config.SIM_REPLAY_DATE or datetime.now(timezone.utc).date().strftime("%Y%m%d")
         self._replay_frames = {}  # symbol -> DataFrame
         self._replay_idx = {}     # symbol -> int
 
@@ -333,7 +333,7 @@ class FakeBroker:
             from zoneinfo import ZoneInfo
             now = datetime.now(ZoneInfo("America/New_York"))
         except Exception:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
         is_weekday = now.weekday() < 5
         minutes = now.hour * 60 + now.minute
         open_minutes = 9 * 60 + 30

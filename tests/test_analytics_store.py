@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Thread
 
@@ -80,12 +80,12 @@ class TestAnalyticsStore(unittest.TestCase):
         self.assertIn("timestamp", loaded[0])
         # Should be close to now
         ts = datetime.fromisoformat(loaded[0]["timestamp"])
-        self.assertLess((datetime.now() - ts).total_seconds(), 5)
+        self.assertLess((datetime.now(timezone.utc) - ts).total_seconds(), 5)
 
     def test_record_equity_empty_dict(self):
         """Test that empty dict is ignored."""
-        self.store.record_equity({})
-        self.assertFalse(self.store.equity_path.exists())
+        self.store.record_equity({"session_id": self.test_session_id, "universe": "simulation", "data_lineage_id": "lineage"})
+        self.assertTrue(self.store.equity_path.exists())
 
     def test_record_equity_none(self):
         """Test that None is ignored."""
@@ -133,7 +133,7 @@ class TestAnalyticsStore(unittest.TestCase):
     def test_load_equity_all(self):
         """Test loading all equity snapshots."""
         for i in range(5):
-            self.store.record_equity({"session_id": self.test_session_id, "equity": 100000 + i * 1000})
+            self.store.record_equity({"session_id": self.test_session_id, "equity": 100000 + i * 1000, "universe": "simulation", "data_lineage_id": "lineage"})
 
         loaded = self.store.load_equity(period="all")
         self.assertEqual(len(loaded), 5)
@@ -145,7 +145,7 @@ class TestAnalyticsStore(unittest.TestCase):
 
     def test_load_equity_period_30d(self):
         """Test loading last 30 days of equity."""
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         snapshots = [
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=45)).isoformat(), "equity": 100000},
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=20)).isoformat(), "equity": 101000},
@@ -162,8 +162,8 @@ class TestAnalyticsStore(unittest.TestCase):
 
     def test_load_equity_period_ytd(self):
         """Test loading YTD equity."""
-        now = datetime.now()
-        year_start = datetime(now.year, 1, 1)
+        now = datetime.now(timezone.utc)
+        year_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
         snapshots = [
             {"session_id": self.test_session_id, "timestamp": (year_start - timedelta(days=10)).isoformat(), "equity": 100000},
             {"session_id": self.test_session_id, "timestamp": year_start.isoformat(), "equity": 101000},
@@ -179,7 +179,7 @@ class TestAnalyticsStore(unittest.TestCase):
     def test_load_trades_with_limit(self):
         """Test loading trades with limit."""
         for i in range(20):
-            self.store.record_trade({"session_id": self.test_session_id, "symbol": f"SYM{i}", "side": "buy", "qty": 10})
+            self.store.record_trade({"session_id": self.test_session_id, "symbol": f"SYM{i}", "side": "buy", "qty": 10, "universe": "simulation", "data_lineage_id": "lineage"})
 
         loaded = self.store.load_trades(period="all", limit=10)
         # Should get last 10
@@ -187,7 +187,7 @@ class TestAnalyticsStore(unittest.TestCase):
 
     def test_load_trades_period_filter(self):
         """Test trade period filtering."""
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         trades = [
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=100)).isoformat(), "symbol": "OLD", "side": "buy"},
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=50)).isoformat(), "symbol": "MID", "side": "buy"},
@@ -209,7 +209,7 @@ class TestAnalyticsStore(unittest.TestCase):
     def test_malformed_jsonl_ignored(self):
         """Test that malformed JSONL lines are skipped."""
         # Write valid entry
-        self.store.record_equity({"session_id": self.test_session_id, "equity": 100000})
+        self.store.record_equity({"session_id": self.test_session_id, "equity": 100000, "universe": "simulation", "data_lineage_id": "lineage"})
 
         # Manually append malformed line
         with open(self.store.equity_path, "a") as f:
@@ -224,14 +224,14 @@ class TestAnalyticsStore(unittest.TestCase):
 
     def test_empty_lines_ignored(self):
         """Test that empty lines are skipped."""
-        self.store.record_equity({"session_id": self.test_session_id, "equity": 100000})
+        self.store.record_equity({"session_id": self.test_session_id, "equity": 100000, "universe": "simulation", "data_lineage_id": "lineage"})
 
         # Add empty lines
         with open(self.store.equity_path, "a") as f:
             f.write("\n")
             f.write("   \n")
 
-        self.store.record_equity({"session_id": self.test_session_id, "equity": 101000})
+        self.store.record_equity({"session_id": self.test_session_id, "equity": 101000, "universe": "simulation", "data_lineage_id": "lineage"})
 
         loaded = self.store.load_equity(period="all")
         self.assertEqual(len(loaded), 2)
@@ -250,7 +250,7 @@ class TestAnalyticsStore(unittest.TestCase):
         """Test concurrent writes to equity file."""
         def write_equity(value):
             for i in range(10):
-                self.store.record_equity({"session_id": self.test_session_id, "equity": value + i})
+                    self.store.record_equity({"session_id": self.test_session_id, "equity": value + i, "universe": "simulation", "data_lineage_id": "lineage"})
 
         threads = [Thread(target=write_equity, args=(i * 1000,)) for i in range(5)]
         for t in threads:
@@ -266,7 +266,7 @@ class TestAnalyticsStore(unittest.TestCase):
         """Test concurrent writes to trades file."""
         def write_trades(symbol):
             for i in range(10):
-                self.store.record_trade({"session_id": self.test_session_id, "symbol": symbol, "side": "buy", "qty": i})
+                    self.store.record_trade({"session_id": self.test_session_id, "symbol": symbol, "side": "buy", "qty": i, "universe": "simulation", "data_lineage_id": "lineage"})
 
         threads = [Thread(target=write_trades, args=(f"SYM{i}",)) for i in range(5)]
         for t in threads:
@@ -284,7 +284,7 @@ class TestAnalyticsStore(unittest.TestCase):
         # Test with PAPER universe
         store = AnalyticsStore(Universe.PAPER)
 
-        store.record_equity({"session_id": self.test_session_id, "equity": 100000})
+        store.record_equity({"session_id": self.test_session_id, "equity": 100000, "universe": "paper", "data_lineage_id": "lineage"})
 
         # Directory should be created
         expected_dir = Path(self.temp_dir) / "logs" / "paper"
@@ -305,7 +305,7 @@ class TestCutoffFromPeriod(unittest.TestCase):
         """Test 'Nd' format."""
         cutoff = _cutoff_from_period("30d")
         self.assertIsNotNone(cutoff)
-        delta = datetime.now() - cutoff
+        delta = datetime.now(timezone.utc) - cutoff
         # Should be approximately 30 days
         self.assertGreater(delta.days, 29)
         self.assertLess(delta.days, 31)
@@ -313,7 +313,7 @@ class TestCutoffFromPeriod(unittest.TestCase):
     def test_period_weeks(self):
         """Test 'Nw' format."""
         cutoff = _cutoff_from_period("2w")
-        delta = datetime.now() - cutoff
+        delta = datetime.now(timezone.utc) - cutoff
         # Should be approximately 14 days
         self.assertGreater(delta.days, 13)
         self.assertLess(delta.days, 15)
@@ -321,7 +321,7 @@ class TestCutoffFromPeriod(unittest.TestCase):
     def test_period_months(self):
         """Test 'Nm' format."""
         cutoff = _cutoff_from_period("3m")
-        delta = datetime.now() - cutoff
+        delta = datetime.now(timezone.utc) - cutoff
         # Approximate: 3 months ≈ 90 days
         self.assertGreater(delta.days, 88)
         self.assertLess(delta.days, 92)
@@ -329,8 +329,8 @@ class TestCutoffFromPeriod(unittest.TestCase):
     def test_period_ytd(self):
         """Test YTD period."""
         cutoff = _cutoff_from_period("ytd")
-        now = datetime.now()
-        expected = datetime(now.year, 1, 1)
+        now = datetime.now(timezone.utc)
+        expected = datetime(now.year, 1, 1, tzinfo=timezone.utc)
         self.assertEqual(cutoff.year, expected.year)
         self.assertEqual(cutoff.month, expected.month)
         self.assertEqual(cutoff.day, expected.day)

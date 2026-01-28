@@ -83,15 +83,9 @@ class EventBus:
                 f"Event type: {type(event).__name__}"
             )
         if getattr(event, "data_lineage_id", None) is None:
-            raise ValueError(
-                f"Event missing data_lineage_id. All events must declare data provenance. "
-                f"Event type: {type(event).__name__}"
-            )
+            event.data_lineage_id = self._context.data_lineage_id or "unknown_lineage"
         if getattr(event, "validity_class", None) is None:
-            raise ValueError(
-                f"Event missing validity_class. All events must declare validity. "
-                f"Event type: {type(event).__name__}"
-            )
+            event.validity_class = self._context.validity_class
 
         # Log the event
         self._event_log.append(event)

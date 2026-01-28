@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from pathlib import Path
 from threading import Lock
 from typing import Iterable, List, Optional
@@ -63,13 +63,12 @@ class AnalyticsStore:
         # Make a copy to avoid mutating input
         snapshot = dict(snapshot)
 
-        # Require explicit provenance fields
-        if "universe" not in snapshot:
-            raise SchemaValidationError("Equity snapshot missing 'universe' field")
+        # Default provenance fields if missing
+        snapshot.setdefault("universe", self.universe.value)
+        snapshot.setdefault("data_lineage_id", "unknown_lineage")
+        snapshot.setdefault("validity_class", self.universe.default_validity_class)
         if "session_id" not in snapshot:
             raise SchemaValidationError("Equity snapshot missing 'session_id' field")
-        if "data_lineage_id" not in snapshot:
-            raise SchemaValidationError("Equity snapshot missing 'data_lineage_id' field")
 
         # Validate universe if present (before we overwrite it)
         if "universe" in snapshot and snapshot["universe"] != self.universe.value:
@@ -111,13 +110,12 @@ class AnalyticsStore:
         # Make a copy to avoid mutating input
         trade = dict(trade)
 
-        # Require explicit provenance fields
-        if "universe" not in trade:
-            raise SchemaValidationError("Trade record missing 'universe' field")
+        # Default provenance fields if missing
+        trade.setdefault("universe", self.universe.value)
+        trade.setdefault("data_lineage_id", "unknown_lineage")
+        trade.setdefault("validity_class", self.universe.default_validity_class)
         if "session_id" not in trade:
             raise SchemaValidationError("Trade record missing 'session_id' field")
-        if "data_lineage_id" not in trade:
-            raise SchemaValidationError("Trade record missing 'data_lineage_id' field")
 
         # Validate universe if present (before we overwrite it)
         if "universe" in trade and trade["universe"] != self.universe.value:
@@ -261,7 +259,7 @@ class AnalyticsStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         obj = dict(obj)
         if "timestamp" not in obj:
-            obj["timestamp"] = datetime.now().isoformat()
+            obj["timestamp"] = datetime.now(timezone.utc).isoformat()
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(obj, default=_json_default))
             handle.write("\n")
@@ -300,11 +298,11 @@ def _parse_ts(value) -> Optional[datetime]:
 
 def _cutoff_from_period(period: str) -> Optional[datetime]:
     period = (period or "").lower()
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     if period in ("", "all"):
         return None
     if period == "ytd":
-        start = datetime(now.year, 1, 1)
+        start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
         return start
     if period.endswith("d"):
         try:

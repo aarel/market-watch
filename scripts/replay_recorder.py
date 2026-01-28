@@ -13,7 +13,7 @@ Output:
 """
 import argparse
 import os
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 
 import pandas as pd
 import alpaca_trade_api as tradeapi
@@ -63,7 +63,7 @@ def main():
     parser.add_argument("--limit", type=int, default=390, help="Max bars to fetch")
     args = parser.parse_args()
 
-    tgt_date = datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else datetime.utcnow().date()
+    tgt_date = datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else datetime.now(timezone.utc).date()
     symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
 
     for sym in symbols:

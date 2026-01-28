@@ -2,7 +2,7 @@
 import asyncio
 import csv
 import os
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import Optional, Dict
 
 import config
@@ -48,7 +48,7 @@ class ReplayRecorderAgent(BaseAgent):
         # Record only when not in SIM mode; expect real broker data
         if self.universe == Universe.SIMULATION:
             return
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         out_dir = Path(get_data_path(self.universe, "replay"))
         os.makedirs(out_dir, exist_ok=True)
         symbols = self.symbols or []

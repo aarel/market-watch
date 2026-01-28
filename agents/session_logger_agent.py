@@ -2,7 +2,7 @@
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from .base import BaseAgent
@@ -58,7 +58,7 @@ class SessionLoggerAgent(BaseAgent):
             raise exc
 
         entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "universe": self.universe.value,
             "replay_enabled": getattr(config, "SIM_REPLAY_ENABLED", False),
             "portfolio_value": float(getattr(account, "portfolio_value", 0) or 0),
