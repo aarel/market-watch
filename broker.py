@@ -7,10 +7,12 @@ Alpaca has two APIs:
 Both use the same API keys. The alpaca-trade-api library handles both.
 Free tier uses IEX data feed, paid tier uses SIP (full market data).
 """
+from datetime import datetime, timedelta
+
 import alpaca_trade_api as tradeapi
 from alpaca_trade_api.rest import APIError
-from datetime import datetime, timedelta
 import pandas as pd
+
 import config
 from universe import Universe
 
@@ -18,16 +20,16 @@ from universe import Universe
 class AlpacaBroker:
     """Handles all interactions with Alpaca brokerage."""
 
-    def __init__(self, universe: Universe = None):
+    def __init__(self, universe: Universe, base_url: str | None = None):
         """
         Initialize Alpaca broker.
 
         Args:
-            universe: Execution universe (LIVE or PAPER). If None, determined from config.
+            universe: Execution universe (LIVE or PAPER), required.
+            base_url: Optional override; must match the universe.
         """
-        # Determine universe
-        if universe is None:
-            universe = Universe.PAPER if config.TRADING_MODE == "paper" else Universe.LIVE
+        if not isinstance(universe, Universe):
+            raise TypeError("AlpacaBroker requires a Universe enum")
 
         # Validate universe (Alpaca broker cannot be SIMULATION)
         if universe == Universe.SIMULATION:
@@ -38,11 +40,20 @@ class AlpacaBroker:
 
         self.universe = universe
 
+        expected_url = config.ALPACA_LIVE_URL if universe == Universe.LIVE else config.ALPACA_PAPER_URL
+        if base_url is None:
+            base_url = expected_url
+        elif base_url != expected_url:
+            raise ValueError(
+                f"AlpacaBroker base_url mismatch for {universe.value}: "
+                f"expected {expected_url}, got {base_url}"
+            )
+
         # Trading API client
         self.api = tradeapi.REST(
             config.ALPACA_API_KEY,
             config.ALPACA_SECRET_KEY,
-            config.get_alpaca_url(),
+            base_url,
             api_version='v2'
         )
         # Data feed: 'iex' (free) or 'sip' (paid subscription)

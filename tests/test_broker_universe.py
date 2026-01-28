@@ -39,9 +39,10 @@ class TestBrokerUniverseEnforcement(unittest.TestCase):
     @patch('broker.tradeapi.REST')
     @patch('broker.config.ALPACA_API_KEY', 'test_key')
     @patch('broker.config.ALPACA_SECRET_KEY', 'test_secret')
-    @patch('broker.config.get_alpaca_url', return_value='https://test.alpaca.markets')
+    @patch('broker.config.ALPACA_LIVE_URL', 'https://test-live.alpaca.markets')
+    @patch('broker.config.ALPACA_PAPER_URL', 'https://test-paper.alpaca.markets')
     @patch('broker.config.DATA_FEED', 'iex')
-    def test_alpaca_broker_accepts_live_universe(self, mock_url, mock_rest):
+    def test_alpaca_broker_accepts_live_universe(self, mock_rest):
         """AlpacaBroker accepts LIVE universe."""
         # Mock the API to avoid actual connection
         mock_api = MagicMock()
@@ -58,9 +59,10 @@ class TestBrokerUniverseEnforcement(unittest.TestCase):
     @patch('broker.tradeapi.REST')
     @patch('broker.config.ALPACA_API_KEY', 'test_key')
     @patch('broker.config.ALPACA_SECRET_KEY', 'test_secret')
-    @patch('broker.config.get_alpaca_url', return_value='https://test.alpaca.markets')
+    @patch('broker.config.ALPACA_LIVE_URL', 'https://test-live.alpaca.markets')
+    @patch('broker.config.ALPACA_PAPER_URL', 'https://test-paper.alpaca.markets')
     @patch('broker.config.DATA_FEED', 'iex')
-    def test_alpaca_broker_accepts_paper_universe(self, mock_url, mock_rest):
+    def test_alpaca_broker_accepts_paper_universe(self, mock_rest):
         """AlpacaBroker accepts PAPER universe."""
         # Mock the API to avoid actual connection
         mock_api = MagicMock()
@@ -77,9 +79,10 @@ class TestBrokerUniverseEnforcement(unittest.TestCase):
     @patch('broker.tradeapi.REST')
     @patch('broker.config.ALPACA_API_KEY', 'test_key')
     @patch('broker.config.ALPACA_SECRET_KEY', 'test_secret')
-    @patch('broker.config.get_alpaca_url', return_value='https://test.alpaca.markets')
+    @patch('broker.config.ALPACA_LIVE_URL', 'https://test-live.alpaca.markets')
+    @patch('broker.config.ALPACA_PAPER_URL', 'https://test-paper.alpaca.markets')
     @patch('broker.config.DATA_FEED', 'iex')
-    def test_alpaca_broker_rejects_simulation_universe(self, mock_url, mock_rest):
+    def test_alpaca_broker_rejects_simulation_universe(self, mock_rest):
         """AlpacaBroker rejects SIMULATION universe."""
         # Mock the API to avoid actual connection
         mock_api = MagicMock()

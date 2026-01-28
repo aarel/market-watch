@@ -63,6 +63,14 @@ class AnalyticsStore:
         # Make a copy to avoid mutating input
         snapshot = dict(snapshot)
 
+        # Require explicit provenance fields
+        if "universe" not in snapshot:
+            raise SchemaValidationError("Equity snapshot missing 'universe' field")
+        if "session_id" not in snapshot:
+            raise SchemaValidationError("Equity snapshot missing 'session_id' field")
+        if "data_lineage_id" not in snapshot:
+            raise SchemaValidationError("Equity snapshot missing 'data_lineage_id' field")
+
         # Validate universe if present (before we overwrite it)
         if "universe" in snapshot and snapshot["universe"] != self.universe.value:
             raise SchemaValidationError(
@@ -73,6 +81,10 @@ class AnalyticsStore:
 
         # Add/overwrite universe tag for provenance
         snapshot["universe"] = self.universe.value
+
+        # Default validity_class if missing
+        if "validity_class" not in snapshot:
+            snapshot["validity_class"] = self.universe.default_validity_class
 
         # Validate full schema
         self._validate_equity_schema(snapshot)
@@ -98,6 +110,14 @@ class AnalyticsStore:
 
         # Make a copy to avoid mutating input
         trade = dict(trade)
+
+        # Require explicit provenance fields
+        if "universe" not in trade:
+            raise SchemaValidationError("Trade record missing 'universe' field")
+        if "session_id" not in trade:
+            raise SchemaValidationError("Trade record missing 'session_id' field")
+        if "data_lineage_id" not in trade:
+            raise SchemaValidationError("Trade record missing 'data_lineage_id' field")
 
         # Validate universe if present (before we overwrite it)
         if "universe" in trade and trade["universe"] != self.universe.value:
@@ -169,6 +189,13 @@ class AnalyticsStore:
         if not snapshot["session_id"]:
             raise SchemaValidationError("Equity snapshot has empty 'session_id'")
 
+        # Validate data_lineage_id
+        if "data_lineage_id" not in snapshot:
+            raise SchemaValidationError("Equity snapshot missing 'data_lineage_id' field")
+
+        if not snapshot["data_lineage_id"]:
+            raise SchemaValidationError("Equity snapshot has empty 'data_lineage_id'")
+
     def _validate_trade_schema(self, trade: dict) -> None:
         """
         Validate trade record has required fields.
@@ -215,6 +242,16 @@ class AnalyticsStore:
                 f"Trade record has invalid 'side': '{trade['side']}'. "
                 f"Must be 'buy' or 'sell'"
             )
+
+        # Validate data lineage
+        if "data_lineage_id" not in trade:
+            raise SchemaValidationError("Trade record missing 'data_lineage_id' field")
+        if not trade["data_lineage_id"]:
+            raise SchemaValidationError("Trade record has empty 'data_lineage_id'")
+
+        # Validate validity_class
+        if "validity_class" not in trade or not trade["validity_class"]:
+            raise SchemaValidationError("Trade record missing 'validity_class' field")
 
     # --------------------
     # Helpers
