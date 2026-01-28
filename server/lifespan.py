@@ -35,16 +35,25 @@ async def lifespan(app: FastAPI):
     else:
         universe = Universe.LIVE
 
-    # Broker selection and initialization with universe
-    Broker = FakeBroker if universe == Universe.SIMULATION else AlpacaBroker
-    state.broker = Broker(universe=universe)
+    # Rebuild universe-bound components via factories
+    def broker_factory(u: Universe):
+        Broker = FakeBroker if u == Universe.SIMULATION else AlpacaBroker
+        return Broker(universe=u)
 
-    # Analytics store (universe-scoped)
-    state.analytics_store = AnalyticsStore(universe) if config.ANALYTICS_ENABLED else None
+    def analytics_factory(u: Universe):
+        return AnalyticsStore(u) if config.ANALYTICS_ENABLED else None
 
-    # Coordinator
-    state.coordinator = Coordinator(state.broker, analytics_store=state.analytics_store)
-    state.coordinator.set_broadcast_callback(ws_manager.broadcast)
+    def coordinator_factory(broker, store):
+        coord = Coordinator(broker, analytics_store=store, universe=universe)
+        coord.set_broadcast_callback(ws_manager.broadcast)
+        return coord
+
+    state.rebuild_for_universe(
+        universe,
+        broker_factory=broker_factory,
+        analytics_factory=analytics_factory,
+        coordinator_factory=coordinator_factory,
+    )
     # Connect agent events to websocket
     async def handle_market_data(event):
         agent_status = state.coordinator.status()
