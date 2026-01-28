@@ -246,6 +246,17 @@ def get_log_path(universe: Universe, filename: str) -> str:
     return f"logs/{universe.value}/{filename}"
 
 
+def get_system_log_path(universe: Universe, filename: str) -> str:
+    """
+    Get universe-scoped system/observability log file path.
+
+    Example:
+        >>> get_system_log_path(Universe.LIVE, "agent_events.jsonl")
+        'logs/live/system/agent_events.jsonl'
+    """
+    return f"logs/{universe.value}/system/{filename}"
+
+
 def get_shared_data_path(filename: str) -> str:
     """
     Get shared data file path (universe-agnostic).
