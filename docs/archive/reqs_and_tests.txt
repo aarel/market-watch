@@ -1,0 +1,9 @@
+python -m venv .venv && . .venv/bin/activate && python -m pip install -r requirements.txt
+
+python -m unittest tests.test_security tests.test_signals_updated tests.test_trade_interval tests.test_screener
+
+python server.py
+
+curl -X POST http://localhost:8000/api/config \
+    -H "Content-Type: application/json" \
+    -d '{"trade_interval": 5}'

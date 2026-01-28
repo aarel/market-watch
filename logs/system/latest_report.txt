@@ -1,0 +1,26 @@
+Observability Evaluation Report
+Generated: 2026-01-25T22:47:08.950534
+
+Summary
+- ok: 6
+- warn: 3
+- fail: 0
+- missing: 0
+
+Findings
+- [WARN] DataAgent.avg_interval_seconds: 419.3232323278418 (expected <= 90.0)
+  Market data refresh interval within 1.5x configured cadence
+- [WARN] ExecutionAgent.order_failure_ratio: 0.3802469135802469 (expected <= 0.1)
+  Order failures should be rare
+- [WARN] MonitorAgent.stop_loss_count: 23.0 (expected <= 5)
+  Stop-loss triggers should stay within normal bounds
+
+Event Counts
+- total: 3644
+- MarketDataReady: 608
+- SignalsUpdated: 270
+- RiskCheckPassed: 404
+- RiskCheckFailed: 765
+- OrderExecuted: 251
+- OrderFailed: 154
+- StopLossTriggered: 23

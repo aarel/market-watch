@@ -1,0 +1,3638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Watch Trading Bot</title>
+    <link rel="icon" type="image/png" href="/img/favicon.png?v=1.0.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Cache-busting token for static assets
+        const ASSET_VERSION = 'v1.0.1';
+    </script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-dim: #8b949e;
+            --green: #3fb950;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --yellow: #d29922;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        h1 { font-size: 24px; font-weight: 600; }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .status-badge.running { background: rgba(63,185,80,0.15); color: var(--green); }
+        .status-badge.stopped { background: rgba(248,81,73,0.15); color: var(--red); }
+        .status-badge.paper { background: rgba(210,153,34,0.15); color: var(--yellow); }
+        .status-badge.sim { background: rgba(210,153,34,0.15); color: var(--yellow); }
+        .status-badge.live { background: rgba(63,185,80,0.15); color: var(--green); }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .card.full {
+            grid-column: 1 / -1;
+            margin-bottom: 20px;
+        }
+        .card-full-gap {
+            margin-bottom: 24px;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin: 0;
+        }
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .pill-group {
+            display: inline-flex;
+            background: #0f141b;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .pill-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .pill-btn.active {
+            background: var(--blue);
+            color: #0d1117;
+            font-weight: 600;
+        }
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-top: 12px;
+        }
+        .analytics-summary {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .metric-card {
+            background: #10151d;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .metric-label {
+            color: var(--text-dim);
+            font-size: 12px;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .metric-value {
+            font-size: 22px;
+            font-weight: 600;
+        }
+        .metric-sub {
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+        .analytics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+        }
+        .analytics-table th, .analytics-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        .analytics-table th {
+            color: var(--text-dim);
+            font-size: 12px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .analytics-table td {
+            font-size: 13px;
+        }
+        .trend-positive { color: var(--green); }
+        .trend-negative { color: var(--red); }
+        @media (max-width: 900px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Tooltip Styles */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--border);
+            color: var(--text-dim);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: help;
+            position: relative;
+            font-style: normal;
+        }
+        .info-icon:hover {
+            background: var(--blue);
+            color: white;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-flex;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            z-index: 1000;
+            top: auto;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 400;
+            line-height: 1.5;
+            min-width: 220px;
+            max-width: 460px;
+            text-transform: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            transition: opacity 0.2s, visibility 0.2s;
+            white-space: normal;
+        }
+        /* Global symbol tooltip (not clipped by scroll) */
+        .symbol-tooltip-bubble {
+            position: fixed;
+            z-index: 3000;
+            background: #1f2937;
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.1s ease;
+            max-width: 260px;
+            white-space: nowrap;
+        }
+        .symbol-tooltip-bubble.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .tooltip .tooltip-text::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent;
+            border-top-color: #1f2937;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip-topbar .tooltip-text {
+            max-width: min(260px, calc(100vw - 24px));
+            left: auto;
+            right: 0;
+            transform: none;
+            bottom: auto;
+            top: calc(100% + 8px);
+        }
+        .tooltip-topbar .tooltip-text::after {
+            top: -8px;
+            bottom: 100%;
+            border-top-color: transparent;
+            border-bottom-color: #1f2937;
+        }
+        .tooltip-right .tooltip-text {
+            left: auto;
+            right: 0;
+            transform: none;
+        }
+        .tooltip-right .tooltip-text::after {
+            left: auto;
+            right: 16px;
+            transform: none;
+        }
+        .tooltip-left .tooltip-text {
+            left: 0;
+            transform: none;
+        }
+        .tooltip-left .tooltip-text::after {
+            left: 16px;
+            transform: none;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .stat:last-child { border-bottom: none; }
+        .stat-label {
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stat-value { font-weight: 600; font-family: monospace; }
+        .stat-value.positive { color: var(--green); }
+        .stat-value.negative { color: var(--red); }
+        .position-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        .position-symbol { font-weight: 600; font-size: 16px; }
+        .position-details { font-size: 13px; color: var(--text-dim); }
+        .signal-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+        .signal-action {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .signal-action.buy { background: rgba(63,185,80,0.2); color: var(--green); }
+        .signal-action.sell { background: rgba(248,81,73,0.2); color: var(--red); }
+        .signal-action.hold { background: rgba(139,148,158,0.2); color: var(--text-dim); }
+        .signal-symbol { font-weight: 600; min-width: 60px; }
+        .signal-reason { font-size: 13px; color: var(--text-dim); flex: 1; }
+
+        /* Trade button in signal row */
+        .trade-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .trade-btn:hover {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: white;
+        }
+
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .config-row:last-child { border-bottom: none; }
+        .config-label {
+            color: var(--text-dim);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .config-input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            color: var(--text);
+            width: 100px;
+            text-align: right;
+        }
+        .config-input:focus { outline: none; border-color: var(--blue); }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            position: relative;
+        }
+        .btn:hover { opacity: 0.8; }
+        .btn-primary { background: var(--blue); color: white; }
+        .btn-success { background: var(--green); color: white; }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-group { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+        .log-container {
+            height: 300px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: var(--bg);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 13px;
+            max-width: 100%;
+        }
+        .obs-log-container {
+            height: 220px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid var(--border); word-break: break-word; }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: var(--text-dim); }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 0 8px; }
+        .log-type.info { background: rgba(88,166,255,0.2); color: var(--blue); }
+        .log-type.trade { background: rgba(63,185,80,0.2); color: var(--green); }
+        .log-type.warning { background: rgba(210,153,34,0.2); color: var(--yellow); }
+        .log-type.error { background: rgba(248,81,73,0.2); color: var(--red); }
+        .log-type.config { background: rgba(139,148,158,0.2); color: var(--text-dim); }
+        .trade-history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .trade-history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+        }
+        .trade-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .trade-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .trade-symbol {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .trade-name {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+        .trade-tag {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .trade-tag.buy { background: rgba(63,185,80,0.2); color: var(--green); }
+        .trade-tag.sell { background: rgba(248,81,73,0.2); color: var(--red); }
+        .trade-tag.manual { background: rgba(88,166,255,0.2); color: var(--blue); }
+        .trade-tag.auto { background: rgba(210,153,34,0.2); color: var(--yellow); }
+        .trade-tag.unknown { background: rgba(139,148,158,0.2); color: var(--text-dim); }
+        .trade-status {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .trade-status.filled { background: rgba(63,185,80,0.15); color: var(--green); }
+        .trade-status.rejected,
+        .trade-status.canceled,
+        .trade-status.failed { background: rgba(248,81,73,0.15); color: var(--red); }
+        .trade-status.pending { background: rgba(210,153,34,0.15); color: var(--yellow); }
+        .trade-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+        .trade-reason {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--yellow);
+        }
+        .trade-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .trade-form select, .trade-form input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: var(--text);
+        }
+        .watchlist-input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: var(--text);
+            font-family: monospace;
+            margin-bottom: 8px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+        .help-text {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+        .config-error {
+            color: var(--red);
+            font-size: 12px;
+            margin: 6px 0 0;
+            display: none;
+        }
+        .config-error.visible {
+            display: block;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 360px;
+            max-width: 90vw;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background: var(--bg);
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover {
+            background: var(--red);
+            color: white;
+        }
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .modal-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-label {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+        .modal-value {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .modal-input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 16px;
+        }
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .modal-actions .btn {
+            flex: 1;
+            padding: 12px;
+        }
+        .modal-info {
+            font-size: 13px;
+            color: var(--text-dim);
+            background: var(--bg);
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        /* Agent status styles */
+        .agent-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px;
+        }
+        .agent-card {
+            background: var(--bg);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+        .agent-name {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+        .agent-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .agent-status.running {
+            background: rgba(63,185,80,0.2);
+            color: var(--green);
+        }
+        .agent-status.stopped {
+            background: rgba(248,81,73,0.2);
+            color: var(--red);
+        }
+        .agent-detail {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+        .risk-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .risk-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+        }
+        .risk-badge.ok { background: rgba(63,185,80,0.2); color: var(--green); }
+        .risk-badge.alert { background: rgba(248,81,73,0.2); color: var(--red); }
+        .obs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px;
+        }
+        .obs-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+        .obs-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+        }
+        .obs-value {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+        .obs-status.ok { color: var(--green); }
+        .obs-status.warn { color: var(--yellow); }
+        .obs-status.fail { color: var(--red); }
+        .obs-status.missing { color: var(--text-dim); }
+        .obs-findings {
+            margin-top: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+        }
+        .obs-error {
+            color: var(--red);
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .obs-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+        .obs-finding {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .obs-finding:last-child { border-bottom: none; }
+        .obs-finding-title {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .obs-finding-desc {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+        .obs-finding-value {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+            text-align: right;
+        }
+        .obs-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .obs-badge.ok { background: rgba(63,185,80,0.2); color: var(--green); }
+        .obs-badge.warn { background: rgba(210,153,34,0.2); color: var(--yellow); }
+        .obs-badge.fail { background: rgba(248,81,73,0.2); color: var(--red); }
+        .obs-badge.missing { background: rgba(139,148,158,0.2); color: var(--text-dim); }
+        .obs-full-width-metric {
+            grid-column: 1 / -1; /* Make it span all columns */
+            width: 100%;
+        }
+        .ticker {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0 20px;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, #111827, #0b1220);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .ticker-label {
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+        .ticker-viewport {
+            flex: 1;
+            overflow: hidden;
+        }
+        .ticker-track {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            white-space: nowrap;
+        }
+        .ticker-track.animate {
+            animation: ticker-scroll 30s linear infinite;
+        }
+        .ticker-item {
+            font-family: monospace;
+            font-size: 13px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+        }
+        .ticker-item.up { color: var(--green); }
+        .ticker-item.down { color: var(--red); }
+        .ticker-tooltip {
+            position: fixed;
+            z-index: 2000;
+            background: #1f2937;
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.12s, visibility 0.12s;
+        }
+        .ticker-tooltip.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scrollable-list {
+            position: relative;
+            max-height: 420px;
+            overflow-y: auto;
+            overflow-x: visible;
+            padding-right: 4px;
+        }
+        .trade-history-scroll {
+            position: relative;
+            max-height: 520px;
+            overflow-y: auto;
+            overflow-x: visible;
+        }
+
+        @keyframes ticker-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .tooltip .tooltip-text { width: 220px; }
+            .modal { min-width: 90vw; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <h1>Market Watch Trading Bot</h1>
+                <span class="tooltip tooltip-topbar">
+                    <i class="info-icon">?</i>
+                    <span class="tooltip-text">An automated trading bot that monitors stocks and executes trades based on momentum strategy. Currently using Alpaca's paper trading (fake money) to practice.</span>
+                </span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="market-strip" class="status-badge stopped">MARKET</span>
+                <span class="tooltip tooltip-left tooltip-topbar">
+                    <span id="sim-mode" class="status-badge stopped">SIM</span>
+                    <span class="tooltip-text">Execution mode. SIM = simulated broker. LIVE = real brokerage connection.</span>
+                </span>
+                <span class="tooltip tooltip-left tooltip-topbar">
+                    <span id="trading-mode" class="status-badge paper">PAPER</span>
+                    <span class="tooltip-text">Funding mode. PAPER = paper account (no real money). LIVE = real money at risk.</span>
+                </span>
+                <button class="status-badge stopped" id="bot-toggle" style="border:none; cursor:pointer;"
+                        onclick="toggleAutoTrade()">
+                    AUTO-TRADE
+                </button>
+                <span class="tooltip tooltip-left tooltip-topbar">
+                    <i class="info-icon">?</i>
+                    <span class="tooltip-text"><strong>Auto-Trading toggle:</strong> Green = On, Red = Off. Click to start/stop the bot without refreshing.</span>
+                </span>
+            </div>
+        </header>
+
+        <div class="ticker">
+            <div class="ticker-label">Top % Gainers</div>
+            <div class="ticker-viewport">
+                <div class="ticker-track" id="top-gainers-ticker">
+                    <span class="ticker-item">Loading...</span>
+                </div>
+            </div>
+        </div>
+        <div class="ticker">
+            <div class="ticker-label">Market Indices</div>
+            <div class="ticker-viewport">
+                <div class="ticker-track" id="market-indices-ticker">
+                    <span class="ticker-item">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents Card - Full Width -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+                <h2>Agents</h2>
+                <span class="tooltip">
+                    <i class="info-icon">?</i>
+                    <span class="tooltip-text">
+                        <strong>Trading bot agents:</strong><br><br>
+                        <strong>Data</strong> - Fetches market prices<br>
+                        <strong>Signal</strong> - Generates buy/sell signals<br>
+                        <strong>Risk</strong> - Validates trades<br>
+                        <strong>Execution</strong> - Submits orders<br>
+                        <strong>Monitor</strong> - Watches stop-loss<br>
+                        <strong>Alert</strong> - Sends notifications<br>
+                        <strong>Observability</strong> - Logs evaluations
+                    </span>
+                </span>
+            </div>
+            <div class="agent-grid" id="agents-grid">
+                <div class="agent-card">
+                    <div class="agent-name">Data</div>
+                    <span class="agent-status stopped">Loading</span>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-name">Signal</div>
+                    <span class="agent-status stopped">Loading</span>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-name">Risk</div>
+                    <span class="agent-status stopped">Loading</span>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-name">Execution</div>
+                    <span class="agent-status stopped">Loading</span>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-name">Monitor</div>
+                    <span class="agent-status stopped">Loading</span>
+                </div>
+                <div class="agent-card">
+                    <div class="agent-name">Alert</div>
+                    <span class="agent-status stopped">Loading</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card full card-full-gap">
+            <div class="card-header analytics-header">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h2>Analytics &amp; Reporting</h2>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Provides an overview of historical performance for your account, including an equity curve, key risk metrics, and a log of trades recorded in the analytics store.</span>
+                        </span>
+                    </div>
+                    <div class="help-text">Equity curve, basic risk stats, and recent trades for the selected period.</div>
+                </div>
+                <div class="pill-group" id="analytics-period">
+                    <button class="pill-btn active" data-period="30d">30D</button>
+                    <button class="pill-btn" data-period="90d">90D</button>
+                    <button class="pill-btn" data-period="ytd">YTD</button>
+                    <button class="pill-btn" data-period="all">ALL</button>
+                </div>
+            </div>
+            <div class="analytics-grid" style="grid-template-columns: 1fr; row-gap: 16px;">
+                <div>
+                    <canvas id="equity-chart" height="180"></canvas>
+                </div>
+                <div class="analytics-summary" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Return</div>
+                        <div class="metric-value" id="metric-return">--</div>
+                        <div class="metric-sub" id="metric-period">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Max Drawdown</div>
+                        <div class="metric-value" id="metric-dd">--</div>
+                        <div class="metric-sub">Peak-to-trough</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Volatility / Sharpe</div>
+                        <div class="metric-value" id="metric-vol">--</div>
+                        <div class="metric-sub" id="metric-sharpe">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Trades Logged</div>
+                        <div class="metric-value" id="metric-trades">--</div>
+                        <div class="metric-sub">Analytics store</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Trade Stats</div>
+                        <div class="metric-value" id="metric-trade-counts">--</div>
+                        <div class="metric-sub" id="metric-trade-notional">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Top Positions</div>
+                        <div class="metric-value" id="metric-top-positions">--</div>
+                        <div class="metric-sub" id="metric-top-positions-sub">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Position Concentration -->
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <h3 style="font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); margin: 0;">Position Concentration</h3>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Visual breakdown of portfolio allocation by position. Green segments are profitable positions, red are losses, blue are flat (breakeven). Percentages show weight in portfolio.</span>
+                        </span>
+                    </div>
+                    <div class="help-text">Portfolio allocation by position (green = profit, red = loss, blue = flat)</div>
+                </div>
+                <div style="max-width: 700px; margin: 0 auto;">
+                    <canvas id="position-pie-chart" height="400"></canvas>
+                </div>
+                <div id="position-pie-empty" class="empty-state" style="display: none;">No positions to display</div>
+            </div>
+
+            <!-- Trade Performance Analysis -->
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+                <div style="margin-bottom: 16px;">
+                    <h3 style="font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); margin: 0 0 8px 0;">Trade Performance Analysis</h3>
+                    <div class="help-text">Best and worst performing trades by realized P&L</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" id="trade-analysis-container">
+                    <div class="empty-state" style="grid-column: 1 / -1;">Analyzing trades...</div>
+                </div>
+            </div>
+
+            <div class="trade-history-scroll" style="max-height: 420px; margin-top: 24px;">
+                <div style="margin-bottom: 12px;">
+                    <h3 style="font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); margin: 0 0 4px 0;">Historical Trades (Analytics Log)</h3>
+                    <div class="help-text">Trades from analytics log, filtered by period. For live trades, see "Recent Trades" card below. <span style="color: var(--yellow);">Note: If analytics logging pauses, data may be stale.</span></div>
+                </div>
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Side</th>
+                            <th>Qty</th>
+                            <th>Filled Avg</th>
+                            <th>Notional</th>
+                            <th>Filled At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analytics-trades">
+                        <tr><td colspan="6" style="text-align:center; color: var(--text-dim);">Loading trades...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Account Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Account</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Your Alpaca brokerage account summary. In paper mode, you start with $100k fake money to practice trading strategies.</span>
+                    </span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">
+                        Portfolio Value
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Total value of your account: cash + value of all stock positions. This number goes up/down as stock prices change.</span>
+                        </span>
+                    </span>
+                    <span class="stat-value" id="portfolio-value">$0.00</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">
+                        Buying Power
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">How much you can spend on new trades. With margin accounts, this can be 2x your cash (leverage). Be careful with margin!</span>
+                        </span>
+                    </span>
+                    <span class="stat-value" id="buying-power">$0.00</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">
+                        Cash
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Actual cash in your account not invested in stocks. When you sell a position, this increases.</span>
+                        </span>
+                    </span>
+                    <span class="stat-value" id="cash">$0.00</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">
+                        Daily Trades
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Number of trades made today vs. the daily limit. Limits prevent over-trading and reduce risk of runaway losses.</span>
+                        </span>
+                    </span>
+                    <span class="stat-value" id="daily-trades">0 / 5</span>
+                </div>
+            </div>
+
+            <!-- Positions Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <h2>Positions</h2>
+                        <div class="help-text" id="positions-count">0 positions</div>
+                    </div>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Stocks you currently own. Shows quantity, purchase price, current value, and profit/loss (green = profit, red = loss). Click the trade icon to sell.</span>
+                    </span>
+                </div>
+                <div id="positions-list" class="scrollable-list">
+                    <div class="empty-state">No positions</div>
+                </div>
+            </div>
+
+            <!-- Signals Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Watchlist Signals</h2>
+                    <span class="tooltip tooltip-right">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">
+                            <strong>Trading signals for watched stocks:</strong><br><br>
+                            <span style="color: var(--green)">● BUY</span> = Momentum is strong, bot will buy<br>
+                            <span style="color: var(--red)">● SELL</span> = Momentum reversed or stop-loss hit<br>
+                            <span style="color: var(--text-dim)">● HOLD</span> = No action, momentum below threshold<br><br>
+                            Click the trade icon to manually trade.
+                        </span>
+                    </span>
+                </div>
+                <div id="signals-list" class="scrollable-list">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="grid" style="margin-bottom: 20px;">
+            <!-- Trades Card -->
+            <div class="card">
+                <div class="trade-history-header">
+                    <h2>Trades</h2>
+                    <div style="display: flex; gap: 8px; align-items:center;">
+                        <div class="help-text" id="trade-history-count">Showing 0 of 0</div>
+                        <button class="btn" style="background: rgba(139,148,158,0.15); color: var(--text-dim);" onclick="fetchTrades()">Refresh</button>
+                        <div class="tooltip">
+                            <button class="btn btn-primary" onclick="toggleExportMenu(event)">Export</button>
+                            <div class="tooltip-text" style="padding:8px;">
+                                <div style="display:flex; flex-direction:column; gap:6px;">
+                                    <button class="btn" style="width:100%;" onclick="exportTrades('csv')">CSV</button>
+                                    <button class="btn" style="width:100%;" onclick="exportTrades('json')">JSON</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="trade-history-scroll">
+                    <div class="trade-history-grid" id="trade-history">
+                        <div class="empty-state">No trades yet</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Activity Log -->
+            <div class="card" style="grid-column: span 2;">
+                <div class="card-header">
+                    <h2>Activity Log</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Real-time log of bot activity. Shows trades executed, errors, market status, and system events. Newest entries appear at the top.</span>
+                    </span>
+                </div>
+                <div class="log-container" id="log-container">
+                    <div class="empty-state">No activity yet</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-bottom: 20px;">
+            <!-- Observability Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Observability</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">
+                            Structured evaluation of agent behavior against expectations. Shows the latest evaluation run and any warnings or failures.
+                        </span>
+                    </span>
+                    <button class="btn" id="obs-run-btn" onclick="runObservabilityNow()" style="margin-left: auto; padding: 6px 12px; font-size: 12px; background: var(--border); color: var(--text);">
+                        Run Eval
+                    </button>
+                </div>
+                <div class="obs-full-width-metric obs-card" style="margin-bottom: 12px;">
+                    <div class="obs-label">Last Eval</div>
+                    <div class="obs-value" id="obs-last-run">-</div>
+                </div>
+                <div class="obs-grid" id="observability-summary">
+                    <div class="obs-card">
+                        <div class="obs-label">OK</div>
+                        <div class="obs-value obs-status ok" id="obs-ok">0</div>
+                    </div>
+                    <div class="obs-card">
+                        <div class="obs-label">Warn</div>
+                        <div class="obs-value obs-status warn" id="obs-warn">0</div>
+                    </div>
+                    <div class="obs-card">
+                        <div class="obs-label">Fail</div>
+                        <div class="obs-value obs-status fail" id="obs-fail">0</div>
+                    </div>
+                    <div class="obs-card">
+                        <div class="obs-label">Missing</div>
+                        <div class="obs-value obs-status missing" id="obs-missing">0</div>
+                    </div>
+                </div>
+                <div class="obs-error" id="obs-error"></div>
+                <div class="obs-findings" id="observability-findings">
+                    <div class="empty-state">No evaluation yet</div>
+                </div>
+            </div>
+            <!-- Risk Card -->
+            <div class="card" id="risk-card">
+                <div class="card-header">
+                    <h2>Risk & Limits</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Key risk controls: circuit breaker, daily trades, max open positions, and stop-loss health.</span>
+                    </span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">
+                        Circuit Breaker
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">If triggered, trading pauses until you reset it. Protects against runaway losses.</span>
+                        </span>
+                    </span>
+                    <span class="stat-value">
+                        <span class="risk-badge ok" id="risk-breaker-status">OK</span>
+                    </span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Open Positions</span>
+                    <span class="stat-value" id="risk-open-positions">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Daily Loss Limit</span>
+                    <span class="stat-value" id="risk-daily-loss">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Max Drawdown</span>
+                    <span class="stat-value" id="risk-max-dd">-</span>
+                </div>
+                <div class="help-text" id="risk-breaker-reason">-</div>
+                <div class="help-text" id="risk-breaker-activated">Last activated: -</div>
+                <div class="btn-group">
+                    <button class="btn" style="background: rgba(139,148,158,0.15); color: var(--text-dim);" onclick="resetCircuitBreaker()">Reset Circuit Breaker</button>
+                </div>
+            </div>
+            <!-- Observability Warnings -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Risk & Observability Alerts</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Latest WARN/FAIL events from the structured observability log (up to 30, showing ~10 with scroll). Use this to see why trades were blocked.</span>
+                    </span>
+                </div>
+                <div class="log-container obs-log-container" id="obs-log-container">
+                    <div class="empty-state">No warnings yet</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Config Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Configuration</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Adjust trading strategy parameters. Changes apply immediately but reset when the server restarts. For permanent changes, edit the .env file.</span>
+                    </span>
+                </div>
+
+                <div class="config-row">
+                    <span class="config-label">
+                        Strategy
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Trading Strategy:</strong><br><br>
+                            <strong>Momentum</strong> - Buy when price accelerating up<br>
+                            <strong>Mean Reversion</strong> - Buy dips, sell bounces<br>
+                            <strong>Breakout</strong> - Buy price breakouts from ranges<br>
+                            <strong>RSI</strong> - Buy oversold, sell overbought</span>
+                        </span>
+                    </span>
+                    <select class="config-input" style="width: 160px;" id="strategy">
+                        <option value="momentum">Momentum</option>
+                        <option value="mean_reversion">Mean Reversion</option>
+                        <option value="breakout">Breakout</option>
+                        <option value="rsi">RSI</option>
+                    </select>
+                </div>
+                <div class="config-error" id="error-strategy"></div>
+
+                <div class="config-row">
+                    <span class="config-label">
+                        Watchlist Mode
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Choose between a manual watchlist or a dynamic top gainers list. Top gainers auto-refresh every trade interval.</span>
+                        </span>
+                    </span>
+                    <select class="config-input" id="watchlist-mode">
+                        <option value="top_gainers">Top % Gainers</option>
+                        <option value="static">Manual</option>
+                    </select>
+                </div>
+                <div class="config-error" id="error-watchlist-mode"></div>
+
+                <div class="config-row" id="top-gainers-count-row">
+                    <span class="config-label">
+                        Top Gainers Count
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">How many symbols to include in the dynamic top gainers list. More symbols = more scanning and trades.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="top-gainers-count" step="1" min="1" value="20" />
+                </div>
+                <div class="config-error" id="error-top-gainers-count"></div>
+
+                <div class="config-row" id="top-gainers-universe-row">
+                    <span class="config-label">
+                        Top Gainers Universe
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Universe of symbols to screen for top gainers. Large Cap keeps liquidity high and noise lower.</span>
+                        </span>
+                    </span>
+                    <select class="config-input" id="top-gainers-universe">
+                        <option value="large_cap">Large Cap (liquid)</option>
+                    </select>
+                </div>
+                <div class="config-error" id="error-top-gainers-universe"></div>
+                <div class="config-row" id="top-gainers-min-price-row">
+                    <span class="config-label">
+                        Min Price ($)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Filter out low-priced tickers when scanning top gainers.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="top-gainers-min-price" step="0.5" min="0" value="5" />
+                </div>
+                <div class="config-error" id="error-top-gainers-min-price"></div>
+                <div class="config-row" id="top-gainers-min-volume-row">
+                    <span class="config-label">
+                        Min Volume
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Ignore illiquid names by requiring minimum daily volume.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="top-gainers-min-volume" step="100000" min="0" value="1000000" />
+                </div>
+                <div class="config-error" id="error-top-gainers-min-volume"></div>
+
+                <div class="config-row">
+                    <span class="config-label">
+                        Watchlist
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Stock symbols to monitor, separated by commas. Disabled when using top gainers mode.</span>
+                        </span>
+                    </span>
+                </div>
+                <input type="text" class="watchlist-input" id="watchlist" placeholder="SPY, QQQ, AAPL" />
+                <div class="config-error" id="error-watchlist"></div>
+
+                <div class="config-row">
+                    <span class="config-label">
+                        Buy Threshold
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Momentum % to trigger a BUY.</strong><br><br>If a stock's 20-day momentum exceeds this %, the bot buys. Higher = fewer trades but stronger signals. Lower = more trades but riskier.<br><br>Example: 2% means buy if stock is up 2%+ over 20 days.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="momentum-threshold" step="0.5" value="2" />
+                </div>
+                <div class="config-error" id="error-momentum-threshold"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Sell Threshold
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Momentum % to trigger a SELL.</strong><br><br>If momentum drops below this (usually negative), the bot sells. This catches trend reversals before big losses.<br><br>Example: -1% means sell if momentum goes negative.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="sell-threshold" step="0.5" value="-1" />
+                </div>
+                <div class="config-error" id="error-sell-threshold"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Stop Loss
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Maximum loss % before automatic sell.</strong><br><br>If a position drops this much from your entry price, the bot sells immediately to prevent bigger losses. Essential risk management!<br><br>Example: 5% means sell if down 5% from purchase.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="stop-loss" step="0.5" value="5" />
+                </div>
+                <div class="config-error" id="error-stop-loss"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Max Position
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Maximum % of portfolio in one stock.</strong><br><br>Prevents putting all your eggs in one basket. If set to 50%, the bot won't put more than half your portfolio in any single stock.<br><br>Lower = safer but slower gains. <strong>HIGH RISK: 100% = all-in!</strong></span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="max-position" step="5" min="0" max="100" value="50" />
+                </div>
+                <div class="config-error" id="error-max-position"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Max Daily Trades
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Maximum trades per day.</strong><br><br>Safety limit to prevent runaway trading. Conservative = 5, Aggressive = 20+. Resets daily at market open.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="max-daily-trades" step="1" min="1" value="5" />
+                </div>
+                <div class="config-error" id="error-max-daily-trades"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Max Open Positions
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Hard cap on concurrent holdings. Buys are blocked once this count is reached.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="max-open-positions" step="1" min="1" value="10" />
+                </div>
+                <div class="config-error" id="error-max-open-positions"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Daily Loss Limit (%)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Pauses buys when portfolio drops more than this percent intraday.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="daily-loss-limit" step="0.1" min="0" value="3" />
+                </div>
+                <div class="config-error" id="error-daily-loss-limit"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Max Drawdown (%)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Circuit breaker trigger based on peak-to-trough decline.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="max-drawdown-limit" step="0.1" min="0" value="15" />
+                </div>
+                <div class="config-error" id="error-max-drawdown-limit"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Max Sector Exposure (%)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Caps total portfolio weight in any single sector. Raise if you want fewer rejections when signals cluster in one sector.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="max-sector-exposure" step="1" min="0" max="100" value="80" />
+                </div>
+                <div class="config-error" id="error-max-sector-exposure"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Max Correlated Exposure (%)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Caps total weight in highly correlated positions. Increase to reduce correlation-based blocks.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="max-correlated-exposure" step="1" min="0" max="100" value="80" />
+                </div>
+                <div class="config-error" id="error-max-correlated-exposure"></div>
+                <div class="config-row">
+                    <span class="config-label">
+                        Trade Interval
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Minutes between trading cycles.</strong><br><br>How often the bot checks signals and executes trades. Lower = more responsive but more API calls. Higher = calmer trading.<br><br>15-30 min is typical for momentum strategies.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="trade-interval" step="5" value="5" />
+                </div>
+                <div class="config-error" id="error-trade-interval"></div>
+                <div class="btn-group" style="display: flex; gap: 8px;">
+                    <span class="tooltip">
+                        <button class="btn" style="background: rgba(139,148,158,0.15); color: var(--text-dim);" onclick="resetToDefaults()">Reset Defaults</button>
+                        <span class="tooltip-text">Reset all configuration to recommended default values.</span>
+                    </span>
+                    <span class="tooltip">
+                        <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
+                        <span class="tooltip-text">Apply these settings immediately. Note: Changes are saved and persist across restarts.</span>
+                    </span>
+                </div>
+                <div class="config-error" id="error-config"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="ticker-tooltip" id="ticker-tooltip"></div>
+    <div class="symbol-tooltip-bubble" id="symbol-tooltip"></div>
+
+    <!-- Trade Modal -->
+    <div class="modal-overlay" id="trade-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Manual Trade</h3>
+                <button class="modal-close" onclick="closeTradeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-row">
+                    <span class="modal-label">Symbol</span>
+                    <span class="modal-value" id="modal-symbol">-</span>
+                </div>
+                <div class="modal-row">
+                    <span class="modal-label">Current Price</span>
+                    <span class="modal-value" id="modal-price">-</span>
+                </div>
+                <div class="modal-row">
+                    <span class="modal-label">Signal</span>
+                    <span class="modal-value" id="modal-signal">-</span>
+                </div>
+                <div class="modal-info" id="modal-reason">-</div>
+
+                <div>
+                    <label class="modal-label">Action</label>
+                    <select id="modal-action" class="modal-input" style="margin-top: 8px;">
+                        <option value="buy">BUY</option>
+                        <option value="sell">SELL</option>
+                    </select>
+                </div>
+
+                <div class="modal-row" style="margin-top: 12px;">
+                    <span class="modal-label">Sizing Mode</span>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label><input type="radio" name="modal-size-mode" value="notional" checked /> $ Notional</label>
+                        <label><input type="radio" name="modal-size-mode" value="qty" /> Shares</label>
+                    </div>
+                </div>
+
+                <div id="modal-amount-container">
+                    <label class="modal-label" id="modal-amount-label">Amount ($)</label>
+                    <input type="number" id="modal-amount" class="modal-input" placeholder="Enter amount" step="1" min="0.01" style="margin-top: 8px;" />
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="executeTradeFromModal()">Execute Trade</button>
+                    <button class="btn" style="background: var(--border);" onclick="closeTradeModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectTimer = null;
+        let currentWatchlist = [];
+        let currentPositions = [];
+        let currentSignals = [];
+        let currentTopGainers = [];
+        let currentMarketIndices = [];
+        let currentConfig = null;
+        let currentAgentStatus = null;
+        let apiToken = localStorage.getItem('apiToken') || '';
+        let assetNames = {};
+        let assetNamePending = new Set();
+        let tradeRefreshTimer = null;
+        let analyticsChart = null;
+        let positionPieChart = null;
+        let analyticsPeriod = '30d';
+        let analyticsEquity = [];
+        const tickerScrollSpeed = 30; // pixels per second
+        const tickerStates = new Map();
+
+        function setApiToken(token) {
+            apiToken = token;
+            if (apiToken) {
+                localStorage.setItem('apiToken', apiToken);
+            } else {
+                localStorage.removeItem('apiToken');
+            }
+            if (ws) {
+                ws.close();
+            } else {
+                connectWebSocket();
+            }
+        }
+
+        async function apiFetch(url, options = {}, retry = true) {
+            const headers = Object.assign({}, options.headers || {});
+            if (apiToken) {
+                headers['X-API-Key'] = apiToken;
+            }
+            // Cache-busting for relative API calls
+            if (url.startsWith('/') && !url.includes('_v=')) {
+                const sep = url.includes('?') ? '&' : '?';
+                url = `${url}${sep}_v=${ASSET_VERSION}`;
+            }
+            const response = await fetch(url, Object.assign({}, options, { headers }));
+            if ((response.status === 401 || response.status === 403) && retry) {
+                const token = prompt('Enter API token for this session:');
+                if (token) {
+                    setApiToken(token.trim());
+                    return apiFetch(url, options, false);
+                }
+            }
+            return response;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatNumber(value, digits = 2) {
+            const num = Number(value);
+            if (!Number.isFinite(num)) return '-';
+            return num.toFixed(digits);
+        }
+
+        function formatMoney(value) {
+            const num = Number(value);
+            if (!Number.isFinite(num)) return '-';
+            return `$${num.toFixed(2)}`;
+        }
+
+        function formatPercent(value, digits = 1, showSign = true) {
+            const num = Number(value);
+            if (!Number.isFinite(num)) return '-';
+            const sign = showSign && num > 0 ? '+' : '';
+            return `${sign}${num.toFixed(digits)}%`;
+        }
+
+        function stopTickerScroll(id) {
+            const state = tickerStates.get(id);
+            if (state && state.raf) {
+                cancelAnimationFrame(state.raf);
+            }
+            tickerStates.delete(id);
+        }
+
+        function startTickerScroll(id, viewport, track) {
+            stopTickerScroll(id);
+            if (!viewport || !track) return;
+            const loopWidth = Number(track.dataset.loopWidth) || Math.max(track.scrollWidth / 2, 1);
+            const state = { viewport, track, lastTs: null, raf: null, loopWidth };
+
+            const step = (ts) => {
+                if (!state.lastTs) {
+                    state.lastTs = ts;
+                }
+                const delta = ts - state.lastTs;
+                state.lastTs = ts;
+                const increment = (tickerScrollSpeed * delta) / 1000;
+                state.viewport.scrollLeft += increment;
+                if (state.viewport.scrollLeft >= state.loopWidth) {
+                    state.viewport.scrollLeft -= state.loopWidth;
+                }
+                state.raf = requestAnimationFrame(step);
+            };
+
+            state.raf = requestAnimationFrame(step);
+            tickerStates.set(id, state);
+        }
+
+        function buildTickerLoop(track, viewport, itemsHtml, id) {
+            if (!track || !viewport) return;
+            if (!itemsHtml) {
+                track.innerHTML = '<span class="ticker-item">No data</span>';
+                stopTickerScroll(id);
+                return;
+            }
+            track.innerHTML = itemsHtml;
+            const baseWidth = track.scrollWidth;
+            if (!baseWidth) {
+                stopTickerScroll(id);
+                return;
+            }
+            const targetWidth = viewport.clientWidth * 2;
+            const repeats = Math.max(2, Math.ceil(targetWidth / baseWidth));
+            if (repeats > 1) {
+                track.innerHTML = itemsHtml.repeat(repeats);
+            }
+            track.dataset.loopWidth = String(baseWidth);
+            viewport.scrollLeft = 0;
+            startTickerScroll(id, viewport, track);
+        }
+
+        async function parseErrorResponse(res, fallbackPrefix) {
+            let message = `${fallbackPrefix} (HTTP ${res.status})`;
+            try {
+                const data = await res.json();
+                if (data.detail) {
+                    message = data.detail;
+                } else if (data.message) {
+                    message = data.message;
+                }
+            } catch (err) {
+                // Ignore JSON parsing errors and keep fallback message
+            }
+            return message;
+        }
+
+        const configErrorMappings = [
+            { tokens: ['watchlist_mode', 'watchlist mode'], field: 'watchlist-mode' },
+            { tokens: ['top_gainers_count', 'top gainers count'], field: 'top-gainers-count' },
+            { tokens: ['top_gainers_universe', 'top gainers universe'], field: 'top-gainers-universe' },
+            { tokens: ['momentum_threshold', 'momentum threshold', 'buy threshold'], field: 'momentum-threshold' },
+            { tokens: ['sell_threshold', 'sell threshold'], field: 'sell-threshold' },
+            { tokens: ['stop_loss_pct', 'stop loss'], field: 'stop-loss' },
+            { tokens: ['max_position_pct', 'max position'], field: 'max-position' },
+            { tokens: ['max_daily_trades', 'max daily trades'], field: 'max-daily-trades' },
+            { tokens: ['trade_interval', 'trade interval'], field: 'trade-interval' },
+            { tokens: ['strategy'], field: 'strategy' },
+            { tokens: ['watchlist'], field: 'watchlist' },
+        ];
+
+        function clearConfigErrors() {
+            document.querySelectorAll('.config-error').forEach(el => {
+                el.textContent = '';
+                el.classList.remove('visible');
+            });
+        }
+
+        function clearConfigErrorForField(fieldId) {
+            const el = document.getElementById(`error-${fieldId}`);
+            if (!el) return;
+            el.textContent = '';
+            el.classList.remove('visible');
+        }
+
+        function showConfigError(fieldId, message) {
+            const targetId = fieldId ? `error-${fieldId}` : 'error-config';
+            let el = document.getElementById(targetId);
+            if (!el) {
+                el = document.getElementById('error-config');
+            }
+            if (!el) return;
+            el.textContent = message;
+            el.classList.add('visible');
+        }
+
+        function findConfigErrorField(message) {
+            const lower = (message || '').toLowerCase();
+            for (const mapping of configErrorMappings) {
+                if (mapping.tokens.some(token => lower.includes(token))) {
+                    return mapping.field;
+                }
+            }
+            return null;
+        }
+
+        function showConfigErrorFromMessage(message) {
+            const field = findConfigErrorField(message);
+            if (field) {
+                showConfigError(field, message);
+            } else {
+                showConfigError('config', message);
+            }
+        }
+
+        function wireConfigErrorClears() {
+            const fieldIds = [
+                'strategy',
+                'watchlist-mode',
+                'top-gainers-count',
+                'top-gainers-universe',
+                'watchlist',
+                'momentum-threshold',
+                'sell-threshold',
+                'stop-loss',
+                'max-position',
+                'max-daily-trades',
+                'trade-interval',
+            ];
+            fieldIds.forEach((fieldId) => {
+                const el = document.getElementById(fieldId);
+                if (!el) return;
+                const clear = () => {
+                    clearConfigErrorForField(fieldId);
+                    clearConfigErrorForField('config');
+                };
+                el.addEventListener('input', clear);
+                el.addEventListener('change', clear);
+            });
+        }
+
+        async function ensureAssetNames(symbols) {
+            const unique = [...new Set((symbols || []).filter(Boolean))];
+            const missing = unique.filter(s => !assetNames[s] && !assetNamePending.has(s));
+            if (missing.length === 0) return false;
+            missing.forEach(s => assetNamePending.add(s));
+            try {
+                const res = await apiFetch(`/api/assets/names?symbols=${encodeURIComponent(missing.join(','))}`);
+                if (!res.ok) return false;
+                const data = await res.json();
+                const names = data.names || {};
+                missing.forEach(symbol => {
+                    assetNames[symbol] = names[symbol] || 'Name unavailable';
+                });
+                return true;
+            } catch (err) {
+                console.error('Failed to fetch asset names:', err);
+                return false;
+            } finally {
+                missing.forEach(s => assetNamePending.delete(s));
+            }
+        }
+
+        function buildSymbolTooltip(symbol, extraClass = '') {
+            return `<span class="symbol-tooltip ${extraClass}" data-symbol="${escapeHtml(symbol)}">${escapeHtml(symbol)}</span>`;
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const tokenParam = apiToken ? `?token=${encodeURIComponent(apiToken)}` : '';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws${tokenParam}`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                clearTimeout(reconnectTimer);
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleMessage(msg);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected, reconnecting...');
+                reconnectTimer = setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+        }
+
+        function handleMessage(msg) {
+            if (msg.event === 'status') {
+                updateStatus(msg);
+            } else if (msg.event === 'signals') {
+                updateSignals(msg.signals);
+            } else if (msg.event === 'log') {
+                appendLog(msg.entry);
+                if (msg.entry && (msg.entry.type === 'trade' || (msg.entry.type === 'error' && (msg.entry.message || '').startsWith('Order failed')))) {
+                    scheduleTradesRefresh();
+                }
+            } else if (msg.event === 'observability') {
+                updateObservability({ latest: msg.data });
+            } else if (msg.event === 'agents') {
+                updateAgents(msg.status);
+            }
+        }
+
+        function updateStatus(data) {
+            // Account
+            document.getElementById('portfolio-value').textContent = `$${data.account.portfolio_value.toFixed(2)}`;
+            document.getElementById('buying-power').textContent = `$${data.account.buying_power.toFixed(2)}`;
+            document.getElementById('cash').textContent = `$${data.account.cash.toFixed(2)}`;
+            const maxDailyTrades = data.bot.max_daily_trades ?? '-';
+            document.getElementById('daily-trades').textContent = maxDailyTrades === '-'
+                ? `${data.bot.daily_trades}`
+                : `${data.bot.daily_trades} / ${maxDailyTrades}`;
+            // Market status strip - GREEN=OPEN, RED=CLOSED
+            const marketStrip = document.getElementById('market-strip');
+            if (marketStrip && data.market_open !== undefined) {
+                marketStrip.textContent = data.market_open ? 'MARKET OPEN' : 'MARKET CLOSED';
+                marketStrip.className = data.market_open ? 'status-badge running' : 'status-badge stopped';
+            }
+
+            // SIM mode - GREEN=ON, RED=OFF
+            const simMode = document.getElementById('sim-mode');
+            if (simMode) {
+                const isSim = !!data.simulation || (data.bot && data.bot.trading_mode === 'paper');
+                simMode.textContent = isSim ? 'SIM ON' : 'SIM OFF';
+                simMode.className = isSim ? 'status-badge running' : 'status-badge stopped';
+            }
+
+            // Auto-trade - GREEN=ON, RED=OFF
+            const autoToggle = document.getElementById('bot-toggle');
+            if (autoToggle) {
+                autoToggle.textContent = data.bot.auto_trade ? 'AUTO-TRADE ON' : 'AUTO-TRADE OFF';
+                autoToggle.className = data.bot.auto_trade ? 'status-badge running' : 'status-badge stopped';
+            }
+
+            // Positions
+            updatePositions(data.positions || []);
+
+            // Config
+            if (data.config) {
+                currentConfig = data.config;
+                document.getElementById('watchlist').value = data.config.watchlist.join(', ');
+                document.getElementById('momentum-threshold').value = (data.config.momentum_threshold * 100).toFixed(1);
+                document.getElementById('sell-threshold').value = (data.config.sell_threshold * 100).toFixed(1);
+                document.getElementById('stop-loss').value = (data.config.stop_loss_pct * 100).toFixed(1);
+                document.getElementById('max-position').value = (data.config.max_position_pct * 100).toFixed(0);
+                document.getElementById('trade-interval').value = data.config.trade_interval;
+                if (data.config.max_open_positions !== undefined) {
+                    document.getElementById('max-open-positions').value = data.config.max_open_positions;
+                }
+                if (data.config.daily_loss_limit_pct !== undefined) {
+                    document.getElementById('daily-loss-limit').value = (data.config.daily_loss_limit_pct * 100).toFixed(1);
+                }
+                if (data.config.max_drawdown_pct !== undefined) {
+                    document.getElementById('max-drawdown-limit').value = (data.config.max_drawdown_pct * 100).toFixed(1);
+                }
+                if (data.config.max_sector_exposure_pct !== undefined) {
+                    document.getElementById('max-sector-exposure').value = (data.config.max_sector_exposure_pct * 100).toFixed(0);
+                }
+                if (data.config.max_correlated_exposure_pct !== undefined) {
+                    document.getElementById('max-correlated-exposure').value = (data.config.max_correlated_exposure_pct * 100).toFixed(0);
+                }
+                if (data.config.top_gainers_min_price !== undefined) {
+                    document.getElementById('top-gainers-min-price').value = data.config.top_gainers_min_price;
+                }
+                if (data.config.top_gainers_min_volume !== undefined) {
+                    document.getElementById('top-gainers-min-volume').value = data.config.top_gainers_min_volume;
+                }
+                updateWatchlistDropdown(data.config.watchlist);
+            }
+
+            if (data.top_gainers !== undefined) {
+                updateTopGainers(data.top_gainers);
+            }
+            if (data.market_indices !== undefined) {
+                updateMarketIndices(data.market_indices);
+            }
+
+            if (data.expectations && !currentAgentStatus) {
+                currentAgentStatus = { expectations: data.expectations };
+                updateRiskPanel();
+            }
+        }
+
+        function buildSymbolOptions(label, symbols) {
+            if (!symbols.length) return '';
+            return `<optgroup label="${label}">${symbols.map(s => `<option value="${s}">${s}</option>`).join('')}</optgroup>`;
+        }
+
+        function setTradeSymbolOptions(symbols = null) {
+            const signalSymbols = symbols || currentSignals.map(s => s.symbol);
+            const seen = new Set();
+            const unique = (arr) => arr.filter((s) => {
+                if (!s || seen.has(s)) return false;
+                seen.add(s);
+                return true;
+            });
+
+            const holdings = unique(currentPositions.map(p => p.symbol));
+            const watchlist = unique(currentWatchlist);
+            const signals = unique(signalSymbols);
+            const list = [...holdings, ...watchlist, ...signals];
+            const select = document.getElementById('trade-symbol');
+            if (!select) return;
+            const currentValue = select.value;
+            const groupedHtml = [
+                buildSymbolOptions('Holdings', holdings),
+                buildSymbolOptions('Watchlist', watchlist),
+                buildSymbolOptions('Signals', signals),
+            ].join('');
+            select.innerHTML = groupedHtml || '<option value="">No symbols available</option>';
+            if (list.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        function updateWatchlistDropdown(watchlist) {
+            currentWatchlist = watchlist;
+            setTradeSymbolOptions(watchlist);
+        }
+
+        function renderPositions(positions) {
+            const positionsList = document.getElementById('positions-list');
+            const countLabel = document.getElementById('positions-count');
+            if (!positions || positions.length === 0) {
+                positionsList.innerHTML = '<div class="empty-state">No positions - the bot hasn\'t bought anything yet</div>';
+                if (countLabel) countLabel.textContent = '0 positions';
+                return;
+            }
+            const maxOpen = currentConfig?.max_open_positions;
+            if (countLabel) {
+                countLabel.textContent = `${positions.length} position${positions.length === 1 ? '' : 's'}${Number.isInteger(maxOpen) ? ' / ' + maxOpen : ''}`;
+            }
+
+            positionsList.innerHTML = positions.map(p => {
+                const price = p.qty ? p.market_value / p.qty : 0;
+                return `
+                    <div class="position-row">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button class="trade-btn" onclick="openTradeModal('${p.symbol}', ${price}, 'sell')" title="Sell ${p.symbol}">
+                                <span>$</span>
+                            </button>
+                            <div>
+                                <div class="position-symbol">${buildSymbolTooltip(p.symbol)}</div>
+                                <div class="position-details">${formatNumber(p.qty, 4)} shares @ ${formatMoney(p.avg_entry_price)}</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right">
+                            <div class="stat-value ${p.unrealized_pl >= 0 ? 'positive' : 'negative'}">
+                                ${formatMoney(p.unrealized_pl)} (${formatNumber(p.unrealized_plpc, 1)}%)
+                            </div>
+                            <div class="position-details">${formatMoney(p.market_value)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function updatePositions(positions) {
+            currentPositions = positions || [];
+            setTradeSymbolOptions();
+            renderPositions(positions);
+            updateRiskPanel();
+            const updated = await ensureAssetNames((positions || []).map(p => p.symbol));
+            if (updated) {
+                renderPositions(positions);
+            }
+        }
+
+        function updateAgents(status) {
+            if (!status || !status.agents) return;
+
+            const agents = status.agents;
+            const expectations = status.expectations || {};
+            const expectationCount = (name) => {
+                const list = expectations[name] || [];
+                return list.length ? list.length : 0;
+            };
+            const detailWithExp = (detail, expName) => {
+                const count = expectationCount(expName);
+                if (!count) return detail || '';
+                return detail ? `${detail} · Exp: ${count}` : `Exp: ${count}`;
+            };
+            const agentInfo = {
+                data: { name: 'Data', detail: detailWithExp(agents.data?.last_fetch ? 'Last: ' + new Date(agents.data.last_fetch).toLocaleTimeString() : '', 'DataAgent') },
+                signal: { name: 'Signal', detail: detailWithExp(agents.signal?.actionable ? agents.signal.actionable + ' actionable' : '', 'SignalAgent') },
+                risk: { name: 'Risk', detail: detailWithExp(agents.risk ? agents.risk.daily_trades + '/' + agents.risk.max_daily_trades + ' trades' : '', 'RiskAgent') },
+                execution: { name: 'Execution', detail: detailWithExp(agents.execution?.orders_executed ? agents.execution.orders_executed + ' executed' : '', 'ExecutionAgent') },
+                monitor: { name: 'Monitor', detail: detailWithExp(agents.monitor?.last_check ? 'Last: ' + new Date(agents.monitor.last_check).toLocaleTimeString() : '', 'MonitorAgent') },
+                alert: { name: 'Alert', detail: detailWithExp(agents.alert?.log_entries ? agents.alert.log_entries + ' logs' : '', 'AlertAgent') },
+                observability: {
+                    name: 'Observability',
+                    detail: detailWithExp(agents.observability?.enabled === false ? 'Disabled' : (agents.observability?.running ? 'Logging' : ''), 'ObservabilityAgent')
+                }
+            };
+
+            const grid = document.getElementById('agents-grid');
+            grid.innerHTML = Object.entries(agentInfo).map(([key, info]) => {
+                const agent = agents[key];
+                const running = agent?.running ?? false;
+                return `
+                    <div class="agent-card">
+                        <div class="agent-name">${info.name}</div>
+                        <span class="agent-status ${running ? 'running' : 'stopped'}">${running ? 'Running' : 'Stopped'}</span>
+                        <div class="agent-detail">${info.detail}</div>
+                    </div>
+                `;
+            }).join('');
+
+            currentAgentStatus = status;
+            updateRiskPanel();
+        }
+
+        function renderSignals(signals) {
+            currentSignals = signals;
+            const signalsList = document.getElementById('signals-list');
+            if (!signals || signals.length === 0) {
+                signalsList.innerHTML = '<div class="empty-state">No signals - add stocks to watchlist</div>';
+                return;
+            }
+
+            setTradeSymbolOptions([...new Set(signals.map(s => s.symbol))]);
+
+            signalsList.innerHTML = signals.map(s => `
+                <div class="signal-row">
+                    <button class="trade-btn" onclick="openTradeModalFromSignal('${s.symbol}')" title="Trade ${s.symbol}">
+                        <span>$</span>
+                    </button>
+                    <span class="signal-action ${s.action}">${escapeHtml(s.action)}</span>
+                    <span class="signal-symbol">${buildSymbolTooltip(s.symbol)}</span>
+                    <span class="signal-reason">${escapeHtml(s.reason)}</span>
+                    <span class="stat-value">${formatMoney(s.current_price)}</span>
+                </div>
+            `).join('');
+        }
+
+        async function updateSignals(signals) {
+            renderSignals(signals);
+            const updated = await ensureAssetNames((signals || []).map(s => s.symbol));
+            if (updated) {
+                renderSignals(signals);
+            }
+        }
+
+        function renderTopGainers(gainers) {
+            const track = document.getElementById('top-gainers-ticker');
+            if (!track) return;
+            const viewport = track.closest('.ticker-viewport');
+
+            if (!gainers || gainers.length === 0) {
+                track.innerHTML = '<span class="ticker-item">No top gainers data</span>';
+                stopTickerScroll('top-gainers-ticker');
+                return;
+            }
+
+            const seen = new Set();
+            const items = gainers.filter(g => {
+                if (!g || !g.symbol || seen.has(g.symbol)) return false;
+                seen.add(g.symbol);
+                return true;
+            }).map(g => {
+                const pct = (g.change_pct * 100).toFixed(2);
+                const cls = g.change_pct >= 0 ? 'up' : 'down';
+                return `<span class="ticker-item ${cls}" data-symbol="${escapeHtml(g.symbol)}">${escapeHtml(g.symbol)} ${pct}%</span>`;
+            }).join('');
+
+            buildTickerLoop(track, viewport, items, 'top-gainers-ticker');
+        }
+
+        function renderMarketIndices(indices) {
+            const track = document.getElementById('market-indices-ticker');
+            if (!track) return;
+            const viewport = track.closest('.ticker-viewport');
+
+            if (!indices || indices.length === 0) {
+                track.innerHTML = '<span class="ticker-item">No market index data</span>';
+                stopTickerScroll('market-indices-ticker');
+                return;
+            }
+
+            const items = indices.map(entry => {
+                const pct = (entry.change_pct * 100).toFixed(2);
+                const cls = entry.change_pct >= 0 ? 'up' : 'down';
+                return `<span class="ticker-item ${cls}" data-symbol="${escapeHtml(entry.symbol)}">${escapeHtml(entry.symbol)} ${pct}%</span>`;
+            }).join('');
+
+            buildTickerLoop(track, viewport, items, 'market-indices-ticker');
+        }
+
+        async function updateTopGainers(gainers) {
+            currentTopGainers = gainers || [];
+            renderTopGainers(currentTopGainers);
+            const updated = await ensureAssetNames((currentTopGainers || []).map(g => g.symbol));
+            if (updated) {
+                renderTopGainers(currentTopGainers);
+            }
+        }
+
+        async function updateMarketIndices(indices) {
+            currentMarketIndices = indices || [];
+            renderMarketIndices(currentMarketIndices);
+            const updated = await ensureAssetNames((currentMarketIndices || []).map(i => i.symbol));
+            if (updated) {
+                renderMarketIndices(currentMarketIndices);
+            }
+        }
+
+        function tradeStatusClass(status) {
+            const value = (status || '').toLowerCase();
+            if (value === 'filled') return 'filled';
+            if (value === 'cancelled') return 'canceled';
+            if (value === 'expired') return 'rejected';
+            if (['rejected', 'canceled', 'failed'].includes(value)) return value;
+            return 'pending';
+        }
+
+        function renderTradeHistory(trades) {
+            const container = document.getElementById('trade-history');
+            if (!container) return;
+            if (!trades || trades.length === 0) {
+                container.innerHTML = '<div class="empty-state">No trades yet</div>';
+                const helper = document.getElementById('trade-history-count');
+                if (helper) helper.textContent = 'Showing 0 of 0';
+                return;
+            }
+
+            trades = trades.slice().sort((a, b) => {
+                const ta = new Date(a.filled_at || a.submitted_at || a.timestamp || 0).getTime();
+                const tb = new Date(b.filled_at || b.submitted_at || b.timestamp || 0).getTime();
+                return tb - ta;
+            });
+
+            const helper = document.getElementById('trade-history-count');
+            const visibleCount = Math.min(trades.length, 10);
+            if (helper) {
+                helper.textContent = `Showing ${visibleCount} of ${trades.length}`;
+            }
+
+            container.innerHTML = trades.map((trade) => {
+                const symbol = trade.symbol || '-';
+                const name = trade.name || assetNames[symbol] || '';
+                const side = (trade.side || '').toLowerCase();
+                const status = (trade.status || 'unknown').toLowerCase();
+                const statusClass = tradeStatusClass(status);
+                const source = (trade.source || 'unknown').toLowerCase();
+                const qty = Number.isFinite(trade.filled_qty) ? trade.filled_qty : trade.qty;
+                const sizeLabel = Number.isFinite(trade.notional)
+                    ? `${formatMoney(trade.notional)} notional`
+                    : Number.isFinite(qty)
+                        ? `${formatNumber(qty, 4)} shares`
+                        : 'Size unavailable';
+                const priceLabel = Number.isFinite(trade.filled_avg_price)
+                    ? `${formatMoney(trade.filled_avg_price)} avg`
+                    : 'Price -';
+                const timeValue = trade.filled_at || trade.submitted_at;
+                const timeLabel = timeValue ? new Date(timeValue).toLocaleString() : 'Time -';
+                const reason = trade.reason ? `<div class="trade-reason">${escapeHtml(trade.reason)}</div>` : '';
+
+                return `
+                    <div class="trade-card">
+                        <div class="trade-card-top">
+                            <div>
+                                <div class="trade-symbol">
+                                    ${buildSymbolTooltip(symbol)}
+                                    ${side ? `<span class="trade-tag ${side}">${escapeHtml(side)}</span>` : ''}
+                                    <span class="trade-tag ${source}">${escapeHtml(source)}</span>
+                                </div>
+                                ${name ? `<div class="trade-name">${escapeHtml(name)}</div>` : ''}
+                            </div>
+                            <span class="trade-status ${statusClass}">${escapeHtml(status)}</span>
+                        </div>
+                        <div class="trade-meta">
+                            <span>${sizeLabel}</span>
+                            <span>${priceLabel}</span>
+                            <span>${escapeHtml(timeLabel)}</span>
+                        </div>
+                        ${reason}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function fetchTrades() {
+            try {
+                const res = await apiFetch('/api/trades?limit=30');
+                if (!res.ok) return;
+                const data = await res.json();
+                const trades = data.trades || [];
+                trades.forEach(trade => {
+                    if (trade.symbol && trade.name) {
+                        assetNames[trade.symbol] = trade.name;
+                    }
+                });
+                await ensureAssetNames(trades.map(trade => trade.symbol));
+                renderTradeHistory(trades);
+            } catch (err) {
+                console.error('Failed to fetch trades:', err);
+            }
+        }
+
+        function toggleExportMenu(event) {
+            const bubble = event.currentTarget?.parentElement?.querySelector('.tooltip-text');
+            if (!bubble) return;
+            bubble.style.visibility = bubble.style.visibility === 'visible' ? 'hidden' : 'visible';
+            bubble.style.opacity = bubble.style.opacity === '1' ? '0' : '1';
+            if (bubble.style.visibility === 'visible') {
+                setTimeout(() => {
+                    const hide = (e) => {
+                        if (!bubble.contains(e.target)) {
+                            bubble.style.visibility = 'hidden';
+                            bubble.style.opacity = '0';
+                            document.removeEventListener('click', hide);
+                        }
+                    };
+                    document.addEventListener('click', hide);
+                }, 0);
+            }
+        }
+
+        async function exportTrades(format = 'csv') {
+            if (format === 'csv') {
+                return downloadTradesCsv();
+            }
+            if (format === 'json') {
+                try {
+                    const res = await apiFetch('/api/trades?limit=500');
+                    if (!res.ok) {
+                        alert('Export failed');
+                        return;
+                    }
+                    const data = await res.json();
+                    const blob = new Blob([JSON.stringify(data.trades || [], null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    // Use same format as CSV exports: trades-YYYYMMDD-HHMMSS.json
+                    const now = new Date();
+                    const y = now.getFullYear();
+                    const m = String(now.getMonth() + 1).padStart(2, '0');
+                    const d = String(now.getDate()).padStart(2, '0');
+                    const h = String(now.getHours()).padStart(2, '0');
+                    const min = String(now.getMinutes()).padStart(2, '0');
+                    const s = String(now.getSeconds()).padStart(2, '0');
+                    a.download = `trades-${y}${m}${d}-${h}${min}${s}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } catch (err) {
+                    alert('Export failed: ' + err);
+                }
+            }
+        }
+
+        function renderEquityChart(points, benchmark = [], benchmarkSymbol = 'SPY') {
+            const canvas = document.getElementById('equity-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const series = (points || []).map(p => ({
+                ts: p.timestamp ? new Date(p.timestamp) : null,
+                y: p.equity ?? p.portfolio_value ?? p.account_value ?? null,
+            })).filter(p => Number.isFinite(p.y) && p.ts);
+
+            // Compute drawdown series for overlay
+            let drawdownSeries = [];
+            if (series.length) {
+                let peak = series[0].y;
+                drawdownSeries = series.map(p => {
+                    peak = Math.max(peak, p.y);
+                    const dd = peak > 0 ? ((p.y - peak) / peak) * 100 : 0;
+                    return { ts: p.ts, y: dd };
+                });
+            }
+
+            if (analyticsChart) {
+                analyticsChart.destroy();
+            }
+
+            const benchSeries = (benchmark || []).map(p => ({
+                ts: p.timestamp ? new Date(p.timestamp) : null,
+                y: p.equity ?? p.portfolio_value ?? p.account_value ?? null,
+            })).filter(p => Number.isFinite(p.y) && p.ts);
+
+            if (series.length === 0 && benchSeries.length === 0) {
+                analyticsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: [], datasets: [] },
+                    options: { plugins: { legend: { display: false } } }
+                });
+                return;
+            }
+
+            const labels = (series.length ? series : benchSeries).map(p =>
+                p.ts.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
+            );
+            const data = series.map(p => p.y);
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+            gradient.addColorStop(0, 'rgba(88,166,255,0.35)');
+            gradient.addColorStop(1, 'rgba(88,166,255,0.02)');
+
+            analyticsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Equity',
+                        data,
+                        borderColor: '#58a6ff',
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: 0,
+                        borderWidth: 2,
+                    },
+                    ...(drawdownSeries.length ? [{
+                        label: 'Drawdown %',
+                        data: drawdownSeries.map(p => p.y),
+                        borderColor: '#f85149',
+                        fill: false,
+                        tension: 0.25,
+                        pointRadius: 0,
+                        borderWidth: 1.5,
+                        yAxisID: 'y1',
+                        borderDash: [6, 4],
+                    }] : []),
+                    ...(benchSeries.length ? [{
+                        label: benchmarkSymbol,
+                        data: benchSeries.map(p => p.y),
+                        borderColor: '#8b949e',
+                        fill: false,
+                        tension: 0.25,
+                        pointRadius: 0,
+                        borderWidth: 1.5,
+                        borderDash: [4, 4],
+                    }] : [])
+                    ],
+                },
+                options: {
+                    animation: false,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(48,54,61,0.5)' },
+                            ticks: { color: '#8b949e', maxTicksLimit: 6 },
+                        },
+                        y: {
+                            grid: { color: 'rgba(48,54,61,0.4)' },
+                            ticks: { color: '#8b949e' },
+                        },
+                        y1: {
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                color: '#f85149',
+                                callback: (v) => `${v}%`,
+                                maxTicksLimit: 5,
+                            },
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    if (ctx.dataset.label === 'Drawdown %') {
+                                        return ` ${formatPercent(ctx.parsed.y, 2, false)}`;
+                                    }
+                                    return ` ${formatMoney(ctx.parsed.y)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderAnalyticsSummary(summary) {
+            const metrics = summary?.metrics || {};
+            const points = Number(summary?.points || 0);
+            // Show metrics even with a single point (treat as flat) so cards aren't blank
+            const hasData = Number.isFinite(metrics.total_return_pct) && points > 0;
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            setText('metric-return', hasData ? formatPercent(metrics.total_return_pct, 2) : '--');
+            setText('metric-dd', hasData ? formatPercent(metrics.max_drawdown_pct, 2, false) : '--');
+            setText('metric-vol', hasData ? formatPercent(metrics.volatility_pct, 2, false) : '--');
+            setText('metric-sharpe', hasData ? `Sharpe ${formatNumber(metrics.sharpe_ratio, 2)}` : 'Sharpe --');
+            setText('metric-trades', Number.isFinite(summary?.trades) ? summary.trades : (hasData ? '0' : '--'));
+            const periodLabel = summary?.period || analyticsPeriod;
+            const days = Number.isFinite(metrics.period_days) ? metrics.period_days : 0;
+            const suffix = hasData ? '' : ' (no analytics data yet)';
+            setText('metric-period', `${periodLabel?.toUpperCase?.() || ''} • ${days} days${suffix}`);
+        }
+
+        function renderTradeStats(stats) {
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            if (!stats || stats.total === 0) {
+                setText('metric-trade-counts', '--');
+                setText('metric-trade-notional', 'No trades yet');
+                return;
+            }
+            const winLoss = `${stats.win_trades || 0}W / ${stats.loss_trades || 0}L`;
+            setText('metric-trade-counts', winLoss);
+
+            const winRate = Number.isFinite(stats.win_rate_pct) ? formatPercent(stats.win_rate_pct, 1) : '--';
+            const pnl = Number.isFinite(stats.realized_pnl) ? formatMoney(stats.realized_pnl) : '$0';
+            setText('metric-trade-notional', `${winRate} • P&L ${pnl}`);
+        }
+
+        function renderTopPositions(positionsData) {
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            const positions = positionsData?.positions || [];
+            if (positions.length === 0) {
+                setText('metric-top-positions', 'No positions');
+                setText('metric-top-positions-sub', '--');
+                return;
+            }
+            const top2 = positions.slice(0, 2);
+            const display = top2.map(p => `${p.symbol} ${formatPercent(p.weight_pct, 1, false)}`).join(', ');
+            setText('metric-top-positions', display);
+
+            const totalPnl = positions.reduce((sum, p) => sum + (p.unrealized_pl || 0), 0);
+            const posCount = positions.length;
+            setText('metric-top-positions-sub', `${posCount} position${posCount !== 1 ? 's' : ''} • ${formatMoney(totalPnl)} P&L`);
+        }
+
+        function renderPositionPieChart(response) {
+            const chartEl = document.getElementById('position-pie-chart');
+            const ctx = chartEl ? chartEl.getContext('2d') : null;
+            const emptyState = document.getElementById('position-pie-empty');
+            const positions = response?.positions || [];
+            if (!ctx || !emptyState) return;
+
+            if (!positions.length) {
+                if (positionPieChart) {
+                    positionPieChart.destroy();
+                    positionPieChart = null;
+                }
+                emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            const labels = positions.map(p => p.symbol || '-');
+            const data = positions.map(p => Number(p.weight_pct || 0));
+            const backgroundColors = positions.map(p => {
+                if (Number(p.unrealized_pl) > 0) return 'rgba(63, 185, 80, 0.7)';
+                if (Number(p.unrealized_pl) < 0) return 'rgba(248, 81, 73, 0.7)';
+                return 'rgba(88, 166, 255, 0.7)';
+            });
+
+            if (positionPieChart) {
+                positionPieChart.data.labels = labels;
+                positionPieChart.data.datasets[0].data = data;
+                positionPieChart.data.datasets[0].backgroundColor = backgroundColors;
+                positionPieChart.update();
+                return;
+            }
+
+            positionPieChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'right',
+                            labels: { color: '#ffffff', font: { size: 13 }, padding: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const label = ctx.label || '';
+                                    const value = ctx.parsed || 0;
+                                    return `${label}: ${value.toFixed(2)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        function renderAnalyticsTrades(trades) {
+            const tbody = document.getElementById('analytics-trades');
+            if (!tbody) return;
+            if (!trades || trades.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-dim);">No trades recorded yet</td></tr>';
+                return;
+            }
+            tbody.innerHTML = trades.slice().reverse().map(trade => {
+                const side = (trade.side || '').toLowerCase();
+                const cls = side === 'buy' ? 'trend-positive' : side === 'sell' ? 'trend-negative' : '';
+                const notional = trade.notional ?? (trade.qty && trade.filled_avg_price ? trade.qty * trade.filled_avg_price : null);
+                const filledAt = trade.filled_at || trade.submitted_at || trade.timestamp;
+                return `
+                    <tr>
+                        <td>${buildSymbolTooltip(trade.symbol || '-')}</td>
+                        <td class="${cls}">${escapeHtml(side || '-')}</td>
+                        <td>${formatNumber(trade.qty, 4)}</td>
+                        <td>${formatMoney(trade.filled_avg_price)}</td>
+                        <td>${notional ? formatMoney(notional) : '-'}</td>
+                        <td>${filledAt ? new Date(filledAt).toLocaleString() : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function analyzeTradePerformance(trades) {
+            if (!trades || trades.length === 0) return { best: [], worst: [], roundTrips: 0 };
+
+            // Sort trades chronologically (CRITICAL for matching buys with sells)
+            const sortedTrades = [...trades].sort((a, b) => {
+                const tsA = new Date(a.timestamp || a.filled_at || a.submitted_at || 0);
+                const tsB = new Date(b.timestamp || b.filled_at || b.submitted_at || 0);
+                return tsA - tsB;
+            });
+
+            console.log('Analyzing trades:', sortedTrades.length, 'total');
+
+            // Build position tracker: symbol -> { qty, cost_basis }
+            const positions = {};
+            const completedTrades = [];
+            let skippedSells = 0;
+            let processedBuys = 0;
+            let processedSells = 0;
+
+            sortedTrades.forEach(trade => {
+                const symbol = trade.symbol;
+                const side = (trade.side || '').toLowerCase();
+                const qty = parseFloat(trade.qty || 0);
+                // Calculate price from filled_avg_price or notional/qty
+                let price = parseFloat(trade.filled_avg_price || 0);
+                if (!price && trade.notional && qty > 0) {
+                    price = parseFloat(trade.notional) / qty;
+                }
+
+                if (!symbol || !qty || !price) return;
+
+                if (side === 'buy') {
+                    if (!positions[symbol]) {
+                        positions[symbol] = { qty: 0, cost_basis: 0 };
+                    }
+                    positions[symbol].qty += qty;
+                    positions[symbol].cost_basis += qty * price;
+                    processedBuys++;
+                } else if (side === 'sell') {
+                    if (!positions[symbol] || positions[symbol].qty <= 0) {
+                        skippedSells++;
+                        return;
+                    }
+
+                    const sellQty = Math.min(qty, positions[symbol].qty);
+                    const avgBuyPrice = positions[symbol].cost_basis / positions[symbol].qty;
+                    const pnl = sellQty * (price - avgBuyPrice);
+
+                    completedTrades.push({
+                        symbol,
+                        qty: sellQty,
+                        buy_price: avgBuyPrice,
+                        sell_price: price,
+                        pnl,
+                        pnl_pct: ((price - avgBuyPrice) / avgBuyPrice) * 100,
+                        timestamp: trade.filled_at || trade.timestamp,
+                    });
+
+                    // Update position
+                    positions[symbol].cost_basis -= sellQty * avgBuyPrice;
+                    positions[symbol].qty -= sellQty;
+                    processedSells++;
+                }
+            });
+
+            // Sort by P&L
+            completedTrades.sort((a, b) => b.pnl - a.pnl);
+
+            console.log(`Trade matching: ${processedBuys} buys, ${processedSells} sells (${skippedSells} sells skipped - no position)`);
+            console.log(`Completed round-trips: ${completedTrades.length}`);
+
+            return {
+                best: completedTrades.slice(0, 3),
+                worst: completedTrades.slice(-3).reverse(),
+                roundTrips: completedTrades.length,
+            };
+        }
+
+        function renderTradePerformance(analysis) {
+            const container = document.getElementById('trade-analysis-container');
+            if (!container) return;
+
+            if (!analysis || analysis.roundTrips === 0) {
+                container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No completed round-trip trades yet. Need at least one buy-sell pair.</div>';
+                return;
+            }
+
+            const renderTradeCard = (trade, isBest) => {
+                const pnlClass = trade.pnl > 0 ? 'trend-positive' : 'trend-negative';
+                return `
+                    <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600;">${buildSymbolTooltip(trade.symbol)}</span>
+                            <span class="${pnlClass}" style="font-weight: 600; font-size: 15px;">${formatMoney(trade.pnl)}</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-dim); display: grid; grid-template-columns: auto auto; gap: 4px 12px;">
+                            <span>Qty:</span><span>${formatNumber(trade.qty, 2)}</span>
+                            <span>Buy:</span><span>${formatMoney(trade.buy_price)}</span>
+                            <span>Sell:</span><span>${formatMoney(trade.sell_price)}</span>
+                            <span>Return:</span><span class="${pnlClass}">${formatPercent(trade.pnl_pct, 2)}</span>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const bestHTML = analysis.best.length > 0
+                ? analysis.best.map(t => renderTradeCard(t, true)).join('')
+                : '<div class="empty-state">No winning trades yet</div>';
+
+            const worstHTML = analysis.worst.length > 0
+                ? analysis.worst.map(t => renderTradeCard(t, false)).join('')
+                : '<div class="empty-state">No losing trades yet</div>';
+
+            container.innerHTML = `
+                <div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 12px;">
+                        🏆 Best Trades (${analysis.best.length})
+                    </div>
+                    ${bestHTML}
+                </div>
+                <div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--red); margin-bottom: 12px;">
+                        📉 Worst Trades (${analysis.worst.length})
+                    </div>
+                    ${worstHTML}
+                </div>
+            `;
+        }
+
+        async function fetchAnalytics(periodOverride = null) {
+            if (periodOverride) {
+                analyticsPeriod = periodOverride;
+            }
+            const period = analyticsPeriod;
+            console.log(`Fetching analytics for period: ${period}`);
+            try {
+        const cacheBust = `&_v=${ASSET_VERSION}`;
+        const [eqRes, summaryRes, tradesRes, statsRes, positionsRes] = await Promise.all([
+            apiFetch(`/api/analytics/equity?period=${encodeURIComponent(period)}&_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/summary?period=${encodeURIComponent(period)}&_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/trades?period=${encodeURIComponent(period)}&limit=200&_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/trade_stats?period=${encodeURIComponent(period)}&_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/positions?_ts=${Date.now()}${cacheBust}`),
+        ]);
+                let summary = null;
+                let tradesCount = 0;
+                if (eqRes.ok) {
+                    const eqData = await eqRes.json();
+                    analyticsEquity = eqData.equity || [];
+                    console.log(`Equity data points for ${period}:`, analyticsEquity.length);
+                    renderEquityChart(analyticsEquity, eqData.benchmark || [], eqData.benchmark_symbol || 'SPY');
+                }
+                if (summaryRes.ok) {
+                    summary = await summaryRes.json();
+                } else {
+                    renderAnalyticsSummary(null);
+                }
+                if (tradesRes.ok) {
+                    const tData = await tradesRes.json();
+                    const trades = tData.trades || [];
+                    tradesCount = trades.length;
+                    console.log(`Trades for ${period}:`, tradesCount);
+                    trades.forEach(trade => {
+                        if (trade.symbol && trade.name) {
+                            assetNames[trade.symbol] = trade.name;
+                        }
+                    });
+                    renderAnalyticsTrades(trades);
+
+                    // Analyze and render trade performance
+                    const analysis = analyzeTradePerformance(trades);
+                    console.log(`Round-trip trades detected:`, analysis.roundTrips, `(${analysis.best.length} best, ${analysis.worst.length} worst)`);
+                    renderTradePerformance(analysis);
+                }
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json();
+                    renderTradeStats(statsData);
+                } else {
+                    renderTradeStats(null);
+                }
+                if (positionsRes.ok) {
+                    const posData = await positionsRes.json();
+                    renderTopPositions(posData);
+                    renderPositionPieChart(posData);
+                } else {
+                    renderTopPositions(null);
+                    renderPositionPieChart(null);
+                }
+                // Fallback summary if API failed but we have equity/trades
+                if (!summary) {
+                    summary = {
+                        period,
+                        metrics: {
+                            total_return_pct: 0,
+                            max_drawdown_pct: 0,
+                            volatility_pct: 0,
+                            sharpe_ratio: 0,
+                            period_days: 0,
+                        },
+                        points: analyticsEquity.length || 0,
+                    };
+                }
+                summary.trades = tradesCount;
+                renderAnalyticsSummary(summary);
+            } catch (err) {
+                console.error('Failed to fetch analytics:', err);
+            }
+        }
+
+        async function downloadTradesCsv() {
+            try {
+                const res = await apiFetch('/api/trades/export');
+                if (!res.ok) {
+                    alert('Failed to download CSV');
+                    return;
+                }
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                const disposition = res.headers.get('Content-Disposition') || '';
+                const match = disposition.match(/filename=([^;]+)/);
+                const filename = match ? match[1].replace(/"/g, '') : 'trades.csv';
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Failed to download CSV: ' + err);
+            }
+        }
+
+        function scheduleTradesRefresh() {
+            if (tradeRefreshTimer) return;
+            tradeRefreshTimer = setTimeout(() => {
+                tradeRefreshTimer = null;
+                fetchTrades();
+            }, 1000);
+        }
+
+        function setupTickerTooltip() {
+            const tooltip = document.getElementById('ticker-tooltip');
+            const tracks = [
+                document.getElementById('top-gainers-ticker'),
+                document.getElementById('market-indices-ticker')
+            ].filter(Boolean);
+            if (!tooltip || tracks.length === 0) return;
+
+            const hide = () => {
+                tooltip.classList.remove('visible');
+            };
+
+            tracks.forEach((track) => {
+                track.addEventListener('mousemove', (event) => {
+                    const item = event.target.closest('.ticker-item');
+                    if (!item || !track.contains(item)) {
+                        hide();
+                        return;
+                    }
+                    const symbol = item.getAttribute('data-symbol') || '';
+                    const name = assetNames[symbol] || 'Loading name...';
+                    tooltip.textContent = name;
+                    tooltip.classList.add('visible');
+                    const offset = 12;
+                    tooltip.style.left = `${event.clientX + offset}px`;
+                    tooltip.style.top = `${event.clientY - offset}px`;
+                });
+
+                track.addEventListener('mouseleave', hide);
+            });
+        }
+
+        function setupSymbolTooltip() {
+            const bubble = document.getElementById('symbol-tooltip');
+            if (!bubble) return;
+
+            const hide = () => bubble.classList.remove('visible');
+
+            document.addEventListener('mousemove', (e) => {
+                const el = e.target.closest('.symbol-tooltip');
+                if (!el) {
+                    hide();
+                    return;
+                }
+                const symbol = el.dataset.symbol || el.textContent.trim();
+                const name = assetNames[symbol] || 'Loading name...';
+                bubble.textContent = `${symbol} — ${name}`;
+                bubble.style.left = `${e.clientX + 12}px`;
+                bubble.style.top = `${e.clientY + 12}px`;
+                bubble.classList.add('visible');
+            });
+
+            document.addEventListener('mouseleave', (e) => {
+                if (!e.relatedTarget) hide();
+            });
+        }
+
+        function applyWatchlistMode(mode) {
+            const watchlistInput = document.getElementById('watchlist');
+            const topCountRow = document.getElementById('top-gainers-count-row');
+            const universeRow = document.getElementById('top-gainers-universe-row');
+            const minPriceRow = document.getElementById('top-gainers-min-price-row');
+            const minVolumeRow = document.getElementById('top-gainers-min-volume-row');
+            const isTop = mode === 'top_gainers';
+            watchlistInput.disabled = isTop;
+            watchlistInput.placeholder = isTop ? 'Dynamic top gainers list' : 'SPY, QQQ, AAPL';
+            topCountRow.style.display = isTop ? 'flex' : 'none';
+            universeRow.style.display = isTop ? 'flex' : 'none';
+            if (minPriceRow) minPriceRow.style.display = isTop ? 'flex' : 'none';
+            if (minVolumeRow) minVolumeRow.style.display = isTop ? 'flex' : 'none';
+        }
+
+        function openTradeModal(symbol, price, action = 'buy', reason = '') {
+            document.getElementById('modal-symbol').textContent = symbol;
+            document.getElementById('modal-price').textContent = price && Number.isFinite(price) ? `$${Number(price).toFixed(2)}` : '-';
+            document.getElementById('modal-action').value = action;
+            document.getElementById('modal-amount').value = '';
+
+            // Find signal for this symbol
+            const signal = currentSignals.find(s => s.symbol === symbol);
+            if (signal) {
+                const signalEl = document.getElementById('modal-signal');
+                signalEl.textContent = signal.action.toUpperCase();
+                signalEl.style.color = signal.action === 'buy' ? 'var(--green)' : signal.action === 'sell' ? 'var(--red)' : 'var(--text-dim)';
+                document.getElementById('modal-reason').textContent = signal.reason;
+            } else {
+                document.getElementById('modal-signal').textContent = '-';
+                document.getElementById('modal-reason').textContent = reason || 'No signal data';
+            }
+
+            // Default sizing: buys use notional, sells use shares (prefill with position qty if available)
+            const sizeRadios = document.querySelectorAll('input[name="modal-size-mode"]');
+            sizeRadios.forEach(r => r.checked = (action === 'sell' ? r.value === 'qty' : r.value === 'notional'));
+            const amtLabel = document.getElementById('modal-amount-label');
+            amtLabel.textContent = action === 'sell' ? 'Shares' : 'Amount ($)';
+
+            const pos = currentPositions.find(p => p.symbol === symbol);
+            if (action === 'sell' && pos) {
+                document.getElementById('modal-amount').value = Number(pos.qty).toFixed(4);
+            } else {
+                document.getElementById('modal-amount').value = '';
+            }
+
+            document.getElementById('trade-modal').classList.add('active');
+        }
+
+        function openTradeModalFromSignal(symbol) {
+            const signal = currentSignals.find(s => s.symbol === symbol);
+            if (signal) {
+                const defaultAction = signal.action === 'sell' ? 'sell' : 'buy';
+                openTradeModal(symbol, signal.current_price, defaultAction, signal.reason);
+            }
+        }
+
+        function updateModalAmountVisibility() {
+            const action = document.getElementById('modal-action').value;
+            const amtLabel = document.getElementById('modal-amount-label');
+            const sizeRadios = document.querySelectorAll('input[name="modal-size-mode"]');
+            if (action === 'sell') {
+                sizeRadios.forEach(r => {
+                    if (r.value === 'qty') r.checked = true;
+                });
+                amtLabel.textContent = 'Shares';
+            } else {
+                sizeRadios.forEach(r => {
+                    if (r.value === 'notional') r.checked = true;
+                });
+                amtLabel.textContent = 'Amount ($)';
+            }
+        }
+
+        function closeTradeModal() {
+            document.getElementById('trade-modal').classList.remove('active');
+        }
+
+        async function executeTradeFromModal() {
+            const symbol = document.getElementById('modal-symbol').textContent;
+            const action = document.getElementById('modal-action').value;
+            const sizeMode = document.querySelector('input[name="modal-size-mode"]:checked')?.value || 'notional';
+            const amount = parseFloat(document.getElementById('modal-amount').value);
+            const qty = sizeMode === 'qty' ? amount : null;
+            await executeTrade(symbol, action, amount, sizeMode, qty);
+            closeTradeModal();
+        }
+
+        async function executeTradeFromForm() {
+            const symbolEl = document.getElementById('trade-symbol');
+            const actionEl = document.getElementById('trade-action');
+            const amountEl = document.getElementById('trade-amount');
+            if (!symbolEl || !actionEl || !amountEl) return;
+            const symbol = symbolEl.value;
+            const action = actionEl.value;
+            const amount = parseFloat(amountEl.value);
+
+            // Form only supports notional mode
+            await executeTrade(symbol, action, amount, 'notional', null);
+            amountEl.value = '';
+        }
+
+        async function executeTrade(symbol, action, amount, mode = 'notional', qty = null) {
+            if (action === 'buy') {
+                if (mode === 'notional' && (!amount || amount <= 0)) {
+                    alert('Enter a dollar amount for buy orders');
+                    return;
+                }
+                if (mode === 'qty' && (!qty || qty <= 0)) {
+                    alert('Enter share quantity for buy orders');
+                    return;
+                }
+            }
+
+            const sizeText = mode === 'qty'
+                ? `${qty} shares`
+                : `$${amount}`;
+            if (!confirm(`Confirm ${action.toUpperCase()} ${symbol} for ${sizeText}?`)) {
+                return;
+            }
+
+            try {
+                const res = await apiFetch('/api/trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol, action, amount, qty, mode })
+                });
+                if (!res.ok) {
+                    const message = await parseErrorResponse(res, 'Trade failed');
+                    alert(message);
+                    return;
+                }
+                const data = await res.json();
+                alert(`Trade executed! Order ID: ${data.order_id}`);
+            } catch (err) {
+                alert('Trade failed: ' + err);
+            }
+        }
+
+        function appendLog(entry, prepend = true) {
+            const container = document.getElementById('log-container');
+            if (!container || !entry) return;
+            if (container.querySelector('.empty-state')) {
+                container.innerHTML = '';
+            }
+
+            const time = new Date(entry.timestamp).toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="log-type ${entry.type}">${entry.type.toUpperCase()}</span>
+                <span>${entry.message}</span>
+            `;
+            if (prepend) {
+                container.insertBefore(div, container.firstChild);
+            } else {
+                container.appendChild(div);
+            }
+
+            // Keep last 50 entries
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await apiFetch('/api/status');
+                if (!res.ok) return;
+                const data = await res.json();
+                updateStatus({
+                    account: data.account,
+                    positions: data.positions,
+                    bot: data.bot,
+                    config: null,
+                    top_gainers: data.top_gainers ?? [],
+                    market_indices: data.market_indices ?? [],
+                    market_open: data.market_open ?? data.account?.market_open
+                });
+                updateSignals(data.signals);
+            } catch (err) {
+                console.error('Failed to fetch status:', err);
+            }
+        }
+
+        async function fetchConfig() {
+            try {
+                const res = await apiFetch('/api/config');
+                if (!res.ok) return;
+                const data = await res.json();
+                currentConfig = data;
+                document.getElementById('strategy').value = data.strategy || 'momentum';
+                document.getElementById('watchlist-mode').value = data.watchlist_mode || 'static';
+                document.getElementById('watchlist').value = data.watchlist.join(', ');
+                document.getElementById('momentum-threshold').value = (data.momentum_threshold * 100).toFixed(1);
+                document.getElementById('sell-threshold').value = (data.sell_threshold * 100).toFixed(1);
+                document.getElementById('stop-loss').value = (data.stop_loss_pct * 100).toFixed(1);
+                document.getElementById('max-position').value = (data.max_position_pct * 100).toFixed(0);
+                document.getElementById('max-daily-trades').value = data.max_daily_trades || 5;
+                if (data.max_open_positions !== undefined) {
+                    document.getElementById('max-open-positions').value = data.max_open_positions;
+                }
+                if (data.daily_loss_limit_pct !== undefined) {
+                    document.getElementById('daily-loss-limit').value = (data.daily_loss_limit_pct * 100).toFixed(1);
+                }
+                if (data.max_drawdown_pct !== undefined) {
+                    document.getElementById('max-drawdown-limit').value = (data.max_drawdown_pct * 100).toFixed(1);
+                }
+                if (data.max_sector_exposure_pct !== undefined && document.getElementById('max-sector-exposure')) {
+                    document.getElementById('max-sector-exposure').value = (data.max_sector_exposure_pct * 100).toFixed(0);
+                }
+                if (data.max_correlated_exposure_pct !== undefined && document.getElementById('max-correlated-exposure')) {
+                    document.getElementById('max-correlated-exposure').value = (data.max_correlated_exposure_pct * 100).toFixed(0);
+                }
+                document.getElementById('trade-interval').value = data.trade_interval;
+                document.getElementById('top-gainers-count').value = data.top_gainers_count || 20;
+                document.getElementById('top-gainers-universe').value = data.top_gainers_universe || 'large_cap';
+                if (data.top_gainers_min_price !== undefined) {
+                    document.getElementById('top-gainers-min-price').value = data.top_gainers_min_price;
+                }
+                if (data.top_gainers_min_volume !== undefined) {
+                    document.getElementById('top-gainers-min-volume').value = data.top_gainers_min_volume;
+                }
+                updateWatchlistDropdown(data.watchlist);
+                applyWatchlistMode(document.getElementById('watchlist-mode').value);
+
+                // Trading mode badge
+                const modeBadge = document.getElementById('trading-mode');
+                modeBadge.textContent = data.trading_mode.toUpperCase();
+                modeBadge.className = `status-badge ${data.trading_mode}`;
+
+                updateRiskPanel();
+            } catch (err) {
+                console.error('Failed to fetch config:', err);
+            }
+        }
+
+        async function fetchLogs() {
+            try {
+                const res = await apiFetch('/api/logs');
+                if (!res.ok) return;
+                const data = await res.json();
+                const container = document.getElementById('log-container');
+                if (container) container.innerHTML = '';
+                (data.logs || [])
+                    .slice()
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                    .forEach(entry => appendLog(entry, false));
+            } catch (err) {
+                console.error('Failed to fetch logs:', err);
+            }
+        }
+
+        async function fetchObservability() {
+            try {
+                const res = await apiFetch('/api/observability');
+                if (!res.ok) return;
+                const data = await res.json();
+                updateObservability(data);
+            } catch (err) {
+                console.error('Failed to fetch observability:', err);
+            }
+        }
+
+        async function fetchObservabilityLogs(limit = 30) {
+            try {
+                const res = await apiFetch(`/api/observability/logs?limit=${limit}&level=warn`);
+                if (!res.ok) return;
+                const data = await res.json();
+                renderObservabilityLogs(data.logs || []);
+            } catch (err) {
+                console.error('Failed to fetch observability logs:', err);
+            }
+        }
+
+        async function fetchExpectations() {
+            try {
+                const res = await apiFetch('/api/observability/expectations');
+                if (!res.ok) return;
+                const data = await res.json();
+                updateExpectations(data.expectations || []);
+            } catch (err) {
+                console.error('Failed to fetch expectations:', err);
+            }
+        }
+
+        async function runObservabilityNow() {
+            const btn = document.getElementById('obs-run-btn');
+            const prevText = btn ? btn.textContent : 'Run Eval';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Running...';
+            }
+            try {
+                const res = await apiFetch('/api/observability/evaluate', { method: 'POST' });
+                if (!res.ok) {
+                    const message = await parseErrorResponse(res, 'Evaluation failed');
+                    alert(message);
+                    return;
+                }
+                await fetchObservability();
+            } catch (err) {
+                alert('Evaluation failed: ' + err);
+            } finally {
+                if (btn && btn.textContent === 'Running...') {
+                    btn.disabled = false;
+                    btn.textContent = prevText;
+                }
+            }
+        }
+
+        function renderObservabilityLogs(entries, fromEvaluation = false) {
+            const container = document.getElementById('obs-log-container');
+            if (!container) return;
+
+            // If this is from evaluation, always update and mark it
+            if (fromEvaluation) {
+                container.dataset.hasEvaluation = entries && entries.length > 0 ? 'true' : 'false';
+            }
+
+            // If we have evaluation findings, don't let empty log fetches override them
+            if (!fromEvaluation && container.dataset.hasEvaluation === 'true' && (!entries || entries.length === 0)) {
+                return; // Keep showing evaluation findings
+            }
+
+            if (!entries || entries.length === 0) {
+                container.innerHTML = '<div class=\"empty-state\">No warnings yet</div>';
+                return;
+            }
+            const items = entries.slice(-30).reverse().map(entry => {
+                const ts = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '-';
+                const symbol = entry.symbol ? buildSymbolTooltip(entry.symbol, 'inline-symbol') : '';
+                const reason = escapeHtml(entry.reason || entry.event_type || 'Warn');
+                const outcome = escapeHtml(entry.outcome || 'warn');
+                return `<div class=\"log-entry\">
+                    <span class=\"log-time\">${ts}</span>
+                    <span class=\"log-type warning\">${outcome.toUpperCase()}</span>
+                    ${symbol ? `<span class=\"log-symbol\">${symbol}</span>` : ''}
+                    <span>${reason}</span>
+                </div>`;
+            }).slice(0, 30).reverse();
+            container.innerHTML = items.join('');
+        }
+
+        function updateObservability(payload) {
+            const summary = payload?.latest || null;
+            const error = payload?.error || null;
+            const lastRunEl = document.getElementById('obs-last-run');
+            const okEl = document.getElementById('obs-ok');
+            const warnEl = document.getElementById('obs-warn');
+            const failEl = document.getElementById('obs-fail');
+            const missingEl = document.getElementById('obs-missing');
+            const findingsEl = document.getElementById('observability-findings');
+            const errorEl = document.getElementById('obs-error');
+            const btn = document.getElementById('obs-run-btn');
+            const evaluationEnabled = payload && typeof payload.evaluation_enabled === 'boolean'
+                ? payload.evaluation_enabled
+                : null;
+            const findingsHeader = '<div class="obs-section-title">Findings</div>';
+
+            if (!lastRunEl || !findingsEl) return;
+
+            if (errorEl) {
+                errorEl.textContent = error ? `Last error: ${error}` : '';
+            }
+
+            if (btn && evaluationEnabled !== null) {
+                btn.disabled = !evaluationEnabled;
+                btn.textContent = evaluationEnabled ? 'Run Eval' : 'Eval Disabled';
+            }
+
+            if (!summary) {
+                lastRunEl.textContent = payload?.evaluation_enabled === false ? 'Disabled' : '-';
+                okEl.textContent = '0';
+                warnEl.textContent = '0';
+                failEl.textContent = '0';
+                missingEl.textContent = '0';
+                findingsEl.innerHTML = `${findingsHeader}<div class="empty-state">${error ? escapeHtml(error) : 'No evaluation yet'}</div>`;
+                return;
+            }
+
+            lastRunEl.textContent = summary.generated_at ? new Date(summary.generated_at).toLocaleString() : '-';
+            const counts = summary.status_counts || {};
+            okEl.textContent = counts.ok ?? 0;
+            warnEl.textContent = counts.warn ?? 0;
+            failEl.textContent = counts.fail ?? 0;
+            missingEl.textContent = counts.missing ?? 0;
+
+            const findings = (summary.findings || []).filter(f => f.status !== 'ok');
+            if (error) {
+                findingsEl.innerHTML = `${findingsHeader}<div class="empty-state">${escapeHtml(error)}</div>`;
+                return;
+            }
+            if (!findings.length) {
+                findingsEl.innerHTML = `${findingsHeader}<div class="empty-state">All expectations within bounds.</div>`;
+                return;
+            }
+
+            const maxItems = 6;
+            const items = findings.slice(0, maxItems).map(f => {
+                const status = (f.status || 'missing').toLowerCase();
+                const valueText = (f.value === null || f.value === undefined) ? 'n/a' : formatNumber(f.value, 4);
+                return `
+                    <div class="obs-finding">
+                        <div>
+                            <div class="obs-finding-title">${escapeHtml(`${f.agent}.${f.metric}`)}</div>
+                            <div class="obs-finding-desc">${escapeHtml(f.description || '')}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span class="obs-badge ${escapeHtml(status)}">${escapeHtml(status)}</span>
+                            <div class="obs-finding-value">${escapeHtml(valueText)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const extra = findings.length > maxItems
+                ? `<div class="help-text">Showing ${maxItems} of ${findings.length} findings.</div>`
+                : '';
+
+            findingsEl.innerHTML = findingsHeader + items + extra;
+
+            // Surface WARN/FAIL findings into the alerts card for visibility
+            const nonOk = (summary.findings || []).filter(f => ['warn', 'fail'].includes((f.status || '').toLowerCase()));
+            if (nonOk.length) {
+                const mapped = nonOk.map(f => ({
+                    timestamp: summary.generated_at,
+                    outcome: f.status,
+                    reason: f.description || `${f.agent}.${f.metric}`,
+                    symbol: f.symbol || '',
+                }));
+                renderObservabilityLogs(mapped, true);
+            } else {
+                // Clear alerts if evaluation shows no issues
+                renderObservabilityLogs([], true);
+            }
+        }
+
+        function updateExpectations(expectations) {
+            const el = document.getElementById('observability-expectations');
+            if (!el) return;
+            const header = '<div class="obs-section-title">Expectations</div>';
+            if (!expectations || expectations.length === 0) {
+                el.innerHTML = `${header}<div class="empty-state">Expectations not loaded</div>`;
+                return;
+            }
+
+            const items = expectations.map(exp => {
+                const bounds = [];
+                if (exp.min_value !== null && exp.min_value !== undefined) {
+                    bounds.push(`>= ${exp.min_value}`);
+                }
+                if (exp.max_value !== null && exp.max_value !== undefined) {
+                    bounds.push(`<= ${exp.max_value}`);
+                }
+                const boundsText = bounds.length ? bounds.join(', ') : 'n/a';
+                return `
+                    <div class="obs-finding">
+                        <div>
+                            <div class="obs-finding-title">${escapeHtml(`${exp.agent}.${exp.metric}`)}</div>
+                            <div class="obs-finding-desc">${escapeHtml(exp.description || '')}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="obs-finding-value">${escapeHtml(boundsText)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            el.innerHTML = header + items;
+        }
+
+        function updateRiskPanel() {
+            const breakerEl = document.getElementById('risk-breaker-status');
+            const breakerReasonEl = document.getElementById('risk-breaker-reason');
+            const breakerActivatedEl = document.getElementById('risk-breaker-activated');
+            const openPositionsEl = document.getElementById('risk-open-positions');
+            const dailyLossEl = document.getElementById('risk-daily-loss');
+            const maxDrawdownEl = document.getElementById('risk-max-dd');
+
+            if (!breakerEl || !openPositionsEl) return;
+
+            const breaker = currentAgentStatus?.agents?.risk?.circuit_breaker || null;
+            const breakerActive = breaker?.active === true;
+            breakerEl.textContent = breakerActive ? 'ACTIVE' : 'OK';
+            breakerEl.className = `risk-badge ${breakerActive ? 'alert' : 'ok'}`;
+
+            if (breakerReasonEl) {
+                const reason = breaker?.reason || (breakerActive ? 'Breaker active' : 'No active breaker');
+                breakerReasonEl.textContent = reason;
+            }
+            if (breakerActivatedEl) {
+                if (breaker?.activated_at) {
+                    breakerActivatedEl.textContent = `Last activated: ${new Date(breaker.activated_at).toLocaleString()}`;
+                } else {
+                    breakerActivatedEl.textContent = 'Last activated: -';
+                }
+            }
+
+            const maxOpen = currentConfig?.max_open_positions;
+            const openCount = Array.isArray(currentPositions) ? currentPositions.length : 0;
+            openPositionsEl.textContent = maxOpen !== undefined ? `${openCount} / ${maxOpen}` : `${openCount} / -`;
+
+            const dailyLoss = currentConfig?.daily_loss_limit_pct;
+            dailyLossEl.textContent = Number.isFinite(dailyLoss) ? `${(dailyLoss * 100).toFixed(2)}%` : '-';
+
+            const maxDd = currentConfig?.max_drawdown_pct;
+            maxDrawdownEl.textContent = Number.isFinite(maxDd) ? `${(maxDd * 100).toFixed(2)}%` : '-';
+        }
+
+        async function resetCircuitBreaker() {
+            if (!confirm('Reset circuit breaker? This will re-enable buy orders.')) {
+                return;
+            }
+            try {
+                const res = await apiFetch('/api/risk/breaker/reset', { method: 'POST' });
+                if (!res.ok) {
+                    const message = await parseErrorResponse(res, 'Reset failed');
+                    alert(message);
+                    return;
+                }
+                await fetchStatus();
+            } catch (err) {
+                alert('Reset failed: ' + err);
+            }
+        }
+
+        function resetToDefaults() {
+            // Sensible defaults for conservative trading
+            const defaults = {
+                strategy: 'momentum',
+                watchlistMode: 'top_gainers',
+                topGainersCount: 20,
+                topGainersUniverse: 'all',
+                watchlist: '',
+                momentumThreshold: 0.03,  // 3% momentum threshold
+                sellThreshold: -0.015,     // -1.5% sell threshold
+                stopLoss: 0.05,            // 5% stop loss
+                maxPosition: 0.15,         // 15% max position size
+                maxDailyTrades: 5,         // 5 trades per day max
+                tradeInterval: 60,         // 60 second minimum between trades
+            };
+
+            document.getElementById('strategy').value = defaults.strategy;
+            document.getElementById('watchlist-mode').value = defaults.watchlistMode;
+            document.getElementById('top-gainers-count').value = defaults.topGainersCount;
+            document.getElementById('top-gainers-universe').value = defaults.topGainersUniverse;
+            document.getElementById('watchlist').value = defaults.watchlist;
+            document.getElementById('momentum-threshold').value = defaults.momentumThreshold;
+            document.getElementById('sell-threshold').value = defaults.sellThreshold;
+            document.getElementById('stop-loss').value = defaults.stopLoss;
+            document.getElementById('max-position').value = defaults.maxPosition;
+            document.getElementById('max-daily-trades').value = defaults.maxDailyTrades;
+            document.getElementById('trade-interval').value = defaults.tradeInterval;
+
+            applyWatchlistMode(defaults.watchlistMode);
+            clearConfigErrors();
+
+            alert('Configuration reset to recommended defaults. Click "Save Config" to apply.');
+        }
+
+        async function saveConfig() {
+            clearConfigErrors();
+            const watchlistEl = document.getElementById('watchlist');
+            const watchlistStr = watchlistEl ? watchlistEl.value : '';
+            const watchlist = watchlistStr.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+            const watchlistMode = document.getElementById('watchlist-mode')?.value || 'top_gainers';
+
+            const getNumber = (id, fallback = 0) => {
+                const el = document.getElementById(id);
+                if (!el) return fallback;
+                const v = parseFloat(el.value);
+                return Number.isFinite(v) ? v : fallback;
+            };
+
+            const config = {
+                strategy: document.getElementById('strategy')?.value || 'momentum',
+                watchlist_mode: watchlistMode,
+                momentum_threshold: getNumber('momentum-threshold') / 100,
+                sell_threshold: getNumber('sell-threshold') / 100,
+                stop_loss_pct: getNumber('stop-loss') / 100,
+                max_position_pct: getNumber('max-position') / 100,
+                max_daily_trades: parseInt(document.getElementById('max-daily-trades')?.value || '0'),
+                max_open_positions: parseInt(document.getElementById('max-open-positions')?.value || '0'),
+                daily_loss_limit_pct: getNumber('daily-loss-limit') / 100,
+                max_drawdown_pct: getNumber('max-drawdown-limit') / 100,
+                max_sector_exposure_pct: getNumber('max-sector-exposure', currentConfig?.max_sector_exposure_pct ? currentConfig.max_sector_exposure_pct * 100 : 80) / 100,
+                max_correlated_exposure_pct: getNumber('max-correlated-exposure', currentConfig?.max_correlated_exposure_pct ? currentConfig.max_correlated_exposure_pct * 100 : 80) / 100,
+                trade_interval: parseInt(document.getElementById('trade-interval')?.value || '5')
+            };
+            if (watchlistMode === 'static') {
+                config.watchlist = watchlist;
+            } else {
+                config.top_gainers_count = parseInt(document.getElementById('top-gainers-count').value);
+                config.top_gainers_universe = document.getElementById('top-gainers-universe').value;
+                config.top_gainers_min_price = parseFloat(document.getElementById('top-gainers-min-price').value);
+                config.top_gainers_min_volume = parseInt(document.getElementById('top-gainers-min-volume').value);
+            }
+
+            try {
+                const res = await apiFetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                if (!res.ok) {
+                    const message = await parseErrorResponse(res, 'Failed to save config');
+                    showConfigErrorFromMessage(message);
+                    return;
+                }
+
+                const data = await res.json();
+                updateWatchlistDropdown(watchlist);
+                alert(data.message || 'Configuration saved! Changes take effect on the next trading cycle.');
+                // Refresh to get new signals
+                fetchStatus();
+            } catch (err) {
+                showConfigError('config', 'Failed to save config: ' + err);
+            }
+        }
+
+        async function startBot() {
+            if (!confirm('Start automatic trading? The bot will execute trades without asking.')) {
+                return;
+            }
+            try {
+                const res = await apiFetch('/api/bot/start', { method: 'POST' });
+                if (!res.ok) {
+                    const message = await parseErrorResponse(res, 'Failed to start bot');
+                    alert(message);
+                }
+                await fetchStatus();
+            } catch (err) {
+                alert('Failed to start bot: ' + err);
+            }
+        }
+
+        async function stopBot() {
+            try {
+                const res = await apiFetch('/api/bot/stop', { method: 'POST' });
+                if (!res.ok) {
+                    const message = await parseErrorResponse(res, 'Failed to stop bot');
+                    alert(message);
+                }
+                await fetchStatus();
+            } catch (err) {
+                alert('Failed to stop bot: ' + err);
+            }
+        }
+
+        async function toggleAutoTrade() {
+            const isRunning = document.getElementById('bot-toggle')?.classList.contains('running');
+            if (isRunning) {
+                await stopBot();
+            } else {
+                await startBot();
+            }
+        }
+
+        // Modal action change handler
+        document.getElementById('modal-action').addEventListener('change', updateModalAmountVisibility);
+        document.getElementById('watchlist-mode').addEventListener('change', (e) => {
+            applyWatchlistMode(e.target.value);
+        });
+
+        // Close modal on overlay click
+        document.getElementById('trade-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'trade-modal') {
+                closeTradeModal();
+            }
+        });
+
+        // Sizing mode label sync when user toggles radios
+        document.querySelectorAll('input[name="modal-size-mode"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const label = document.getElementById('modal-amount-label');
+                if (!label) return;
+                label.textContent = radio.value === 'qty' ? 'Shares' : 'Amount ($)';
+            });
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeTradeModal();
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+            applyWatchlistMode(document.getElementById('watchlist-mode').value);
+            wireConfigErrorClears();
+            setupTickerTooltip();
+            setupSymbolTooltip();
+            fetchStatus();
+            fetchConfig();
+            fetchLogs();
+            fetchObservability();
+            fetchObservabilityLogs();
+            fetchExpectations();
+            fetchTrades();
+            setInterval(fetchTrades, 20000);
+            fetchAnalytics('30d');
+            document.querySelectorAll('#analytics-period .pill-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#analytics-period .pill-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    fetchAnalytics(btn.dataset.period);
+                });
+            });
+
+            // Refresh status every 30 seconds as fallback
+            setInterval(fetchStatus, 30000);
+            setInterval(fetchObservability, 60000);
+            setInterval(fetchObservabilityLogs, 20000);
+            setInterval(() => fetchAnalytics(analyticsPeriod), 60000);
+        });
+
+        window.addEventListener('resize', () => {
+            updateTopGainers(currentTopGainers);
+            updateMarketIndices(currentMarketIndices);
+        });
+    </script>
+</body>
+</html>

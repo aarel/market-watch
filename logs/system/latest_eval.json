@@ -1,0 +1,132 @@
+{
+  "generated_at": "2026-01-25T22:47:08.950534",
+  "metrics": {
+    "DataAgent": {
+      "market_data_events": 608.0,
+      "avg_interval_seconds": 419.3232323278418,
+      "missing_price_ratio": 0.0,
+      "bars_coverage_ratio": 1.0
+    },
+    "SignalAgent": {
+      "actionable_ratio": 0.11496888980076858,
+      "signal_error_ratio": 0.0
+    },
+    "RiskAgent": {
+      "risk_fail_ratio": 0.6544054747647562
+    },
+    "ExecutionAgent": {
+      "order_failure_ratio": 0.3802469135802469
+    },
+    "MonitorAgent": {
+      "stop_loss_count": 23.0
+    }
+  },
+  "findings": [
+    {
+      "agent": "DataAgent",
+      "metric": "market_data_events",
+      "value": 608.0,
+      "status": "ok",
+      "description": "At least one market data refresh per evaluation window",
+      "min_value": 1,
+      "max_value": null,
+      "severity": "fail"
+    },
+    {
+      "agent": "DataAgent",
+      "metric": "avg_interval_seconds",
+      "value": 419.3232323278418,
+      "status": "warn",
+      "description": "Market data refresh interval within 1.5x configured cadence",
+      "min_value": null,
+      "max_value": 90.0,
+      "severity": "warn"
+    },
+    {
+      "agent": "DataAgent",
+      "metric": "missing_price_ratio",
+      "value": 0.0,
+      "status": "ok",
+      "description": "Price coverage should be high",
+      "min_value": null,
+      "max_value": 0.2,
+      "severity": "warn"
+    },
+    {
+      "agent": "DataAgent",
+      "metric": "bars_coverage_ratio",
+      "value": 1.0,
+      "status": "ok",
+      "description": "Bars coverage should be high",
+      "min_value": 0.8,
+      "max_value": null,
+      "severity": "warn"
+    },
+    {
+      "agent": "SignalAgent",
+      "metric": "actionable_ratio",
+      "value": 0.11496888980076858,
+      "status": "ok",
+      "description": "Actionable signals should be a minority of total signals",
+      "min_value": null,
+      "max_value": 0.6,
+      "severity": "warn"
+    },
+    {
+      "agent": "SignalAgent",
+      "metric": "signal_error_ratio",
+      "value": 0.0,
+      "status": "ok",
+      "description": "Signal generation errors should be rare",
+      "min_value": null,
+      "max_value": 0.05,
+      "severity": "warn"
+    },
+    {
+      "agent": "RiskAgent",
+      "metric": "risk_fail_ratio",
+      "value": 0.6544054747647562,
+      "status": "ok",
+      "description": "Risk rejections should be within expected bounds",
+      "min_value": null,
+      "max_value": 0.7,
+      "severity": "warn"
+    },
+    {
+      "agent": "ExecutionAgent",
+      "metric": "order_failure_ratio",
+      "value": 0.3802469135802469,
+      "status": "warn",
+      "description": "Order failures should be rare",
+      "min_value": null,
+      "max_value": 0.1,
+      "severity": "warn"
+    },
+    {
+      "agent": "MonitorAgent",
+      "metric": "stop_loss_count",
+      "value": 23.0,
+      "status": "warn",
+      "description": "Stop-loss triggers should stay within normal bounds",
+      "min_value": null,
+      "max_value": 5,
+      "severity": "warn"
+    }
+  ],
+  "event_counts": {
+    "total": 3644,
+    "MarketDataReady": 608,
+    "SignalsUpdated": 270,
+    "RiskCheckPassed": 404,
+    "RiskCheckFailed": 765,
+    "OrderExecuted": 251,
+    "OrderFailed": 154,
+    "StopLossTriggered": 23
+  },
+  "status_counts": {
+    "ok": 6,
+    "warn": 3,
+    "fail": 0,
+    "missing": 0
+  }
+}

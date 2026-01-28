@@ -1,0 +1,5 @@
+========================================
+Post-Market Backtest - Mon Jan 26 16:30:01 CST 2026
+========================================
+/mnt/c/Users/aarel/Documents/coding/market-watch/scripts/run_post_market.sh: line 17: : command not found
+❌ Backtest failed with exit code 127

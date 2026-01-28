@@ -1,0 +1,189 @@
+test_download_creates_csv (test_backtest_data.TestHistoricalData.test_download_creates_csv)
+Test that download creates CSV files. ... ok
+test_get_bars_up_to_no_lookahead (test_backtest_data.TestHistoricalData.test_get_bars_up_to_no_lookahead)
+Test that get_bars_up_to prevents lookahead bias. ... ok
+test_get_bars_up_to_nonexistent_symbol_returns_none (test_backtest_data.TestHistoricalData.test_get_bars_up_to_nonexistent_symbol_returns_none)
+Test that get_bars_up_to for non-existent symbol returns None. ... ok
+test_get_bars_up_to_returns_requested_amount (test_backtest_data.TestHistoricalData.test_get_bars_up_to_returns_requested_amount)
+Test that get_bars_up_to returns requested number when available. ... ok
+test_init_creates_directory (test_backtest_data.TestHistoricalData.test_init_creates_directory)
+Test that initialization creates data directory. ... ok
+test_load_from_cache (test_backtest_data.TestHistoricalData.test_load_from_cache)
+Test loading data from cached CSV. ... ok
+test_load_nonexistent_symbol_returns_none (test_backtest_data.TestHistoricalData.test_load_nonexistent_symbol_returns_none)
+Test that loading non-existent symbol returns empty dict. ... ok
+test_backtest_buy_signal_creates_position (test_backtest_engine.TestBacktestEngine.test_backtest_buy_signal_creates_position)
+Test that buy signal creates a position. ... ok
+test_backtest_equity_curve_generation (test_backtest_engine.TestBacktestEngine.test_backtest_equity_curve_generation)
+Test that equity curve is generated correctly. ... ok
+test_backtest_initialization (test_backtest_engine.TestBacktestEngine.test_backtest_initialization)
+Test backtest engine initializes correctly. ... ok
+test_backtest_no_lookahead_bias (test_backtest_engine.TestBacktestEngine.test_backtest_no_lookahead_bias)
+Test that backtest doesn't use future data. ... ok
+test_backtest_respects_max_position_size (test_backtest_engine.TestBacktestEngine.test_backtest_respects_max_position_size)
+Test that position sizing respects max_position_pct. ... ok
+test_backtest_stop_loss_triggered (test_backtest_engine.TestBacktestEngine.test_backtest_stop_loss_triggered)
+Test that stop-loss exits position. ... ok
+test_calculate_metrics_integration (test_backtest_metrics.TestMetricCalculations.test_calculate_metrics_integration)
+Test calculate_metrics with full dataset. ... ok
+test_max_drawdown_always_rising (test_backtest_metrics.TestMetricCalculations.test_max_drawdown_always_rising)
+Test max drawdown with always rising equity. ... ok
+test_max_drawdown_declining_equity (test_backtest_metrics.TestMetricCalculations.test_max_drawdown_declining_equity)
+Test max drawdown with continuously declining equity. ... ok
+test_max_drawdown_with_recovery (test_backtest_metrics.TestMetricCalculations.test_max_drawdown_with_recovery)
+Test max drawdown with drawdown and recovery. ... ok
+test_sharpe_ratio_negative_returns (test_backtest_metrics.TestMetricCalculations.test_sharpe_ratio_negative_returns)
+Test Sharpe ratio with negative returns. ... ok
+test_sharpe_ratio_positive_returns (test_backtest_metrics.TestMetricCalculations.test_sharpe_ratio_positive_returns)
+Test Sharpe ratio with positive returns. ... ok
+test_sharpe_ratio_with_risk_free_rate (test_backtest_metrics.TestMetricCalculations.test_sharpe_ratio_with_risk_free_rate)
+Test Sharpe ratio accounts for risk-free rate. ... ok
+test_sortino_ratio_positive_returns (test_backtest_metrics.TestMetricCalculations.test_sortino_ratio_positive_returns)
+Test Sortino ratio with mixed returns. ... ok
+test_trade_statistics (test_backtest_metrics.TestMetricCalculations.test_trade_statistics)
+Test trade statistics calculation. ... ok
+test_trade_statistics_empty_trades (test_backtest_metrics.TestMetricCalculations.test_trade_statistics_empty_trades)
+Test trade statistics with no trades. ... ok
+test_backtest_results_creation (test_backtest_results.TestBacktestResults.test_backtest_results_creation)
+Test creating BacktestResults object. ... ok
+test_empty_trades_list (test_backtest_results.TestBacktestResults.test_empty_trades_list)
+Test results with no trades. ... ok
+test_summary_string (test_backtest_results.TestBacktestResults.test_summary_string)
+Test summary string generation. ... ok
+test_summary_with_benchmark (test_backtest_results.TestBacktestResults.test_summary_with_benchmark)
+Test summary includes benchmark when provided. ... ok
+test_to_csv_file (test_backtest_results.TestBacktestResults.test_to_csv_file)
+Test exporting equity curve to CSV file. ... ok
+test_to_dict (test_backtest_results.TestBacktestResults.test_to_dict)
+Test converting results to dictionary. ... ok
+test_to_json_file (test_backtest_results.TestBacktestResults.test_to_json_file)
+Test exporting results to JSON file. ... ok
+test_performance_metrics_creation (test_backtest_results.TestPerformanceMetrics.test_performance_metrics_creation)
+Test creating performance metrics object. ... ok
+test_performance_metrics_to_dict (test_backtest_results.TestPerformanceMetrics.test_performance_metrics_to_dict)
+Test converting metrics to dictionary. ... ok
+test_compute_top_gainers_filters_and_sorts (test_screener.TestScreener.test_compute_top_gainers_filters_and_sorts) ... ok
+test_accepts_valid_token (test_security.TestApiAccess.test_accepts_valid_token) ... ok
+test_allows_loopback_with_allowed_origin (test_security.TestApiAccess.test_allows_loopback_with_allowed_origin) ... ok
+test_blocks_disallowed_origin (test_security.TestApiAccess.test_blocks_disallowed_origin) ... ok
+test_blocks_non_loopback_without_token (test_security.TestApiAccess.test_blocks_non_loopback_without_token) ... ok
+test_requires_token_when_configured (test_security.TestApiAccess.test_requires_token_when_configured) ... ok
+test_signals_updated_emitted (test_signals_updated.TestSignalsUpdated.test_signals_updated_emitted) ... ok
+test_breakdown_threshold_calculation (test_strategy_breakout.TestBreakoutStrategy.test_breakdown_threshold_calculation)
+Test breakdown level calculation. ... ok
+test_breakout_threshold_calculation (test_strategy_breakout.TestBreakoutStrategy.test_breakout_threshold_calculation)
+Test breakout level calculation. ... ok
+test_buy_signal_breakout_above_high (test_strategy_breakout.TestBreakoutStrategy.test_buy_signal_breakout_above_high)
+Test buy signal when price breaks above period high. ... ok
+test_get_parameters (test_strategy_breakout.TestBreakoutStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_no_breakout (test_strategy_breakout.TestBreakoutStrategy.test_hold_signal_no_breakout)
+Test hold signal when price hasn't broken out. ... ok
+test_hold_with_position_in_range (test_strategy_breakout.TestBreakoutStrategy.test_hold_with_position_in_range)
+Test hold signal when holding position and price in range. ... ok
+test_narrow_range_no_breakout (test_strategy_breakout.TestBreakoutStrategy.test_narrow_range_no_breakout)
+Test that narrow consolidation doesn't trigger false breakouts. ... ok
+test_period_high_calculation (test_strategy_breakout.TestBreakoutStrategy.test_period_high_calculation)
+Test that period high is calculated correctly. ... ok
+test_period_low_calculation (test_strategy_breakout.TestBreakoutStrategy.test_period_low_calculation)
+Test that period low is calculated correctly. ... ok
+test_sell_signal_breakdown_below_low (test_strategy_breakout.TestBreakoutStrategy.test_sell_signal_breakdown_below_low)
+Test sell signal when holding position and price breaks down. ... ok
+test_sell_signal_stop_loss (test_strategy_breakout.TestBreakoutStrategy.test_sell_signal_stop_loss)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_levels (test_strategy_breakout.TestBreakoutStrategy.test_signal_metadata_includes_levels)
+Test that signal metadata includes breakout/breakdown levels. ... ok
+test_strategy_metadata (test_strategy_breakout.TestBreakoutStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_buy_signal_price_below_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_buy_signal_price_below_ma)
+Test buy signal when price is significantly below moving average. ... ok
+test_get_parameters (test_strategy_mean_reversion.TestMeanReversionStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_price_near_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_hold_signal_price_near_ma)
+Test hold signal when price is close to moving average. ... ok
+test_hold_with_position_near_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_hold_with_position_near_ma)
+Test hold signal when holding position and price near MA. ... ok
+test_insufficient_data_for_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_insufficient_data_for_ma)
+Test behavior with insufficient data for moving average. ... ok
+test_sell_signal_price_above_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_sell_signal_price_above_ma)
+Test sell signal when holding position and price above MA. ... ok
+test_sell_signal_stop_loss (test_strategy_mean_reversion.TestMeanReversionStrategy.test_sell_signal_stop_loss)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_ma_and_deviation (test_strategy_mean_reversion.TestMeanReversionStrategy.test_signal_metadata_includes_ma_and_deviation)
+Test that signal metadata includes MA and deviation. ... ok
+test_strategy_metadata (test_strategy_mean_reversion.TestMeanReversionStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_buy_signal_strong_momentum (test_strategy_momentum.TestMomentumStrategy.test_buy_signal_strong_momentum)
+Test buy signal when momentum exceeds threshold. ... ok
+test_get_parameters (test_strategy_momentum.TestMomentumStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_weak_momentum (test_strategy_momentum.TestMomentumStrategy.test_hold_signal_weak_momentum)
+Test hold signal when momentum below threshold. ... ok
+test_hold_signal_with_position_positive_momentum (test_strategy_momentum.TestMomentumStrategy.test_hold_signal_with_position_positive_momentum)
+Test hold signal when holding position with positive momentum. ... ok
+test_insufficient_data_returns_hold (test_strategy_momentum.TestMomentumStrategy.test_insufficient_data_returns_hold)
+Test that insufficient bars returns hold signal. ... ok
+test_momentum_calculation_accuracy (test_strategy_momentum.TestMomentumStrategy.test_momentum_calculation_accuracy)
+Test that momentum is calculated correctly. ... ok
+test_negative_momentum_calculation (test_strategy_momentum.TestMomentumStrategy.test_negative_momentum_calculation)
+Test momentum calculation with declining prices. ... ok
+test_sell_signal_momentum_reversal (test_strategy_momentum.TestMomentumStrategy.test_sell_signal_momentum_reversal)
+Test sell signal when momentum reverses while holding position. ... ok
+test_sell_signal_stop_loss_triggered (test_strategy_momentum.TestMomentumStrategy.test_sell_signal_stop_loss_triggered)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_momentum (test_strategy_momentum.TestMomentumStrategy.test_signal_metadata_includes_momentum)
+Test that signal metadata includes momentum value. ... ok
+test_strategy_metadata (test_strategy_momentum.TestMomentumStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_buy_signal_rsi_oversold (test_strategy_rsi.TestRSIStrategy.test_buy_signal_rsi_oversold)
+Test buy signal when RSI is oversold. ... ok
+test_get_parameters (test_strategy_rsi.TestRSIStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_rsi_neutral (test_strategy_rsi.TestRSIStrategy.test_hold_signal_rsi_neutral)
+Test hold signal when RSI is in neutral zone. ... ok
+test_hold_with_position_neutral_rsi (test_strategy_rsi.TestRSIStrategy.test_hold_with_position_neutral_rsi)
+Test hold signal when holding position with neutral RSI. ... ok
+test_insufficient_data_returns_hold (test_strategy_rsi.TestRSIStrategy.test_insufficient_data_returns_hold)
+Test that insufficient bars returns hold signal. ... ok
+test_sell_signal_rsi_overbought (test_strategy_rsi.TestRSIStrategy.test_sell_signal_rsi_overbought)
+Test sell signal when holding position and RSI is overbought. ... ok
+test_sell_signal_stop_loss (test_strategy_rsi.TestRSIStrategy.test_sell_signal_stop_loss)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_rsi (test_strategy_rsi.TestRSIStrategy.test_signal_metadata_includes_rsi)
+Test that signal metadata includes RSI value. ... ok
+test_strategy_metadata (test_strategy_rsi.TestRSIStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_update_trade_interval (test_trade_interval.TestTradeInterval.test_update_trade_interval) ... ok
+test_update_trade_interval_requires_positive (test_trade_interval.TestTradeInterval.test_update_trade_interval_requires_positive) ... ok
+
+----------------------------------------------------------------------
+Ran 83 tests in 0.158s
+
+OK
+Downloading AAPL from 2023-01-01 to 2023-01-10...
+Cached 10 bars for AAPL -> /tmp/tmpx4k1i0j7/AAPL_daily.csv
+Warning: No cached data for NONEXISTENT. Run download() first.
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Running backtest: 2023-01-01 to 2023-02-14
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 45
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Equity curve exported to /tmp/tmpgj62f3da.csv
+Full results exported to /tmp/tmpq6t2hkaj.json
+Coordinator: Loaded strategy 'Momentum Strategy'
+Coordinator: Loaded strategy 'Momentum Strategy'

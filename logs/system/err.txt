@@ -1,0 +1,380 @@
+:market-watch$ ./run_tests.sh
+Running Market-Watch Test Suite...
+Log file: test_results/test_run_20260125_094926.log
+
+✓ Virtual environment activated
+
+==========================================
+  Running Tests
+==========================================
+
+test_compute_equity_metrics_alternative_field_names (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_alternative_field_names)
+Test using portfolio_value and account_value fields. ... ok
+test_compute_equity_metrics_basic (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_basic)
+Test basic equity metrics calculation. ... ok
+test_compute_equity_metrics_drawdown_calculation (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_drawdown_calculation)
+Test max drawdown is calculated correctly. ... ok
+test_compute_equity_metrics_empty (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_empty)
+Test empty equity data returns zeros. ... ok
+test_compute_equity_metrics_multiple_same_day (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_multiple_same_day)
+Test daily collapsing keeps last snapshot per day. ... ok
+test_compute_equity_metrics_negative_return (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_negative_return)
+Test negative return calculation. ... ok
+test_compute_equity_metrics_positive_return (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_positive_return)
+Test positive return calculation. ... ok
+test_compute_equity_metrics_single_point (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_single_point)
+Test single data point returns zeros. ... ok
+test_compute_equity_metrics_zero_start_value (test_analytics_metrics.TestEquityMetrics.test_compute_equity_metrics_zero_start_value)
+Test zero starting equity is handled gracefully. ... ok
+test_compute_trade_outcomes_average_cost_basis (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_average_cost_basis)
+Test average cost basis calculation with multiple buys. ... ok
+test_compute_trade_outcomes_basic (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_basic)
+Test basic win/loss calculation. ... ok
+test_compute_trade_outcomes_breakeven_trade (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_breakeven_trade)
+Test exact breakeven trade (P&L = 0). ... ok
+test_compute_trade_outcomes_chronological_sorting (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_chronological_sorting)
+Test trades are sorted chronologically before processing. ... ok
+test_compute_trade_outcomes_empty (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_empty)
+Test empty trade list returns zeros. ... ok
+test_compute_trade_outcomes_invalid_trades_skipped (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_invalid_trades_skipped)
+Test trades with missing data are skipped. ... ok
+test_compute_trade_outcomes_missing_price_skipped (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_missing_price_skipped)
+Test trades without filled_avg_price are skipped (current behavior). ... ok
+test_compute_trade_outcomes_multiple_symbols (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_multiple_symbols)
+Test tracking multiple symbols independently. ... ok
+test_compute_trade_outcomes_no_sells (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_no_sells)
+Test win rate is 0 when no sells (all buys). ... ok
+test_compute_trade_outcomes_partial_sells (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_partial_sells)
+Test multiple partial sells from one buy. ... ok
+test_compute_trade_outcomes_sell_without_inventory (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_sell_without_inventory)
+Test sell without prior buy is treated as breakeven. ... ok
+test_compute_trade_outcomes_win_rate_calculation (test_analytics_metrics.TestTradeOutcomes.test_compute_trade_outcomes_win_rate_calculation)
+Test win rate percentage calculation. ... ok
+test_directory_creation (test_analytics_store.TestAnalyticsStore.test_directory_creation)
+Test that directories are created if they don't exist. ... ok
+test_empty_lines_ignored (test_analytics_store.TestAnalyticsStore.test_empty_lines_ignored)
+Test that empty lines are skipped. ... ok
+test_load_equity_all (test_analytics_store.TestAnalyticsStore.test_load_equity_all)
+Test loading all equity snapshots. ... ok
+test_load_equity_empty (test_analytics_store.TestAnalyticsStore.test_load_equity_empty)
+Test loading from non-existent file. ... ok
+test_load_equity_period_30d (test_analytics_store.TestAnalyticsStore.test_load_equity_period_30d)
+Test loading last 30 days of equity. ... ok
+test_load_equity_period_ytd (test_analytics_store.TestAnalyticsStore.test_load_equity_period_ytd)
+Test loading YTD equity. ... ok
+test_load_trades_period_filter (test_analytics_store.TestAnalyticsStore.test_load_trades_period_filter)
+Test trade period filtering. ... ok
+test_load_trades_with_limit (test_analytics_store.TestAnalyticsStore.test_load_trades_with_limit)
+Test loading trades with limit. ... ok
+test_malformed_jsonl_ignored (test_analytics_store.TestAnalyticsStore.test_malformed_jsonl_ignored)
+Test that malformed JSONL lines are skipped. ... ok
+test_missing_timestamp_handled (test_analytics_store.TestAnalyticsStore.test_missing_timestamp_handled)
+Test records without timestamp in filter. ... ok
+test_record_equity_auto_timestamp (test_analytics_store.TestAnalyticsStore.test_record_equity_auto_timestamp)
+Test automatic timestamp injection if missing. ... ok
+test_record_equity_basic (test_analytics_store.TestAnalyticsStore.test_record_equity_basic)
+Test recording a single equity snapshot. ... ok
+test_record_equity_empty_dict (test_analytics_store.TestAnalyticsStore.test_record_equity_empty_dict)
+Test that empty dict is ignored. ... ok
+test_record_equity_multiple (test_analytics_store.TestAnalyticsStore.test_record_equity_multiple)
+Test recording multiple equity snapshots. ... ok
+test_record_equity_none (test_analytics_store.TestAnalyticsStore.test_record_equity_none)
+Test that None is ignored. ... ok
+test_record_trade_basic (test_analytics_store.TestAnalyticsStore.test_record_trade_basic)
+Test recording a single trade. ... ok
+test_record_trade_multiple (test_analytics_store.TestAnalyticsStore.test_record_trade_multiple)
+Test recording multiple trades. ... ok
+test_thread_safety_equity (test_analytics_store.TestAnalyticsStore.test_thread_safety_equity)
+Test concurrent writes to equity file. ... ok
+test_thread_safety_trades (test_analytics_store.TestAnalyticsStore.test_thread_safety_trades)
+Test concurrent writes to trades file. ... ok
+test_period_all (test_analytics_store.TestCutoffFromPeriod.test_period_all)
+Test 'all' period returns None. ... ok
+test_period_days (test_analytics_store.TestCutoffFromPeriod.test_period_days)
+Test 'Nd' format. ... ok
+test_period_invalid (test_analytics_store.TestCutoffFromPeriod.test_period_invalid)
+Test invalid period returns None. ... ok
+test_period_months (test_analytics_store.TestCutoffFromPeriod.test_period_months)
+Test 'Nm' format. ... ok
+test_period_weeks (test_analytics_store.TestCutoffFromPeriod.test_period_weeks)
+Test 'Nw' format. ... ok
+test_period_ytd (test_analytics_store.TestCutoffFromPeriod.test_period_ytd)
+Test YTD period. ... ok
+test_parse_datetime_object (test_analytics_store.TestParseTimestamp.test_parse_datetime_object)
+Test passing datetime object. ... ok
+test_parse_invalid_string (test_analytics_store.TestParseTimestamp.test_parse_invalid_string)
+Test invalid string returns None. ... ok
+test_parse_iso_string (test_analytics_store.TestParseTimestamp.test_parse_iso_string)
+Test parsing ISO format string. ... ok
+test_parse_iso_with_timezone (test_analytics_store.TestParseTimestamp.test_parse_iso_with_timezone)
+Test parsing ISO format with timezone. ... ok
+test_parse_none (test_analytics_store.TestParseTimestamp.test_parse_none)
+Test None returns None. ... ok
+test_download_creates_csv (test_backtest_data.TestHistoricalData.test_download_creates_csv)
+Test that download creates CSV files. ... ok
+test_get_bars_up_to_no_lookahead (test_backtest_data.TestHistoricalData.test_get_bars_up_to_no_lookahead)
+Test that get_bars_up_to prevents lookahead bias. ... ok
+test_get_bars_up_to_nonexistent_symbol_returns_none (test_backtest_data.TestHistoricalData.test_get_bars_up_to_nonexistent_symbol_returns_none)
+Test that get_bars_up_to for non-existent symbol returns None. ... ok
+test_get_bars_up_to_returns_requested_amount (test_backtest_data.TestHistoricalData.test_get_bars_up_to_returns_requested_amount)
+Test that get_bars_up_to returns requested number when available. ... ok
+test_init_creates_directory (test_backtest_data.TestHistoricalData.test_init_creates_directory)
+Test that initialization creates data directory. ... ok
+test_load_from_cache (test_backtest_data.TestHistoricalData.test_load_from_cache)
+Test loading data from cached CSV. ... ok
+test_load_nonexistent_symbol_returns_none (test_backtest_data.TestHistoricalData.test_load_nonexistent_symbol_returns_none)
+Test that loading non-existent symbol returns empty dict. ... ok
+test_backtest_buy_signal_creates_position (test_backtest_engine.TestBacktestEngine.test_backtest_buy_signal_creates_position)
+Test that buy signal creates a position. ... ok
+test_backtest_equity_curve_generation (test_backtest_engine.TestBacktestEngine.test_backtest_equity_curve_generation)
+Test that equity curve is generated correctly. ... ok
+test_backtest_initialization (test_backtest_engine.TestBacktestEngine.test_backtest_initialization)
+Test backtest engine initializes correctly. ... ok
+test_backtest_no_lookahead_bias (test_backtest_engine.TestBacktestEngine.test_backtest_no_lookahead_bias)
+Test that backtest doesn't use future data. ... ok
+test_backtest_respects_max_position_size (test_backtest_engine.TestBacktestEngine.test_backtest_respects_max_position_size)
+Test that position sizing respects max_position_pct. ... ok
+test_backtest_stop_loss_triggered (test_backtest_engine.TestBacktestEngine.test_backtest_stop_loss_triggered)
+Test that stop-loss exits position. ... ok
+test_calculate_metrics_integration (test_backtest_metrics.TestMetricCalculations.test_calculate_metrics_integration)
+Test calculate_metrics with full dataset. ... ok
+test_daily_loss_and_drawdown_limits (test_backtest_metrics.TestMetricCalculations.test_daily_loss_and_drawdown_limits)
+Test daily loss limit hits and drawdown limit flag. ... ok
+test_max_drawdown_always_rising (test_backtest_metrics.TestMetricCalculations.test_max_drawdown_always_rising)
+Test max drawdown with always rising equity. ... ok
+test_max_drawdown_declining_equity (test_backtest_metrics.TestMetricCalculations.test_max_drawdown_declining_equity)
+Test max drawdown with continuously declining equity. ... ok
+test_max_drawdown_with_recovery (test_backtest_metrics.TestMetricCalculations.test_max_drawdown_with_recovery)
+Test max drawdown with drawdown and recovery. ... ok
+test_sharpe_ratio_negative_returns (test_backtest_metrics.TestMetricCalculations.test_sharpe_ratio_negative_returns)
+Test Sharpe ratio with negative returns. ... ok
+test_sharpe_ratio_positive_returns (test_backtest_metrics.TestMetricCalculations.test_sharpe_ratio_positive_returns)
+Test Sharpe ratio with positive returns. ... ok
+test_sharpe_ratio_with_risk_free_rate (test_backtest_metrics.TestMetricCalculations.test_sharpe_ratio_with_risk_free_rate)
+Test Sharpe ratio accounts for risk-free rate. ... ok
+test_sortino_ratio_positive_returns (test_backtest_metrics.TestMetricCalculations.test_sortino_ratio_positive_returns)
+Test Sortino ratio with mixed returns. ... ok
+test_trade_statistics (test_backtest_metrics.TestMetricCalculations.test_trade_statistics)
+Test trade statistics calculation. ... ok
+test_trade_statistics_empty_trades (test_backtest_metrics.TestMetricCalculations.test_trade_statistics_empty_trades)
+Test trade statistics with no trades. ... ok
+test_backtest_results_creation (test_backtest_results.TestBacktestResults.test_backtest_results_creation)
+Test creating BacktestResults object. ... ok
+test_empty_trades_list (test_backtest_results.TestBacktestResults.test_empty_trades_list)
+Test results with no trades. ... ok
+test_summary_string (test_backtest_results.TestBacktestResults.test_summary_string)
+Test summary string generation. ... ok
+test_summary_with_benchmark (test_backtest_results.TestBacktestResults.test_summary_with_benchmark)
+Test summary includes benchmark when provided. ... ok
+test_to_csv_file (test_backtest_results.TestBacktestResults.test_to_csv_file)
+Test exporting equity curve to CSV file. ... ok
+test_to_dict (test_backtest_results.TestBacktestResults.test_to_dict)
+Test converting results to dictionary. ... ok
+test_to_json_file (test_backtest_results.TestBacktestResults.test_to_json_file)
+Test exporting results to JSON file. ... ok
+test_performance_metrics_creation (test_backtest_results.TestPerformanceMetrics.test_performance_metrics_creation)
+Test creating performance metrics object. ... ok
+test_performance_metrics_to_dict (test_backtest_results.TestPerformanceMetrics.test_performance_metrics_to_dict)
+Test converting metrics to dictionary. ... ok
+test_daily_loss_triggers (test_circuit_breaker.TestCircuitBreaker.test_daily_loss_triggers) ... ok
+test_drawdown_triggers (test_circuit_breaker.TestCircuitBreaker.test_drawdown_triggers) ... ok
+test_resets_on_new_day (test_circuit_breaker.TestCircuitBreaker.test_resets_on_new_day) ... ok
+test_load_malformed_file_does_not_crash (test_config_persistence.TestConfigPersistence.test_load_malformed_file_does_not_crash) ... ok
+test_load_missing_file_no_change (test_config_persistence.TestConfigPersistence.test_load_missing_file_no_change) ... ok
+test_save_and_load_round_trip (test_config_persistence.TestConfigPersistence.test_save_and_load_round_trip) ... ok
+test_market_indices_included (test_data_agent_indices.TestDataAgentMarketIndices.test_market_indices_included) ... ok
+test_health_agents_check (test_health_endpoint.TestHealthEndpoint.test_health_agents_check)
+Test agents running check exists. ... ok
+test_health_application_check (test_health_endpoint.TestHealthEndpoint.test_health_application_check)
+Test application initialization check exists. ... ok
+test_health_broker_api_check (test_health_endpoint.TestHealthEndpoint.test_health_broker_api_check)
+Test broker API check exists. ... ok
+test_health_checks_structure (test_health_endpoint.TestHealthEndpoint.test_health_checks_structure)
+Test each health check has proper structure. ... ok
+test_health_content_type (test_health_endpoint.TestHealthEndpoint.test_health_content_type)
+Test health endpoint returns JSON. ... ok
+test_health_degraded_when_agents_partial (test_health_endpoint.TestHealthEndpoint.test_health_degraded_when_agents_partial)
+Test health is degraded when some agents not running. ... ok
+test_health_endpoint_exists (test_health_endpoint.TestHealthEndpoint.test_health_endpoint_exists)
+Test health endpoint is accessible. ... ok
+test_health_fail_when_broker_not_initialized (test_health_endpoint.TestHealthEndpoint.test_health_fail_when_broker_not_initialized)
+Test health fails when broker not initialized. ... ok
+test_health_file_system_check (test_health_endpoint.TestHealthEndpoint.test_health_file_system_check)
+Test file system check exists. ... ok
+test_health_json_parseable (test_health_endpoint.TestHealthEndpoint.test_health_json_parseable)
+Test health response is valid JSON. ... ok
+test_health_memory_check (test_health_endpoint.TestHealthEndpoint.test_health_memory_check)
+Test memory usage check exists. ... ok
+test_health_no_auth_required (test_health_endpoint.TestHealthEndpoint.test_health_no_auth_required)
+Test health endpoint doesn't require authentication. ... ok
+test_health_response_structure (test_health_endpoint.TestHealthEndpoint.test_health_response_structure)
+Test health response has required fields. ... ok
+test_health_returns_503_when_unhealthy (test_health_endpoint.TestHealthEndpoint.test_health_returns_503_when_unhealthy)
+Test health returns 503 status when system is unhealthy. ... ok
+test_health_timestamp_format (test_health_endpoint.TestHealthEndpoint.test_health_timestamp_format)
+Test timestamp is in ISO format. ... ok
+test_health_uptime_reasonable (test_health_endpoint.TestHealthEndpoint.test_health_uptime_reasonable)
+Test uptime is a reasonable value. ... ok
+test_get_observability_expectations (test_observability_endpoints.TestObservabilityEndpoints.test_get_observability_expectations) ... ok
+test_run_observability_eval_disabled (test_observability_endpoints.TestObservabilityEndpoints.test_run_observability_eval_disabled) ... ok
+test_run_observability_eval_eval_disabled (test_observability_endpoints.TestObservabilityEndpoints.test_run_observability_eval_eval_disabled) ... ok
+test_run_observability_eval_success (test_observability_endpoints.TestObservabilityEndpoints.test_run_observability_eval_success) ... ok
+test_caps_by_buying_power (test_position_sizer.TestPositionSizer.test_caps_by_buying_power) ... ok
+test_clamps_strength (test_position_sizer.TestPositionSizer.test_clamps_strength) ... ok
+test_no_strength_scaling (test_position_sizer.TestPositionSizer.test_no_strength_scaling) ... ok
+test_scales_by_strength (test_position_sizer.TestPositionSizer.test_scales_by_strength) ... ok
+test_correlation_exposure_allows_when_below_threshold (test_risk_agent_exposure.TestRiskAgentExposure.test_correlation_exposure_allows_when_below_threshold) ... ok
+test_correlation_exposure_blocks_buy (test_risk_agent_exposure.TestRiskAgentExposure.test_correlation_exposure_blocks_buy) ... ok
+test_sector_exposure_blocks_buy (test_risk_agent_exposure.TestRiskAgentExposure.test_sector_exposure_blocks_buy) ... ok
+test_max_open_positions_blocks_buy (test_risk_agent_limits.TestRiskAgentLimits.test_max_open_positions_blocks_buy) ... ok
+test_risk_agent_rejects_below_min (test_risk_agent_sizer.TestRiskAgentPositionSizer.test_risk_agent_rejects_below_min) ... ok
+test_risk_agent_uses_sizer_value (test_risk_agent_sizer.TestRiskAgentPositionSizer.test_risk_agent_uses_sizer_value) ... ok
+test_reset_risk_breaker_calls_coordinator (test_risk_breaker_endpoint.TestRiskBreakerEndpoint.test_reset_risk_breaker_calls_coordinator) ... ok
+test_reset_risk_breaker_requires_coordinator (test_risk_breaker_endpoint.TestRiskBreakerEndpoint.test_reset_risk_breaker_requires_coordinator) ... ok
+test_compute_top_gainers_filters_and_sorts (test_screener.TestScreener.test_compute_top_gainers_filters_and_sorts) ... ok
+test_accepts_valid_token (test_security.TestApiAccess.test_accepts_valid_token) ... ok
+test_allows_loopback_with_allowed_origin (test_security.TestApiAccess.test_allows_loopback_with_allowed_origin) ... ok
+test_blocks_disallowed_origin (test_security.TestApiAccess.test_blocks_disallowed_origin) ... ok
+test_blocks_non_loopback_without_token (test_security.TestApiAccess.test_blocks_non_loopback_without_token) ... ok
+test_requires_token_when_configured (test_security.TestApiAccess.test_requires_token_when_configured) ... ok
+test_signals_updated_emitted (test_signals_updated.TestSignalsUpdated.test_signals_updated_emitted) ... ok
+test_breakdown_threshold_calculation (test_strategy_breakout.TestBreakoutStrategy.test_breakdown_threshold_calculation)
+Test breakdown level calculation. ... ok
+test_breakout_threshold_calculation (test_strategy_breakout.TestBreakoutStrategy.test_breakout_threshold_calculation)
+Test breakout level calculation. ... ok
+test_buy_signal_breakout_above_high (test_strategy_breakout.TestBreakoutStrategy.test_buy_signal_breakout_above_high)
+Test buy signal when price breaks above period high. ... ok
+test_get_parameters (test_strategy_breakout.TestBreakoutStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_no_breakout (test_strategy_breakout.TestBreakoutStrategy.test_hold_signal_no_breakout)
+Test hold signal when price hasn't broken out. ... ok
+test_hold_with_position_in_range (test_strategy_breakout.TestBreakoutStrategy.test_hold_with_position_in_range)
+Test hold signal when holding position and price in range. ... ok
+test_narrow_range_no_breakout (test_strategy_breakout.TestBreakoutStrategy.test_narrow_range_no_breakout)
+Test that narrow consolidation doesn't trigger false breakouts. ... ok
+test_period_high_calculation (test_strategy_breakout.TestBreakoutStrategy.test_period_high_calculation)
+Test that period high is calculated correctly. ... ok
+test_period_low_calculation (test_strategy_breakout.TestBreakoutStrategy.test_period_low_calculation)
+Test that period low is calculated correctly. ... ok
+test_sell_signal_breakdown_below_low (test_strategy_breakout.TestBreakoutStrategy.test_sell_signal_breakdown_below_low)
+Test sell signal when holding position and price breaks down. ... ok
+test_sell_signal_stop_loss (test_strategy_breakout.TestBreakoutStrategy.test_sell_signal_stop_loss)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_levels (test_strategy_breakout.TestBreakoutStrategy.test_signal_metadata_includes_levels)
+Test that signal metadata includes breakout/breakdown levels. ... ok
+test_strategy_metadata (test_strategy_breakout.TestBreakoutStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_buy_signal_price_below_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_buy_signal_price_below_ma)
+Test buy signal when price is significantly below moving average. ... ok
+test_get_parameters (test_strategy_mean_reversion.TestMeanReversionStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_price_near_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_hold_signal_price_near_ma)
+Test hold signal when price is close to moving average. ... ok
+test_hold_with_position_near_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_hold_with_position_near_ma)
+Test hold signal when holding position and price near MA. ... ok
+test_insufficient_data_for_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_insufficient_data_for_ma)
+Test behavior with insufficient data for moving average. ... ok
+test_sell_signal_price_above_ma (test_strategy_mean_reversion.TestMeanReversionStrategy.test_sell_signal_price_above_ma)
+Test sell signal when holding position and price above MA. ... ok
+test_sell_signal_stop_loss (test_strategy_mean_reversion.TestMeanReversionStrategy.test_sell_signal_stop_loss)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_ma_and_deviation (test_strategy_mean_reversion.TestMeanReversionStrategy.test_signal_metadata_includes_ma_and_deviation)
+Test that signal metadata includes MA and deviation. ... ok
+test_strategy_metadata (test_strategy_mean_reversion.TestMeanReversionStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_buy_signal_strong_momentum (test_strategy_momentum.TestMomentumStrategy.test_buy_signal_strong_momentum)
+Test buy signal when momentum exceeds threshold. ... ok
+test_get_parameters (test_strategy_momentum.TestMomentumStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_weak_momentum (test_strategy_momentum.TestMomentumStrategy.test_hold_signal_weak_momentum)
+Test hold signal when momentum below threshold. ... ok
+test_hold_signal_with_position_positive_momentum (test_strategy_momentum.TestMomentumStrategy.test_hold_signal_with_position_positive_momentum)
+Test hold signal when holding position with positive momentum. ... ok
+test_insufficient_data_returns_hold (test_strategy_momentum.TestMomentumStrategy.test_insufficient_data_returns_hold)
+Test that insufficient bars returns hold signal. ... ok
+test_momentum_calculation_accuracy (test_strategy_momentum.TestMomentumStrategy.test_momentum_calculation_accuracy)
+Test that momentum is calculated correctly. ... ok
+test_negative_momentum_calculation (test_strategy_momentum.TestMomentumStrategy.test_negative_momentum_calculation)
+Test momentum calculation with declining prices. ... ok
+test_sell_signal_momentum_reversal (test_strategy_momentum.TestMomentumStrategy.test_sell_signal_momentum_reversal)
+Test sell signal when momentum reverses while holding position. ... ok
+test_sell_signal_stop_loss_triggered (test_strategy_momentum.TestMomentumStrategy.test_sell_signal_stop_loss_triggered)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_momentum (test_strategy_momentum.TestMomentumStrategy.test_signal_metadata_includes_momentum)
+Test that signal metadata includes momentum value. ... ok
+test_strategy_metadata (test_strategy_momentum.TestMomentumStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_buy_signal_rsi_oversold (test_strategy_rsi.TestRSIStrategy.test_buy_signal_rsi_oversold)
+Test buy signal when RSI is oversold. ... ok
+test_get_parameters (test_strategy_rsi.TestRSIStrategy.test_get_parameters)
+Test retrieving strategy parameters. ... ok
+test_hold_signal_rsi_neutral (test_strategy_rsi.TestRSIStrategy.test_hold_signal_rsi_neutral)
+Test hold signal when RSI is in neutral zone. ... ok
+test_hold_with_position_neutral_rsi (test_strategy_rsi.TestRSIStrategy.test_hold_with_position_neutral_rsi)
+Test hold signal when holding position with neutral RSI. ... ok
+test_insufficient_data_returns_hold (test_strategy_rsi.TestRSIStrategy.test_insufficient_data_returns_hold)
+Test that insufficient bars returns hold signal. ... ok
+test_sell_signal_rsi_overbought (test_strategy_rsi.TestRSIStrategy.test_sell_signal_rsi_overbought)
+Test sell signal when holding position and RSI is overbought. ... ok
+test_sell_signal_stop_loss (test_strategy_rsi.TestRSIStrategy.test_sell_signal_stop_loss)
+Test sell signal when stop-loss is triggered. ... ok
+test_signal_metadata_includes_rsi (test_strategy_rsi.TestRSIStrategy.test_signal_metadata_includes_rsi)
+Test that signal metadata includes RSI value. ... ok
+test_strategy_metadata (test_strategy_rsi.TestRSIStrategy.test_strategy_metadata)
+Test strategy name and description. ... ok
+test_update_trade_interval (test_trade_interval.TestTradeInterval.test_update_trade_interval) ... ok
+test_update_trade_interval_requires_positive (test_trade_interval.TestTradeInterval.test_update_trade_interval_requires_positive) ... ok
+
+----------------------------------------------------------------------
+Ran 174 tests in 0.306s
+
+OK
+Downloading AAPL from 2023-01-01 to 2023-01-10...
+Cached 10 bars for AAPL -> /tmp/tmpjlnse0xu/AAPL_daily.csv
+Warning: No cached data for NONEXISTENT. Run download() first.
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Running backtest: 2023-01-01 to 2023-02-14
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 45
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Running backtest: 2023-01-01 to 2023-02-15
+Symbols: TEST
+Initial capital: $10,000.00
+Trading days: 46
+Equity curve exported to /tmp/tmp7em3x23i.csv
+Full results exported to /tmp/tmp3xuq4fz8.json
+Failed to load config state (/tmp/tmpcjzdd2ep/config_state.json): Expecting property name enclosed in double quotes: line 1 column 3 (char 2)
+
+==========================================
+  Test Summary
+==========================================
+
+Market-Watch Test Suite Summary
+Generated: Sun Jan 25 09:49:34 CST 2026
+Log file: test_results/test_run_20260125_094926.log
+
+Results:
+--------
+Total Tests: 174
+Passed:      174
+Failed:      0
+0
+Errors:      0
+0
+
+Exit Code: 0
+
+✓ All tests passed!
+
+Test logs saved to: test_results
