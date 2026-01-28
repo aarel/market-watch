@@ -36,13 +36,14 @@ class AppState:
         components and creates a new UniverseContext.
         """
         # Tear down existing universe-bound components
-        self.broker = None
-        self.coordinator = None
-        self.analytics_store = None
         self.error = None
         self.websockets = []
         # New context with fresh session_id
         self.universe_context = UniverseContext(universe)
+        # Clear components after context creation (order matters for teardown callbacks)
+        self.broker = None
+        self.coordinator = None
+        self.analytics_store = None
         return self.universe_context
 
     def rebuild_for_universe(
@@ -51,6 +52,7 @@ class AppState:
         broker_factory: Optional[Callable[[Universe], object]] = None,
         coordinator_factory: Optional[Callable[[object, object], object]] = None,
         analytics_factory: Optional[Callable[[Universe], object]] = None,
+        teardown: Optional[Callable[[object, object, object], None]] = None,
     ):
         """
         Perform a destructive universe transition and rebuild broker,
@@ -59,6 +61,10 @@ class AppState:
         Factories are injectable to allow testing without hitting real
         brokers or external services.
         """
+        # Optional teardown of existing components before reset
+        if teardown:
+            teardown(self.broker, self.coordinator, self.analytics_store)
+
         ctx = self.set_universe(universe)
 
         broker_factory = broker_factory or (lambda uni: None)
