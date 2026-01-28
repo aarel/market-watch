@@ -14,7 +14,7 @@ Design Principles:
 
 from enum import Enum
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 
@@ -152,14 +152,15 @@ class UniverseContext:
         """
         self._universe = universe
         self._session_id = session_id or self._generate_session_id()
-        self._created_at = datetime.utcnow()
+        self._created_at = datetime.now(timezone.utc)
         self._data_lineage_id = data_lineage_id
         self._validity_class = universe.default_validity_class
 
     @staticmethod
     def _generate_session_id() -> str:
         """Generate a unique session ID."""
-        return f"session_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        now = datetime.now(timezone.utc)
+        return f"session_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
     @property
     def universe(self) -> Universe:

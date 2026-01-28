@@ -76,10 +76,20 @@ class EventBus:
                 "Events cannot cross universe boundaries."
             )
 
-        # Validate event has session_id
+        # Validate event has provenance
         if not event.session_id:
             raise ValueError(
                 f"Event missing session_id. All events must have provenance. "
+                f"Event type: {type(event).__name__}"
+            )
+        if getattr(event, "data_lineage_id", None) is None:
+            raise ValueError(
+                f"Event missing data_lineage_id. All events must declare data provenance. "
+                f"Event type: {type(event).__name__}"
+            )
+        if getattr(event, "validity_class", None) is None:
+            raise ValueError(
+                f"Event missing validity_class. All events must declare validity. "
                 f"Event type: {type(event).__name__}"
             )
 

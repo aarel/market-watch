@@ -1,6 +1,6 @@
 """Event definitions for agent communication."""
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from universe import Universe
@@ -20,9 +20,11 @@ class Event:
     # Required provenance fields (no defaults)
     universe: Universe
     session_id: str
+    data_lineage_id: Optional[str] = None
+    validity_class: Optional[str] = None
 
     # Standard fields with defaults
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     source: str = ""
 
 

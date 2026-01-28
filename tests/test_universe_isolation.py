@@ -35,6 +35,8 @@ class TestUniverseIsolationInvariants(unittest.IsolatedAsyncioTestCase):
         paper_event = LogEvent(
             universe=paper_context.universe,
             session_id=paper_context.session_id,
+            data_lineage_id="lineage-paper",
+            validity_class="PAPER_ONLY",
             source="test",
             level="info",
             message="test message"
@@ -79,6 +81,8 @@ class TestUniverseIsolationInvariants(unittest.IsolatedAsyncioTestCase):
         event = LogEvent(
             universe=context.universe,
             session_id=context.session_id,
+            data_lineage_id="lineage-ok",
+            validity_class="SIM_VALID_FOR_TRAINING",
             source="test",
             level="info",
             message="test"
@@ -90,6 +94,8 @@ class TestUniverseIsolationInvariants(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             LogEvent(
                 session_id=context.session_id,
+                data_lineage_id="x",
+                validity_class="SIM_VALID_FOR_TRAINING",
                 source="test",
                 level="info",
                 message="test"
@@ -99,6 +105,8 @@ class TestUniverseIsolationInvariants(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TypeError):
             LogEvent(
                 universe=context.universe,
+                data_lineage_id="x",
+                validity_class="SIM_VALID_FOR_TRAINING",
                 source="test",
                 level="info",
                 message="test"
@@ -138,6 +146,8 @@ class TestUniverseIsolationInvariants(unittest.IsolatedAsyncioTestCase):
         valid_event = LogEvent(
             universe=context.universe,
             session_id=context.session_id,
+            data_lineage_id="lineage-valid",
+            validity_class="SIM_VALID_FOR_TRAINING",
             source="test",
             level="info",
             message="test"
@@ -180,6 +190,8 @@ class TestUniverseIsolationInvariants(unittest.IsolatedAsyncioTestCase):
         sim_event = LogEvent(
             universe=sim_context.universe,
             session_id=sim_context.session_id,
+            data_lineage_id="lineage-sim",
+            validity_class="SIM_VALID_FOR_TRAINING",
             source="test",
             level="info",
             message="sim message"
@@ -190,6 +202,8 @@ class TestUniverseIsolationInvariants(unittest.IsolatedAsyncioTestCase):
         paper_event = LogEvent(
             universe=paper_context.universe,
             session_id=paper_context.session_id,
+            data_lineage_id="lineage-paper2",
+            validity_class="PAPER_ONLY",
             source="test",
             level="info",
             message="paper message"
