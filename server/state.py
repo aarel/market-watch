@@ -1,6 +1,6 @@
 """Global app state container."""
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Callable
 
 from .config_manager import ConfigManager
 from universe import Universe, UniverseContext
@@ -44,3 +44,28 @@ class AppState:
         # New context with fresh session_id
         self.universe_context = UniverseContext(universe)
         return self.universe_context
+
+    def rebuild_for_universe(
+        self,
+        universe: Universe,
+        broker_factory: Optional[Callable[[Universe], object]] = None,
+        coordinator_factory: Optional[Callable[[object, object], object]] = None,
+        analytics_factory: Optional[Callable[[Universe], object]] = None,
+    ):
+        """
+        Perform a destructive universe transition and rebuild broker,
+        coordinator, and analytics store using provided factories.
+
+        Factories are injectable to allow testing without hitting real
+        brokers or external services.
+        """
+        ctx = self.set_universe(universe)
+
+        broker_factory = broker_factory or (lambda uni: None)
+        analytics_factory = analytics_factory or (lambda uni: None)
+        coordinator_factory = coordinator_factory or (lambda broker, store: None)
+
+        self.broker = broker_factory(universe)
+        self.analytics_store = analytics_factory(universe)
+        self.coordinator = coordinator_factory(self.broker, self.analytics_store)
+        return ctx
