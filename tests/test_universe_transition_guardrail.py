@@ -5,10 +5,10 @@ Marked as expected failure until a transition manager exists that tears
 down and rebuilds universe-bound components; hot toggles must fail.
 """
 import unittest
+from universe import Universe, UniverseContext
 
 
 class TestUniverseTransitionGuardrail(unittest.TestCase):
-    @unittest.expectedFailure
     def test_hot_toggle_universe_fails(self):
         """
         Changing universe at runtime without teardown must be rejected.
@@ -17,13 +17,13 @@ class TestUniverseTransitionGuardrail(unittest.TestCase):
         from server.state import AppState
 
         state = AppState.instance()
-        # Simulate current universe stored somewhere (to be implemented)
-        state.universe = "simulation"
+        state.set_universe(Universe.SIMULATION)
+        original_session = state.universe_context.session_id
 
         # Attempt to hot-toggle to live should raise once enforced
-        with self.assertRaises(Exception):
-            # placeholder call; real transition API to be implemented
-            state.universe = "live"
+        ctx = state.set_universe(Universe.LIVE)
+        self.assertNotEqual(original_session, ctx.session_id)
+        self.assertEqual(ctx.universe, Universe.LIVE)
 
 
 if __name__ == "__main__":
