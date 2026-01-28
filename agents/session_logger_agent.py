@@ -8,6 +8,8 @@ from typing import Optional
 from .base import BaseAgent
 from .events import LogEvent
 import config
+from universe import Universe
+from monitoring.logger import SystemLogWriter
 
 
 class SessionLoggerAgent(BaseAgent):
@@ -17,7 +19,12 @@ class SessionLoggerAgent(BaseAgent):
         super().__init__("SessionLoggerAgent", event_bus)
         self.broker = broker
         self.interval_minutes = max(1, interval_minutes)
-        self.log_path = log_path or "logs/system/sessions.jsonl"
+        self._log_writer = SystemLogWriter(
+            self.universe,
+            filename=(log_path.split("/")[-1] if log_path else "sessions.jsonl"),
+            max_mb=5.0,
+            base_dir=None,
+        )
         self._task = None
 
     async def start(self):
@@ -68,6 +75,4 @@ class SessionLoggerAgent(BaseAgent):
                 for p in positions
             ],
         }
-        os.makedirs(os.path.dirname(self.log_path) or ".", exist_ok=True)
-        with open(self.log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
+        self._log_writer.write(entry)

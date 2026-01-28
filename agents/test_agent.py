@@ -9,6 +9,8 @@ from typing import Optional
 from .base import BaseAgent
 from .events import LogEvent
 import config
+from monitoring.logger import SystemLogWriter
+from universe import Universe
 
 
 class TestAgent(BaseAgent):
@@ -17,7 +19,8 @@ class TestAgent(BaseAgent):
     def __init__(self, event_bus, interval_minutes: int, log_path: Optional[str] = None):
         super().__init__("TestAgent", event_bus)
         self.interval_minutes = max(5, interval_minutes)
-        self.log_path = log_path or "logs/observability/tests.jsonl"
+        filename = (log_path.split("/")[-1] if log_path else "tests.jsonl")
+        self._log_writer = SystemLogWriter(self.universe, filename=filename)
         self._task: Optional[asyncio.Task] = None
 
     async def start(self):
@@ -59,7 +62,7 @@ class TestAgent(BaseAgent):
                 "stdout_tail": result.stdout.splitlines()[-20:],
                 "stderr_tail": result.stderr.splitlines()[-20:],
             }
-            self._append_log(entry)
+            self._log_writer.write(entry)
             level = "info" if result.returncode == 0 else "warning"
             msg = f"TestAgent run exit={result.returncode} duration={duration:.1f}s"
             await self.event_bus.publish(LogEvent(universe=self.universe, session_id=self.session_id, source=self.name, level=level, message=msg))
@@ -71,7 +74,7 @@ class TestAgent(BaseAgent):
                 "duration_sec": (datetime.now() - started).total_seconds(),
                 "error": "timeout",
             }
-            self._append_log(entry)
+            self._log_writer.write(entry)
             await self.event_bus.publish(LogEvent(universe=self.universe, session_id=self.session_id, source=self.name, level="warning", message="TestAgent run timed out"))
         except Exception as exc:
             entry = {
@@ -81,14 +84,5 @@ class TestAgent(BaseAgent):
                 "duration_sec": (datetime.now() - started).total_seconds(),
                 "error": str(exc),
             }
-            self._append_log(entry)
+            self._log_writer.write(entry)
             await self.event_bus.publish(LogEvent(universe=self.universe, session_id=self.session_id, source=self.name, level="error", message=f"TestAgent error: {exc}"))
-
-    def _append_log(self, entry: dict):
-        try:
-            os.makedirs(os.path.dirname(self.log_path) or ".", exist_ok=True)
-            with open(self.log_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
-        except Exception as exc:
-            # best-effort; avoid raising
-            print(f"TestAgent: failed to write log: {exc}")

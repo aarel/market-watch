@@ -8,6 +8,7 @@ from typing import Optional, Dict
 import config
 from .base import BaseAgent
 from .events import LogEvent
+from universe import Universe, get_data_path
 
 
 class ReplayRecorderAgent(BaseAgent):
@@ -45,11 +46,10 @@ class ReplayRecorderAgent(BaseAgent):
 
     async def _capture_once(self):
         # Record only when not in SIM mode; expect real broker data
-        from universe import Universe
         if self.universe == Universe.SIMULATION:
             return
         today = datetime.utcnow().date()
-        out_dir = config.REPLAY_RECORDER_DIR
+        out_dir = Path(get_data_path(self.universe, "replay"))
         os.makedirs(out_dir, exist_ok=True)
         symbols = self.symbols or []
         if not symbols:

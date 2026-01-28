@@ -11,6 +11,8 @@ import requests
 from .base import BaseAgent
 from .events import LogEvent
 import config
+from monitoring.logger import SystemLogWriter
+from universe import Universe
 
 
 class UICheckAgent(BaseAgent):
@@ -20,7 +22,8 @@ class UICheckAgent(BaseAgent):
         super().__init__("UICheckAgent", event_bus)
         self.interval_minutes = max(5, interval_minutes)
         self.url = url or f"http://{config.API_HOST}:{config.UI_PORT}"
-        self.log_path = log_path or "logs/observability/ui_checks.jsonl"
+        filename = (log_path.split("/")[-1] if log_path else "ui_checks.jsonl")
+        self._log_writer = SystemLogWriter(self.universe, filename=filename)
         self._task = None
 
     async def start(self):
@@ -69,9 +72,7 @@ class UICheckAgent(BaseAgent):
             "status": status,
             "detail": detail,
         }
-        os.makedirs(os.path.dirname(self.log_path) or ".", exist_ok=True)
-        with open(self.log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
+        self._log_writer.write(entry)
 
         level = "info" if status == "ok" else "warning"
         self.event_bus.publish(LogEvent(universe=self.universe, session_id=self.session_id, source=self.name, level=level, message=f"UI check {status}"))

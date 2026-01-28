@@ -16,7 +16,8 @@ from .events import (
     StopLossTriggered,
 )
 from monitoring.context import MarketContextTracker
-from monitoring.logger import JSONLLogger
+from monitoring.logger import JSONLLogger, SystemLogWriter
+from universe import Universe
 from monitoring.models import Observation
 from monitoring.reason_codes import classify_event
 
@@ -29,7 +30,11 @@ class ObservabilityAgent(BaseAgent):
 
     def __init__(self, event_bus: "EventBus", log_path: str, max_log_mb: float = 5.0):
         super().__init__("ObservabilityAgent", event_bus)
-        self._logger = JSONLLogger(log_path, max_log_mb)
+        # Prefer universe-scoped system log writer when possible
+        if log_path.startswith("logs/"):
+            self._logger = SystemLogWriter(self.universe, filename=log_path.split("/")[-1], max_mb=max_log_mb)
+        else:
+            self._logger = JSONLLogger(log_path, max_log_mb)
         self._context_tracker = MarketContextTracker()
 
     async def start(self):
