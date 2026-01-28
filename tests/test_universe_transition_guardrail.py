@@ -19,11 +19,21 @@ class TestUniverseTransitionGuardrail(unittest.TestCase):
         state = AppState.instance()
         state.set_universe(Universe.SIMULATION)
         original_session = state.universe_context.session_id
+        # Seed universe-bound components to ensure teardown
+        state.broker = object()
+        state.coordinator = object()
+        state.analytics_store = object()
+        state.websockets = ["stub"]
 
         # Attempt to hot-toggle to live should raise once enforced
         ctx = state.set_universe(Universe.LIVE)
         self.assertNotEqual(original_session, ctx.session_id)
         self.assertEqual(ctx.universe, Universe.LIVE)
+        # Universe-bound components cleared
+        self.assertIsNone(state.broker)
+        self.assertIsNone(state.coordinator)
+        self.assertIsNone(state.analytics_store)
+        self.assertEqual(state.websockets, [])
 
 
 if __name__ == "__main__":

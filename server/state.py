@@ -40,6 +40,7 @@ class AppState:
         self.coordinator = None
         self.analytics_store = None
         self.error = None
+        self.websockets = []
         # New context with fresh session_id
         self.universe_context = UniverseContext(universe)
         return self.universe_context
