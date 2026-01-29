@@ -289,9 +289,16 @@ def _parse_ts(value) -> Optional[datetime]:
     if value is None:
         return None
     if isinstance(value, datetime):
+        # If already a datetime, ensure it's timezone-aware
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
         return value
     try:
-        return datetime.fromisoformat(str(value))
+        dt = datetime.fromisoformat(str(value))
+        # If parsed datetime is naive (from old data), assume UTC
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt
     except Exception:
         return None
 
