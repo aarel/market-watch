@@ -1,0 +1,215 @@
+## Gate audit summary (safety/correctness under change; High stakes; no bypass)
+
+* **problem_framing_gate: PASS**
+
+  * Target: whether the codebase stays safe/correct under refactors, feature additions, dependency upgrades, and operational/config changes.
+  * “Unsafe” includes silent behavior change, control-plane/data-plane mismatch, crashes, state corruption, and performance regressions.
+
+* **objective_metric_formalization: PASS**
+
+  * Evaluation outputs: **Change-risk surface map**, **fragility points**, **safety rails present**, **missing guardrails**, **failure modes**, **recommended hardening set**.
+
+* **assumption_extraction_and_ledger: PASS**
+
+* **constraint_classification: PASS**
+
+* **model_frame_audit: PASS (systems + organizational)**
+
+* **comparative_reasoning_requirement: PASS**
+
+* **error_uncertainty_handling: PASS**
+
+* **coherence_consistency_audit: PASS (multiple high-risk change hazards surfaced explicitly)**
+
+---
+
+## Reframed problem statement
+
+Assess whether routine changes (code refactor, new features, dependency upgrades, and runtime configuration changes) can introduce **silent unsafe behavior**, **crashes**, or **state corruption**, and whether existing guardrails (types, runtime validation, config semantics, tests, startup sequencing) prevent or detect those failures.
+
+---
+
+## Validated objective function
+
+Minimize **undetected breakage probability** under realistic change velocity, while ensuring failures are **fail-fast** and **observable**.
+
+Acceptance criteria under change:
+
+* Configuration changes cannot silently reinterpret types or meaning.
+* Startup wiring cannot accidentally bind mismatched components.
+* Persistence schemas tolerate evolution (versioning/migrations) or fail loudly.
+* Dependency upgrades are constrained or compatibility-checked.
+* Tests catch regressions in dangerous paths, not just happy paths.
+
+---
+
+## Assumption and constraint table
+
+| Item | Type              | Tag       | Statement                                                                                | Risk                               |
+| ---- | ----------------- | --------- | ---------------------------------------------------------------------------------------- | ---------------------------------- |
+| A1   | normative         | necessary | Any silent unsafe behavior is unacceptable (even SIM)                                    | Your declared posture.             |
+| A2   | structural        | necessary | Runtime config updates will come from UI/HTTP and may be strings                         | Currently not handled safely.      |
+| A3   | empirical         | risky     | Typical environments may include unrelated packages that collide with local module names | Already observed with `analytics`. |
+| C1   | failure_tolerance | binding   | High-stakes requires fail-fast, not “best effort continue”                               | Several paths “continue” silently. |
+| C2   | change_velocity   | binding   | Dependencies will change (min-version constraints only)                                  | Raises upgrade break risk.         |
+
+---
+
+## Primary analysis (change-safety)
+
+### 1) Configuration semantics are fragile under operational change (high severity)
+
+**Risk: silent behavior change via type coercion.**
+
+`ConfigManager.apply_updates()` coerces booleans with `bool(value)`. If the UI/API sends `"false"` (string), `bool("false")` becomes **True**.
+
+* This can silently flip safety-critical flags (e.g., `auto_trade`, `simulation_mode`) without any exception.
+* Tests verify round-trip persistence using Python bools, not string inputs, so this failure survives.
+
+**Failure mode examples**
+
+* Operator sets `auto_trade = "false"` → system treats it as True.
+* Config payloads from HTTP forms or JSON-as-strings become dangerous.
+
+**Safety rail missing**
+
+* Strict parsing and validation (e.g., explicit `"true"/"false"` string handling; reject unknown).
+
+---
+
+### 2) Startup wiring is closure-capture fragile under refactor/feature change (high severity)
+
+In `server/lifespan.py`, factories close over `universe` from outer scope and pass it into `Coordinator(...)` instead of the factory parameter `u`.
+
+This is currently harmless because you build once. Under future changes (dynamic rebuild, tests that rebuild multiple universes, or feature adding runtime switching), this becomes a **silent mismatch** hazard.
+
+**Failure modes**
+
+* Rebuild for universe X but coordinator initialized with stale universe Y.
+* Hard-to-detect because nothing necessarily crashes; you get wrong labels/behavior.
+
+**Safety rail missing**
+
+* Invariants at construction time (assert the coordinator/broker/store universes match the state universe context).
+
+---
+
+### 3) Global mutable module config + singleton state amplify “spooky action at a distance” (medium–high)
+
+You have:
+
+* module-level mutable `config.*` globals,
+* `AppState` singleton,
+* `server/__init__.py` exposing `state` and config persistence helpers for tests/legacy.
+
+This pattern increases change risk:
+
+* A small feature change that mutates config in one place can affect unrelated code paths.
+* Tests may pass in isolation but fail in different orders (state bleed).
+* Refactors that “just import module X” can have side effects (load config, instantiate managers).
+
+**Safety rails present**
+
+* Some components accept explicit parameters (e.g., broker constructed with universe).
+
+**Safety rails missing**
+
+* Clear boundaries: immutable runtime config snapshot passed explicitly instead of mutating the module.
+
+---
+
+### 4) Persistence schema evolution is only partially protected (medium severity)
+
+`AnalyticsStore` has schema validation for required fields (good), but there is no explicit **schema versioning** or migration strategy for:
+
+* log formats,
+* persisted runtime config state (`data/config_state.json`),
+* any new persisted artifacts.
+
+Under change, you risk either:
+
+* breaking readers silently if they ignore unknown/missing fields, or
+* crashing on missing required fields without a planned migration path.
+
+**Safety rails present**
+
+* Analytics write-time schema validation (prevents writing malformed new records).
+
+**Safety rails missing**
+
+* Read-time compatibility layer + version fields + migrations.
+
+---
+
+### 5) Dependency upgrades are unconstrained and therefore high-risk (high severity)
+
+`requirements.txt` uses minimum versions only (`>=`). For high-stakes systems, this is a change-safety hazard:
+
+* FastAPI/Starlette changes can break request handling or lifespan semantics.
+* Alpaca SDK changes can break broker behavior.
+* Pandas/Numpy changes can break calculations or data parsing subtly.
+
+**Safety rails missing**
+
+* Lock file or pinned versions + explicit upgrade cadence + compatibility tests.
+
+---
+
+### 6) “Continue on error” patterns hide breakage (medium severity)
+
+Examples include config load failures and JSON parse failures returning without raising. In high-stakes posture, silent continue increases the probability of running in a partially invalid state.
+
+This is not about whether the behavior is acceptable now; it’s about **change detection**: after changes, you want breakage to be loud.
+
+---
+
+### 7) Tests help, but do not currently protect the most change-sensitive seams (medium severity)
+
+Without re-running the test-coverage audit, the main change-safety observation is:
+
+* There are tests for config persistence, risk limits, analytics store, and backtest behavior.
+* There are **no tests** that would fail on:
+
+  * boolean string coercion (`"false"` bug),
+  * universe mismatch invariants during rebuild,
+  * dependency/import-time drift problems,
+  * schema version compatibility.
+
+So the most likely future regressions are not pinned.
+
+---
+
+## Comparative evaluation (hardening strategies)
+
+### Option A: “Fail-fast invariants + strict config parsing” (best ROI)
+
+* Strict boolean parsing; reject invalid types.
+* Add construction-time assertions tying together state universe, broker universe, coordinator universe, analytics store universe.
+* Convert silent “continue” into explicit error states for high-stakes modes.
+
+### Option B: “Immutable runtime config snapshot”
+
+* Stop mutating `config.*` globally; instead pass a validated `RuntimeConfig` object to components.
+* Reduces refactor and feature-addition regressions dramatically.
+
+### Option C: “Dependency control”
+
+* Pin versions (or lockfile) and add a small compatibility test matrix for key deps.
+* This reduces upgrade risk more than any single code refactor.
+
+---
+
+## Failure modes and sensitivities (high-stakes)
+
+1. **Silent config misinterpretation** (`"false"` → True) leading to wrong trading mode/auto-trade behavior.
+2. **Mismatched component wiring** after future rebuild/switch work due to closure capture.
+3. **State bleed across tests or runtime paths** due to singleton + global mutable config.
+4. **Schema drift** causing log readers/analytics to lie or crash.
+5. **Dependency upgrade breakage** causing runtime crashes or subtle behavior changes.
+
+---
+
+## Confidence-qualified conclusion
+
+* The system has some safety rails (enum usage, schema checks in analytics writes, explicit broker universe constraints), but **correctness under change is currently not high-stakes safe** because core seams (config parsing, startup wiring invariants, dependency control, and fail-fast behavior) permit silent unsafe behavior and environment-dependent breakage.
+* Confidence: **high** on the highest-severity issues (boolean parsing, closure capture, dependency constraints) because they are directly evidenced in code and do not require runtime assumptions.

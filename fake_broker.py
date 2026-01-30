@@ -57,7 +57,6 @@ class FakeBroker:
         self._prices = {}     # symbol -> price
         self._assets = {}     # symbol -> SimpleNamespace(name, ...)
         self._asset_name_cache = {}
-        self._alpaca_client = self._try_init_alpaca()
         self._replay_mode = config.SIM_REPLAY_ENABLED
         self._replay_date = config.SIM_REPLAY_DATE or datetime.now(timezone.utc).date().strftime("%Y%m%d")
         self._replay_frames = {}  # symbol -> DataFrame
@@ -73,36 +72,13 @@ class FakeBroker:
         if self._replay_mode:
             self._load_replay_frames(config.WATCHLIST)
 
-    def _try_init_alpaca(self):
-        """Optionally initialize Alpaca client for name lookups."""
-        try:
-            import alpaca_trade_api as tradeapi
-            if config.ALPACA_API_KEY and config.ALPACA_SECRET_KEY:
-                return tradeapi.REST(config.ALPACA_API_KEY, config.ALPACA_SECRET_KEY, base_url=config.get_alpaca_url())
-        except Exception as exc:
-            print(f"FakeBroker: Alpaca lookup disabled ({exc})")
-        return None
-
     def _validate_connection(self):
         """Prints a success message for simulation mode."""
         print(f"Connected to FakeBroker ({self.universe.value} universe)")
         print(f"Initial portfolio value: ${self._account['portfolio_value']:.2f}")
 
     def _seed_price(self, symbol: str) -> float:
-        """Seed a starting price, preferring Alpaca data when available."""
-        if self._alpaca_client:
-            try:
-                trade = self._alpaca_client.get_last_trade(symbol)
-                if trade and getattr(trade, "price", None):
-                    return max(0.01, float(trade.price))
-            except Exception:
-                pass
-            try:
-                quote = self._alpaca_client.get_last_quote(symbol)
-                if quote and getattr(quote, "askprice", None):
-                    return max(0.01, float(quote.askprice))
-            except Exception:
-                pass
+        """Seed a starting price using synthetic random data."""
         return round(random.uniform(10, 300), 2)
 
     def _load_replay_frames(self, symbols):
@@ -384,16 +360,7 @@ class FakeBroker:
             if symbol in self._asset_name_cache:
                 names[symbol] = self._asset_name_cache[symbol]
                 continue
-            # alpaca lookup if available
-            if self._alpaca_client:
-                try:
-                    asset = self._alpaca_client.get_asset(symbol)
-                    if asset and getattr(asset, "name", None):
-                        names[symbol] = asset.name
-                        self._asset_name_cache[symbol] = asset.name
-                        continue
-                except Exception:
-                    pass
+            # synthetic asset name
             asset = self.get_asset(symbol)
             if asset and hasattr(asset, "name"):
                 names[symbol] = asset.name

@@ -21,7 +21,7 @@ class AppState:
         self.expectations_by_agent = {}
         self.analytics_store = None
         self.start_time = datetime.now()
-        self.config_manager = ConfigManager()
+        self.config_manager = None  # Will be initialized with universe
         self.universe_context: UniverseContext | None = None
 
     @classmethod
@@ -40,6 +40,8 @@ class AppState:
         self.websockets = []
         # New context with fresh session_id
         self.universe_context = UniverseContext(universe)
+        # Initialize universe-scoped config manager
+        self.config_manager = ConfigManager(universe=universe)
         # Clear components after context creation (order matters for teardown callbacks)
         self.broker = None
         self.coordinator = None
@@ -74,4 +76,25 @@ class AppState:
         self.broker = broker_factory(universe)
         self.analytics_store = analytics_factory(universe)
         self.coordinator = coordinator_factory(self.broker, self.analytics_store)
+
+        # Universe mismatch assertions (construction-time safety check)
+        # Catches closure capture bugs and wiring errors
+        if self.broker and hasattr(self.broker, 'universe'):
+            assert self.broker.universe == universe, (
+                f"Broker universe mismatch: broker.universe={self.broker.universe}, "
+                f"expected={universe}. This indicates a wiring error."
+            )
+
+        if self.analytics_store and hasattr(self.analytics_store, 'universe'):
+            assert self.analytics_store.universe == universe, (
+                f"AnalyticsStore universe mismatch: analytics_store.universe={self.analytics_store.universe}, "
+                f"expected={universe}. This indicates a wiring error."
+            )
+
+        if self.coordinator and hasattr(self.coordinator, 'universe'):
+            assert self.coordinator.universe == universe, (
+                f"Coordinator universe mismatch: coordinator.universe={self.coordinator.universe}, "
+                f"expected={universe}. This indicates a wiring error."
+            )
+
         return ctx

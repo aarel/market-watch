@@ -25,26 +25,22 @@ if TYPE_CHECKING:
 class Coordinator:
     """Manages all agents and their lifecycle."""
 
-    def __init__(self, broker: "AlpacaBroker", analytics_store=None, universe: Optional[Universe] = None):
+    def __init__(self, broker: "AlpacaBroker", analytics_store=None, universe: Universe = None):
         """
         Initialize coordinator.
 
         Args:
             broker: Broker instance
             analytics_store: Optional analytics store
-            universe: Execution universe (if None, determined from config)
+            universe: Execution universe (REQUIRED - no implicit universe allowed)
         """
-        self.broker = broker
-
-        # Determine universe (temporary - will be startup arg in Week 3)
         if universe is None:
-            # Check TRADING_MODE first (new approach), fall back to SIMULATION_MODE (deprecated)
-            if config.TRADING_MODE == "simulation" or config.SIMULATION_MODE:
-                universe = Universe.SIMULATION
-            elif config.TRADING_MODE == "paper":
-                universe = Universe.PAPER
-            else:
-                universe = Universe.LIVE
+            raise TypeError(
+                "Coordinator requires explicit universe parameter. "
+                "No implicit universe inference allowed per design contract."
+            )
+
+        self.broker = broker
 
         # Create universe context (required for EventBus)
         self.context = UniverseContext(universe)

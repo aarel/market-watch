@@ -1,0 +1,142 @@
+## Gate audit summary (claim verification; High stakes; no bypass)
+
+* **problem_framing_gate: PASS**
+
+  * Target: verify documented/implicit claims (weighted **B > A > C > D > E**) against current code/tests.
+  * Scope: categories **a–e** included.
+  * Special rule: docs are not treated as “promises”; older docs are **soft claims** but still checked for contradiction.
+
+* **objective_metric_formalization: PASS**
+
+  * For each claim: status ∈ {**Verified**, **Partially true**, **Contradicted**, **Unverifiable from repo**}
+  * Severity: **High** if contradiction can cause wrong trades, wrong universe attribution, corrupted state, or operator deception.
+
+* **assumption_extraction_and_ledger: PASS**
+
+* **constraint_classification: PASS**
+
+* **comparative_reasoning_requirement: PASS**
+
+* **coherence_consistency_audit: PASS (with material contradictions surfaced explicitly)**
+
+---
+
+## Claim registry (docs-weighted; code-verified)
+
+### A) Universe isolation / provenance
+
+1. **Claim:** “Universe clarity must be guaranteed; every path must carry a universe label; mixed logs/badges/wrong broker must be prevented.”
+   **Source:** `UNIVERSE_ISOLATION_DECISION_PACKAGE.md`, `UNIVERSE_ISOLATION_SUMMARY.md`
+   **Status:** **Partially true**
+   **Evidence:** `EventBus` requires `UniverseContext`; analytics paths are universe-scoped (`analytics/store.py`, `agents/event_bus.py`, `universe.py`).
+   **Contradiction:** Universe selection still falls back to a mutable boolean flag (`server/lifespan.py`, `agents/coordinator.py`, `config.py`). This preserves a multi-source-of-truth pattern the docs argue against.
+
+2. **Claim:** “Runtime switching is only safe if it’s a destructive universe transition (tear down and rebuild execution graph).”
+   **Source:** `UNIVERSE_ISOLATION_DECISION_PACKAGE.md`
+   **Status:** **Partially true / incomplete**
+   **Evidence:** `state.rebuild_for_universe(...)` exists and rebuilds components (`server/state.py`, `server/lifespan.py`).
+   **Gap:** Persisted config includes `simulation_mode` without any enforced destructive transition on change (`server/config_manager.py`, `CONFIG_STATE_PATH` shared). That permits control-plane drift.
+
+3. **Claim:** “No shared persistence or caches across universes unless explicitly declared safe.”
+   **Source:** `UNIVERSE_ISOLATION_DECISION_PACKAGE.md`
+   **Status:** **Contradicted (material)**
+   **Evidence:** `CONFIG_STATE_PATH = "data/config_state.json"` is shared across universes (`config.py`). Runtime config persists universe-adjacent fields like `simulation_mode` (`server/config_manager.py`).
+
+---
+
+### B) Trading safety / broker routing
+
+4. **Claim:** “SIM uses FakeBroker; LIVE/PAPER uses AlpacaBroker; SIM cannot place real orders.”
+   **Source:** README + universe docs intent
+   **Status:** **Verified (core execution), with a caveat**
+   **Evidence:** `FakeBroker` rejects non-simulation universe; `AlpacaBroker` rejects simulation universe (`fake_broker.py`, `broker.py`).
+   **Caveat:** Universe selection logic can still pick SIM via deprecated `SIMULATION_MODE` fallback (`server/lifespan.py`), so “safe routing” is correct but “clean selection architecture” is not.
+
+5. **Claim:** “Safety limits prevent runaway trading (e.g., MAX_DAILY_TRADES).”
+   **Source:** `README.md` env table
+   **Status:** **Verified**
+   **Evidence:** Daily trade limit enforced in `RiskAgent` (`agents/risk_agent.py`) and tested (`tests/test_risk_agent_limits.py`).
+
+6. **Claim:** “Circuit breaker halts trading on daily loss / max drawdown thresholds.”
+   **Source:** docs + config intent
+   **Status:** **Verified**
+   **Evidence:** `CircuitBreaker` tracks daily start equity, peak equity, and activates on thresholds (`risk/circuit_breaker.py`). Usage wired through `RiskAgent`.
+
+---
+
+### C) Data correctness (prices, indicators, backtest/metrics)
+
+7. **Claim:** “SIM uses synthetic market data.”
+   **Source:** `README.md` env table
+   **Status:** **Partially true**
+   **Evidence:** FakeBroker generates fluctuating prices and can seed prices (`fake_broker.py`).
+   **Contradiction/Leak:** FakeBroker **optionally initializes Alpaca client** for lookups/price seeding when API keys exist (`FakeBroker._try_init_alpaca`, `fake_broker.py`). So “synthetic-only” is not guaranteed.
+
+8. **Claim:** “SIM market always open for 24/7 testing.”
+   **Source:** `README.md` env table (`SIMULATION_MODE` row)
+   **Status:** **Contradicted**
+   **Evidence:** `FakeBroker.is_market_open()` approximates NYSE hours on weekdays (9:30–16:00 ET) (`fake_broker.py`). That is the opposite of “always open.”
+
+9. **Claim:** “SIM/off-hours analytics snapshots appear in `data/analytics`.”
+   **Source:** `README.md` instructions
+   **Status:** **Contradicted / outdated**
+   **Evidence:** `AnalyticsStore` writes under **logs/{universe}/…** via `get_log_path()` (defaults to `logs/<universe>/equity.jsonl` and `trades.jsonl`) (`analytics/store.py`, `universe.py`). No primary writer targets `data/analytics`.
+
+10. **Claim:** “Indicators/metrics are correct (implicit correctness posture).”
+    **Source:** scattered docs/technical report tone
+    **Status:** **Unverifiable from repo as a claim**
+    **Reason:** There is no explicit correctness spec (golden datasets, invariants, or benchmark assertions) establishing “correct” beyond unit tests present. This can be audited in the next phase by defining reference cases and checking drift.
+
+---
+
+### D) Operational guarantees (config, startup, persistence, UI)
+
+11. **Claim:** “Settings can be adjusted live in the web UI and persist across restarts.”
+    **Source:** `README.md`
+    **Status:** **Verified**
+    **Evidence:** `ConfigManager` persists runtime config to `data/config_state.json` and loads it on startup (`server/config_manager.py`, `server/lifespan.py`). Tests exist for persistence (`tests/test_config_persistence.py`).
+
+12. **Claim:** “Cannot switch brokers without restarting server.”
+    **Source:** `TECHNICAL_REPORT.md`
+    **Status:** **Partially true**
+    **Evidence:** Broker selection is made during lifespan startup based on universe and then injected; there is a rebuild hook (`state.rebuild_for_universe`) but no demonstrated “hot swap without restart” path exposed as a supported operation. If rebuild is reachable at runtime, the “cannot” becomes outdated; if not, the report is accurate. From repo alone, this is **not fully provable either way**.
+
+13. **Claim:** “Deprecated SIMULATION_MODE is migrated away / not used.”
+    **Source:** universe docs + migration narrative across MDs
+    **Status:** **Contradicted**
+    **Evidence:** Universe selection explicitly falls back to `config.SIMULATION_MODE` and comments label it deprecated-but-active (`server/lifespan.py`, `agents/coordinator.py`, `config.py`).
+
+---
+
+### E) Performance / scaling
+
+14. **Claim:** Any implied performance/scaling posture (polling cadence, throughput, UI responsiveness).
+    **Source:** `TECHNICAL_REPORT.md`, `ROADMAP.md` style statements
+    **Status:** **Unverifiable from repo as a claim**
+    **Reason:** No load tests, perf budgets, p95/p99 targets, profiling artifacts, or benchmarks are included in the ZIP.
+
+---
+
+## High-stakes contradictions (priority)
+
+1. **README SIM claims are wrong in two safety-relevant ways**
+
+* “Market always open” is false (FakeBroker uses NYSE hours).
+* “No Alpaca API calls” is false (FakeBroker can init Alpaca client for lookups/price seeding).
+  Impact: operator deception + unexpected external dependency during “simulation.”
+
+2. **Shared persisted config violates the project’s own isolation contract**
+
+* `data/config_state.json` is shared across universes and includes universe-adjacent fields like `simulation_mode`.
+  Impact: cross-universe control-plane contamination.
+
+3. **Deprecated SIMULATION_MODE is still an active universe selector**
+   Impact: prevents “single source of truth” universe provenance; increases regression risk.
+
+---
+
+## Confidence-qualified conclusion
+
+* Many execution-safety claims (broker routing, daily trade limits, drawdown breaker, universe-bound event bus) are **verified** at the code level.
+* Several key documentation claims are **outdated or contradicted** in ways that matter under high stakes, especially around SIM behavior and isolation boundaries.
+* Performance/scaling and “data correctness” as broad claims are **not verifiable** without explicit specs/benchmarks; they require a dedicated correctness/perf audit phase with reference datasets and budgets.

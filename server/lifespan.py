@@ -23,17 +23,23 @@ ws_manager = WebsocketManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     state = get_state()
-    # Load config state
-    state.config_manager.load()
 
-    # Determine universe (temporary - will be startup arg in Week 3)
-    # Check TRADING_MODE first (new approach), fall back to SIMULATION_MODE (deprecated)
-    if config.TRADING_MODE == "simulation" or config.SIMULATION_MODE:
+    # Determine universe from TRADING_MODE
+    if config.TRADING_MODE == "simulation":
         universe = Universe.SIMULATION
     elif config.TRADING_MODE == "paper":
         universe = Universe.PAPER
-    else:
+    elif config.TRADING_MODE == "live":
         universe = Universe.LIVE
+    else:
+        raise ValueError(
+            f"Invalid TRADING_MODE: '{config.TRADING_MODE}'. "
+            f"Must be 'simulation', 'paper', or 'live'"
+        )
+
+    # Initialize universe-scoped config manager and load state
+    state.set_universe(universe)  # This also creates universe-scoped ConfigManager
+    state.config_manager.load()
 
     # Rebuild universe-bound components via factories
     def broker_factory(u: Universe):

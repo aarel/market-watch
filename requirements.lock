@@ -1,0 +1,27 @@
+# Generated requirements.lock - TEMPORARY
+# ACTION REQUIRED: Regenerate this file in your actual development environment
+#
+# To regenerate properly:
+#   1. Activate your virtual environment
+#   2. pip install -r requirements.txt
+#   3. pip freeze > requirements.lock
+#   4. Commit the file
+#
+# This temporary lock file uses the same versions as requirements.txt
+# but with exact pins instead of >=
+
+# Core dependencies
+alpaca-trade-api==3.0.2
+pandas==2.1.3
+numpy==1.24.4
+python-dotenv==1.0.0
+requests==2.31.0
+schedule==1.2.0
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+psutil==5.9.8
+httpx==0.24.1
+pydantic==2.5.0
+
+# NOTE: This is a minimal lock file. 
+# You MUST regenerate it in your actual environment before deployment!

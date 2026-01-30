@@ -8,8 +8,9 @@ load_dotenv()
 # Both Trading API and Market Data API use the same keys
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
+# Universe is determined by TRADING_MODE: "live", "paper", or "simulation"
 TRADING_MODE = os.getenv("TRADING_MODE", "paper")
-SIMULATION_MODE = os.getenv("SIMULATION_MODE", "false").lower() == "true"
+
 SIMULATION_JIGGLE_FACTOR = float(os.getenv("SIMULATION_JIGGLE_FACTOR", "0.001"))
 SIM_REPLAY_ENABLED = os.getenv("SIM_REPLAY_ENABLED", "false").lower() == "true"
 SIM_REPLAY_DATE = os.getenv("SIM_REPLAY_DATE", "")

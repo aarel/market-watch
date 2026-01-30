@@ -97,12 +97,11 @@ All settings are configured via environment variables in the `.env` file. Many o
 |---------|---------|-------------|
 | `ALPACA_API_KEY` | - | Alpaca API key (required). |
 | `ALPACA_SECRET_KEY` | - | Alpaca secret key (required). |
-| `TRADING_MODE` | paper | "paper" or "live". **Use "live" with extreme caution.** |
+| `TRADING_MODE` | paper | Universe selection: "simulation", "paper", or "live". **Simulation** uses FakeBroker with synthetic data and NYSE market hours. **Paper** uses Alpaca paper trading. **Live** uses real capital - use with extreme caution. |
 | `AUTO_TRADE` | true | Enable automatic trading. |
 | `STRATEGY` | momentum | Strategy to use ("momentum", "mean_reversion", "breakout", "rsi"). |
 | `TRADE_INTERVAL_MINUTES`| 5 | How often the bot fetches data and evaluates trades. |
 | `API_TOKEN` | (empty) | If set, requires all API requests to be authenticated. |
-| `SIMULATION_MODE` | false | If true, uses FakeBroker with synthetic market data. Market always "open" for 24/7 testing. No Alpaca API calls. Persists to runtime config. |
 | `WATCHLIST_MODE` | top_gainers | "static" (uses hardcoded watchlist) or "top_gainers" (dynamic). |
 | `TOP_GAINERS_COUNT` | 20 | Number of symbols for the top gainers list. |
 |`TOP_GAINERS_MIN_PRICE`| 5 | Minimum price filter for gainers. |
@@ -140,12 +139,12 @@ python -m monitoring --log logs/observability/agent_events.jsonl
 
 ## Analytics
 
-- Real-time equity snapshots and trades are stored under `data/analytics` when `ANALYTICS_ENABLED=true` (default).
+- Real-time equity snapshots and trades are stored under `logs/{universe}/` (e.g., `logs/paper/equity.jsonl`, `logs/paper/trades.jsonl`) when `ANALYTICS_ENABLED=true` (default).
 - UI shows equity curve, benchmark overlay (SPY by default), risk stats, and recent trades for selectable periods (30d/90d/YTD/All).
-- Export trades via UI (“Export CSV”) or `GET /api/trades/export`.
+- Export trades via UI ("Export CSV") or `GET /api/trades/export`.
 - Export equity via `GET /api/analytics/equity/export?period=...` (CSV).
 - Frontend auto-refreshes analytics; placeholders show when no data yet (let the bot run a few cycles).
-- To populate analytics in SIM/off-hours: set `SIMULATION_MODE=true`, `ANALYTICS_ENABLED=true`, start the server, and let it run 10–30 minutes; snapshots will appear in `data/analytics` and the dashboard metrics will fill in.
+- To populate analytics in simulation mode: set `TRADING_MODE=simulation`, `ANALYTICS_ENABLED=true`, start the server, and let it run 10–30 minutes; snapshots will appear in `logs/simulation/` and the dashboard metrics will fill in.
 
 ## Going Live
 

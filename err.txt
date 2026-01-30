@@ -1,0 +1,84 @@
+(index):2748 Fetching analytics for period: 30d
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+(index):3146 Failed to fetch config: TypeError: Cannot read properties of undefined (reading 'toUpperCase')
+    at fetchConfig ((index):3141:59)
+fetchConfig @ (index):3146
+:8000/api/logs?_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/observability/expectations?_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+(index):2763 Equity data points for 30d: 5
+(index):2775 Trades for 30d: 0
+(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
+(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
+    at renderPositionPieChart ((index):2563:25)
+    at fetchAnalytics ((index):2797:21)
+fetchAnalytics @ (index):2819
+(index):1859 WebSocket connected
+:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CNFLX%2CGOOGL%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+(index):2748 Fetching analytics for period: 30d
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+(index):2763 Equity data points for 30d: 6
+(index):2775 Trades for 30d: 0
+(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
+(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
+    at renderPositionPieChart ((index):2563:25)
+    at fetchAnalytics ((index):2797:21)
+fetchAnalytics @ (index):2819
+:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CNFLX%2CGOOGL%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+(index):2748 Fetching analytics for period: 30d
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+(index):2763 Equity data points for 30d: 7
+(index):2775 Trades for 30d: 0
+(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
+(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
+    at renderPositionPieChart ((index):2563:25)
+    at fetchAnalytics ((index):2797:21)
+fetchAnalytics @ (index):2819
+:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CGOOGL%2CNFLX%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+(index):2748 Fetching analytics for period: 30d
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+(index):2763 Equity data points for 30d: 8
+(index):2775 Trades for 30d: 0
+(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
+(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
+    at renderPositionPieChart ((index):2563:25)
+    at fetchAnalytics ((index):2797:21)
+fetchAnalytics @ (index):2819
+:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CNFLX%2CGOOGL%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
+    at updateStatus ((index):1897:87)
+    at fetchStatus ((index):3083:17)
+fetchStatus @ (index):3094
+:8000/api/assets/names?symbols=CMCSA%2CT%2CVZ%2CWFC%2CBAC%2CPFE%2CKO%2CFCX%2CSLB%2CAAPL%2CSBUX%2CINTC%2CAMZN%2CNVDA%2CNFLX%2CGOOGL%2CMSFT%2CMETA%2CLMT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)

@@ -1,0 +1,185 @@
+## Gate audit summary (High stakes; no bypass)
+
+* **problem_framing_gate: PASS**
+
+  * Decision target: verify whether the project architecture enforces safe, explicit universe isolation and provenance (LIVE/PAPER/SIM).
+  * Out-of-scope: claim verification, test coverage validity, and change-safety audit (scheduled later).
+
+* **objective_metric_formalization: PASS (qualitative, bounded)**
+
+  * Objective standard (binary where possible):
+
+    * **No cross-universe execution** (orders, broker calls) possible by construction.
+    * **No cross-universe persistence** possible by construction (logs/state).
+    * **Universe provenance is mandatory** on events and stored artifacts.
+    * **Universe is immutable** for a running execution graph (or changes are destructive rebuilds only).
+
+* **assumption_extraction_and_ledger: PASS**
+
+* **constraint_classification: PASS**
+
+* **model_frame_audit: PASS (systems-theoretic + organizational)**
+
+* **comparative_reasoning_requirement: PASS**
+
+* **error_uncertainty_handling: PASS**
+
+* **coherence_consistency_audit: FAIL (one material contradiction)**
+
+  * Docs claim migration away from `SIMULATION_MODE` and full namespacing; code still contains a deprecated-but-active universe selection path and shared config persistence.
+
+---
+
+## Reframed problem statement
+
+Determine whether the current architecture makes it *structurally impossible* (not just “unlikely”) to mix LIVE/PAPER/SIM contexts across: broker execution, event graphs, persistence, and UI/runtime configuration—consistent with the project’s own “Universe Isolation” contract.
+
+---
+
+## Validated objective function
+
+Minimize **Universe Boundary Violation Risk** under high-stakes conditions.
+
+Operationally: achieve **construction-time guarantees** that prevent cross-universe actions and mixed-universe artifacts.
+
+Acceptance criteria:
+
+* Broker layer refuses invalid universes and base URLs.
+* EventBus cannot exist without UniverseContext; events cannot cross universes without raising.
+* Persistent stores reject cross-universe writes (not “tag later”).
+* Runtime config cannot silently imply a different universe than the running execution graph.
+* State/config/log namespaces cannot collide across universes for any artifact that affects decisions.
+
+---
+
+## Assumption and constraint table
+
+| Item | Type                    | Tag        | Statement                                                                                | Notes / Risk                                                                                  |
+| ---- | ----------------------- | ---------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| A1   | normative               | necessary  | Mixed-universe execution/persistence is unacceptable                                     | Implied by “epistemic harm” contract; you did not restate it explicitly.                      |
+| A2   | structural              | necessary  | Universe must be knowable for every event/metric/order                                   | Explicit in `UNIVERSE_ISOLATION_DECISION_PACKAGE.md`.                                         |
+| A3   | structural              | risky      | UI/runtime config is allowed to change without triggering a destructive universe rebuild | Currently possible: config persistence includes `simulation_mode` but no API transition hook. |
+| A4   | empirical               | convenient | Logs/state are treated as decision-relevant artifacts                                    | If analytics/UI decisions read them, shared namespaces become safety issues.                  |
+| C1   | failure_tolerance       | binding    | No cross-universe broker execution                                                       | Enforced well in broker classes.                                                              |
+| C2   | persistence             | binding    | No mixed-universe log/state persistence                                                  | Partially enforced; config state is not namespaced.                                           |
+| C3   | change_velocity         | soft       | “Deprecated” flags must not remain active selection paths                                | Currently violated.                                                                           |
+| C4   | coordination/governance | binding    | Universe changes must be destructive rebuilds, not runtime toggles                       | Architecture supports rebuild, but config implies toggles.                                    |
+
+---
+
+## Primary analysis (architecture verification)
+
+### What is architecturally strong (meets isolation intent)
+
+1. **Universe is a first-class type**
+
+   * `Universe` enum + `UniverseContext` exists and is used for provenance and session identity (`universe.py`).
+   * This is the correct architectural lever for the problem.
+
+2. **Broker boundary enforcement is real**
+
+   * `AlpacaBroker` refuses `Universe.SIMULATION` and enforces base URL matching to universe.
+   * `FakeBroker` refuses anything but `Universe.SIMULATION`.
+   * This is “structural impossibility” for the most dangerous failure mode: SIM broker accidentally executing LIVE.
+
+3. **Event graph is universe-bound by construction**
+
+   * `EventBus` requires a `UniverseContext` (no universe-less bus).
+   * Agents inherit universe/session from the bus (`BaseAgent`).
+   * This is the right mechanism to prevent “universe drift” inside the agent system.
+
+4. **Analytics persistence is universe-scoped and guarded**
+
+   * `AnalyticsStore` writes under `logs/{universe}/...` and validates record universe mismatch before writing.
+   * Guardrail tests exist and appear aligned with implementation.
+
+5. **System/observability logs are effectively universe-scoped**
+
+   * Although config defaults reference `logs/system/...`, `SystemLogWriter` writes to `logs/{universe}/system/...` when used (via filename extraction).
+   * Net effect: good isolation for system logs if the SystemLogWriter path is used.
+
+---
+
+### What is architecturally unsafe or internally inconsistent (fails the contract)
+
+1. **Universe selection still depends on deprecated mutable config flags**
+
+   * `config.SIMULATION_MODE` still exists and is actively used in universe selection in:
+
+     * `server/lifespan.py`
+     * `agents/coordinator.py`
+   * This contradicts the stated migration claim (“migrated from boolean SIMULATION_MODE”) and keeps an unsafe “two sources of truth” pattern (TRADING_MODE + SIMULATION_MODE).
+
+2. **Runtime config persists `simulation_mode` without a universe transition mechanism**
+
+   * `RuntimeConfig` includes `simulation_mode: bool = config.SIMULATION_MODE`.
+   * That value is persisted to a single file and can be changed via the config system, but **nothing destructively rebuilds the universe when it changes**.
+   * Result: a user can create a state where:
+
+     * persisted config says “simulation_mode=true”
+     * running system is still PAPER/LIVE universe
+     * some parts of the system may display/assume SIM semantics while broker/event graph remain non-SIM
+   * In high-stakes terms: this is “epistemic harm” risk via UI/control-plane inconsistency.
+
+3. **Config persistence is not universe-namespaced**
+
+   * `CONFIG_STATE_PATH = "data/config_state.json"` is shared across all universes.
+   * Your own decision package explicitly calls for `data/{live|paper|sim}/…` namespacing for state.
+   * Even if strategy params *can* be shared, the file currently also carries universe-adjacent fields (`simulation_mode`) and could carry more later. Architecturally, this is a foot-gun.
+
+4. **Coordinator still has “universe inference”**
+
+   * `Coordinator.__init__` accepts `universe: Optional[Universe] = None` and infers it from config if not provided.
+   * That violates the design principle stated in `universe.py`: “No component may operate without explicit universe context.”
+   * It also keeps open a path for accidental universe selection differences between server startup and coordinator instantiation.
+
+---
+
+## Alternative frame comparison (architecture options)
+
+### Option 1 — Current approach (single process, universe-bound components, destructive rebuild possible)
+
+* Strength: practical, testable; broker and event graph isolation largely structural.
+* Weakness: control-plane ambiguity remains (config flags + shared state path), which is the main residual risk.
+
+### Option 2 — Strict single-source-of-truth universe (construction-time only)
+
+* Remove `SIMULATION_MODE`, remove universe inference, and require an explicit universe at process start.
+* Make runtime config universe-agnostic (no simulation_mode).
+* Namespaces: `data/{universe}/config_state.json`.
+* This best matches your own “system contract” without needing separate deployments.
+
+### Option 3 — Process-level isolation (separate services per universe)
+
+* Run separate instances for LIVE/PAPER/SIM with separate env, storage, and UI endpoints.
+* Highest safety and simplest reasoning; more operational overhead.
+* If truly “high stakes,” this is the most defensible architecture, but costs more.
+
+---
+
+## Failure modes and sensitivities (high-stakes)
+
+1. **Control-plane / data-plane mismatch**
+
+   * Persisted config indicates SIM while broker/event graph is PAPER/LIVE (or vice versa).
+   * Leads to incorrect operator decisions even if broker safety holds.
+
+2. **Shared state collision**
+
+   * A change intended for one universe modifies config behavior in another because state is shared.
+
+3. **Reintroduction risk**
+
+   * Keeping deprecated flags active makes future “just add one check” changes likely to reintroduce cross-universe branching.
+
+---
+
+## Confidence-qualified conclusion
+
+* **Core execution architecture is directionally correct**: broker boundaries and the universe-bound event graph are genuine structural safeguards.
+* **Universe isolation is not yet architecturally complete** under your own contract because:
+
+  * universe selection still uses deprecated config flags,
+  * runtime config persists `simulation_mode` without universe transitions,
+  * and config state persistence is not universe-namespaced.
+* Confidence: **high** on these findings (they are directly evidenced in code paths and persistence defaults).

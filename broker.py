@@ -9,8 +9,6 @@ Free tier uses IEX data feed, paid tier uses SIP (full market data).
 """
 from datetime import datetime, timedelta
 
-import alpaca_trade_api as tradeapi
-from alpaca_trade_api.rest import APIError
 import pandas as pd
 
 import config
@@ -28,6 +26,9 @@ class AlpacaBroker:
             universe: Execution universe (LIVE or PAPER), required.
             base_url: Optional override; must match the universe.
         """
+        # Import at runtime to allow tests to import this module without dependency
+        import alpaca_trade_api as tradeapi
+
         if not isinstance(universe, Universe):
             raise TypeError("AlpacaBroker requires a Universe enum")
 
@@ -92,6 +93,8 @@ class AlpacaBroker:
 
     def get_position(self, symbol):
         """Get position for a specific symbol, or None if not held."""
+        from alpaca_trade_api.rest import APIError
+
         try:
             return self.api.get_position(symbol)
         except APIError as e:
@@ -104,6 +107,8 @@ class AlpacaBroker:
 
         Uses Market Data API with configured data feed (iex/sip).
         """
+        import alpaca_trade_api as tradeapi
+
         end = datetime.now()
         # Use a wider buffer so we reliably get N trading days (weekends/holidays).
         buffer_days = max(days * 3, days + 10)

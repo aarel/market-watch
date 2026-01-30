@@ -1,0 +1,180 @@
+Gate audit summary (test coverage validity; High stakes; no bypass)
+
+problem_framing_gate: PASS
+
+Target: whether the existing tests meaningfully constrain behavior and justify confidence for (1) refactors and (2) real-money trading (secondary), without re-auditing architecture or claims.
+
+objective_metric_formalization: PASS
+
+For each test area: assess runnability, signal strength, fault detection, negative/edge coverage, integration realism, flakiness risk.
+
+assumption_extraction_and_ledger: PASS
+
+constraint_classification: PASS
+
+comparative_reasoning_requirement: PASS
+
+error_uncertainty_handling: PASS
+
+coherence_consistency_audit: PASS (but multiple invalid-coverage issues surfaced)
+
+Reframed problem statement
+
+Determine whether the test suite, as written, provides (a) refactor safety and (b) sufficient confidence for real-money trading by reliably failing on meaningful regressions, across unit + integration tests actually present.
+
+Validated evaluation standard
+Standard 1 (primary): refactor safety
+
+A suite is “valid coverage” if it:
+
+runs predictably in a clean environment,
+
+fails when behavior changes in ways that matter,
+
+avoids over-mocking (tests the unit, not the test’s own assumptions),
+
+includes negative tests for boundaries and error handling,
+
+covers critical invariants and “danger paths.”
+
+Standard 2 (secondary): real-money trading readiness
+
+Additional requirements:
+
+external integrations are isolated and validated,
+
+time/market-state logic is tested against edge cases,
+
+data correctness is pinned to reference cases (golden data),
+
+strong end-to-end flows exist (even if mocked broker).
+
+Assumptions and constraints ledger
+Item	Type	Tag	Statement
+A1	normative	necessary	“Valid coverage” must be judged by fault-detection, not by test count or line coverage %.
+A2	structural	necessary	Tests should run in a typical dev/CI environment without depending on coincidental site-packages state.
+A3	empirical	risky	CI environment lacks a third-party package named analytics. If it exists, imports can bind to the wrong module.
+C1	failure_tolerance	binding	High-stakes: any test-run fragility is a material defect in coverage validity.
+C2	information_limits	soft	No historical CI logs are provided; assessment uses repo contents + local execution behavior.
+Primary analysis
+1) Runnability is currently not robust (material validity failure)
+
+Observed: Many tests fail during import/collection in a normal environment because import analytics.store resolves to a third-party package named analytics instead of your local analytics/ directory.
+
+Local reproduction: import analytics binds to /site-packages/analytics/__init__.py, and analytics.store is missing.
+
+This is a coverage validity failure because tests do not reliably test your codebase; they can silently bind to unrelated packages.
+
+Impact on validity:
+Even if CI currently passes, the suite is non-portable and can fail (or worse: test the wrong thing) depending on environment.
+
+Minimal fix (coverage validity, not architecture):
+
+Make analytics an explicit package (add analytics/__init__.py) and/or rename the top-level package to something unlikely to collide (e.g., mw_analytics).
+
+Ensure imports within repo are consistently local (package-based imports after install, or explicit relative imports where appropriate).
+
+2) Dependency import-time coupling breaks tests in clean envs
+
+Some tests import modules that import alpaca_trade_api at import time (broker.py). If the dependency is missing or version-skewed, tests error before they can mock.
+
+Validity issue: tests should fail for behavioral regressions, not for import-time environmental coupling.
+
+Minimal fix:
+
+Guard optional imports or defer them until runtime inside broker constructors, so tests can import modules and then mock dependencies.
+
+3) Signal strength is mixed: several tests constrain behavior well; some are “smoke tests”
+
+Examples of high-signal tests (good validity characteristics):
+
+test_backtest_data.py: good use of temp dirs, concrete assertions, negative paths (NONEXISTENT), explicit no-lookahead checks.
+
+Strategy tests (test_strategy_*): deterministic fixtures, threshold-based assertions, focused behavioral checks.
+
+Risk sizing / breaker tests (test_position_sizer.py, test_circuit_breaker.py, test_risk_agent_*): mostly asserts on computed outcomes, not just existence.
+
+Examples of low-signal tests (weak validity):
+
+test_backtest_stop_loss_triggered in test_backtest_engine.py ends with assertIsNotNone(results) rather than asserting a stop-loss exit occurred (trade count change, exit reason, PnL, or position closed).
+
+This test will pass under many regressions, so it is not meaningful coverage.
+
+Rule: any test that only asserts “non-null” or “no exception” without pinning a behavioral invariant is low validity.
+
+4) Over-mocking risk exists in integration-labeled tests
+
+Some “integration” tests construct extensive mocks that can drift away from real behavior. This is not automatically bad, but validity depends on whether:
+
+the mock matches the contract of the real component, and
+
+assertions check outcomes that would change under real regressions.
+
+Where validity is strong:
+
+filesystem-backed analytics tests that actually write/read data in temp dirs (these constrain real behavior).
+
+Where validity is weaker:
+
+mocks that replace too much of the system so tests mostly validate the mock orchestration.
+
+5) Coverage breadth: decent for backtest/strategies/risk; thin for real operational edges
+
+Without re-auditing architecture, coverage gaps visible from tests alone:
+
+Limited tests around time/market-calendar edges (DST shifts, holidays, boundary times, timezone handling).
+
+Limited tests around partial fills/slippage/price gaps (trade lifecycle realism).
+
+Performance/scaling is effectively untested (acceptable for refactor-safety, insufficient for real-money readiness).
+
+6) Metric stance (weak signals): coverage % is not decisive here
+
+CI runs pytest --cov=. but line/branch coverage is not a proxy for validity. Given the import fragility, any reported coverage could be misleading until packaging/import correctness is fixed.
+
+Alternative comparisons (test strategy options)
+Option A — Fix portability + strengthen high-signal invariants (best ROI)
+
+Fix analytics import collision.
+
+Defer optional imports.
+
+Upgrade low-signal tests to assert explicit invariants (stop-loss exit, position closure, etc.).
+
+Add a small number of negative tests for failure modes.
+
+Option B — Add a minimal end-to-end “paper trading” simulation harness
+
+A single integration path: signals → risk → execution stub → analytics write.
+
+High value for real-money readiness; moderate effort.
+
+Option C — Property/invariant testing for core math and constraints
+
+Particularly for metrics, sizers, circuit breaker boundaries.
+
+Highest rigor per LOC, but requires careful invariant definition.
+
+Failure modes and sensitivities (test validity)
+
+Silent wrong-module imports
+
+Tests can pass while exercising a third-party analytics package, not your code.
+
+Import-time dependency failure
+
+Tests error out before executing assertions, making coverage illusory.
+
+Smoke tests don’t detect regressions
+
+“not None” / “no exception” tests create a false sense of coverage.
+
+Mock drift
+
+“Integration” tests can validate mocked expectations rather than system behavior.
+
+Confidence-qualified conclusion
+
+Refactor-safety: currently insufficient until the import/package collision and import-time dependency coupling are fixed. After those fixes, the suite has a solid base (backtest data, strategies, risk) but still needs targeted strengthening of low-signal tests.
+
+Real-money readiness: not supported by the test suite as-is. Too few end-to-end lifecycle tests, limited market/time edge coverage, and insufficient pinned data-correctness references.

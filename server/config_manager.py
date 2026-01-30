@@ -1,16 +1,22 @@
 """Configuration manager to load, validate, and persist runtime config."""
 import json
 import os
-from dataclasses import dataclass, asdict, field
-from typing import List
+from typing import List, Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 import config
+from universe import Universe, get_data_path
 
 
-@dataclass
-class RuntimeConfig:
+class RuntimeConfig(BaseModel):
+    """Runtime configuration with strict type validation via Pydantic.
+
+    This prevents the bool("false") bug where string "false" evaluates to True.
+    Pydantic handles proper string-to-bool conversion ("true"/"false" strings).
+    """
     strategy: str = config.STRATEGY
-    watchlist: List[str] = field(default_factory=lambda: config.WATCHLIST.copy())
+    watchlist: List[str] = Field(default_factory=lambda: config.WATCHLIST.copy())
     watchlist_mode: str = config.WATCHLIST_MODE
     momentum_threshold: float = config.MOMENTUM_THRESHOLD
     sell_threshold: float = config.SELL_THRESHOLD
@@ -24,19 +30,63 @@ class RuntimeConfig:
     max_correlated_exposure_pct: float = config.MAX_CORRELATED_EXPOSURE_PCT
     trade_interval: int = config.TRADE_INTERVAL_MINUTES
     auto_trade: bool = config.AUTO_TRADE
-    simulation_mode: bool = config.SIMULATION_MODE
     top_gainers_count: int = config.TOP_GAINERS_COUNT
     top_gainers_universe: str = config.TOP_GAINERS_UNIVERSE
     top_gainers_min_price: float = config.TOP_GAINERS_MIN_PRICE
     top_gainers_min_volume: int = config.TOP_GAINERS_MIN_VOLUME
 
+    model_config = {"frozen": False}  # Allow field updates
 
-PERSISTED_CONFIG_KEYS = set(RuntimeConfig().__dict__.keys())
+    @field_validator('auto_trade', mode='before')
+    @classmethod
+    def validate_bool_from_string(cls, v):
+        """Strict boolean parsing to prevent bool("false") = True bug.
+
+        Accepts: bool, "true"/"false" (case-insensitive), 1/0
+        Rejects: any other string with clear error message
+        """
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, int):
+            return bool(v)
+        if isinstance(v, str):
+            lower = v.lower().strip()
+            if lower in ('true', '1', 'yes', 'on'):
+                return True
+            elif lower in ('false', '0', 'no', 'off'):
+                return False
+            else:
+                raise ValueError(
+                    f"Invalid boolean string: '{v}'. "
+                    f"Accepted values: true/false, yes/no, on/off, 1/0"
+                )
+        raise TypeError(f"Cannot convert {type(v).__name__} to bool")
+
+
+PERSISTED_CONFIG_KEYS = set(RuntimeConfig.model_fields.keys())
 
 
 class ConfigManager:
-    def __init__(self, path: str = None):
-        self.path = path or config.CONFIG_STATE_PATH
+    def __init__(self, path: str = None, universe: Optional[Universe] = None):
+        """Initialize ConfigManager with optional universe-scoped path.
+
+        Args:
+            path: Explicit path override (for testing)
+            universe: Universe for scoped config (generates path: data/{universe}/config_state.json)
+
+        If both path and universe are None, falls back to config.CONFIG_STATE_PATH for
+        backward compatibility, but this is deprecated - universe should always be provided.
+        """
+        if path:
+            self.path = path
+        elif universe:
+            # Universe-scoped path: data/{universe}/config_state.json
+            self.path = get_data_path(universe, "config_state.json")
+        else:
+            # Deprecated fallback for backward compatibility
+            self.path = config.CONFIG_STATE_PATH
+
+        self.universe = universe
         self.state = RuntimeConfig()
         self.load()
 
@@ -58,7 +108,6 @@ class ConfigManager:
             max_correlated_exposure_pct=config.MAX_CORRELATED_EXPOSURE_PCT,
             trade_interval=config.TRADE_INTERVAL_MINUTES,
             auto_trade=config.AUTO_TRADE,
-            simulation_mode=config.SIMULATION_MODE,
             top_gainers_count=config.TOP_GAINERS_COUNT,
             top_gainers_universe=config.TOP_GAINERS_UNIVERSE,
             top_gainers_min_price=config.TOP_GAINERS_MIN_PRICE,
@@ -66,7 +115,7 @@ class ConfigManager:
         )
 
     def snapshot(self) -> dict:
-        return asdict(self.state)
+        return self.state.model_dump()
 
     def load(self):
         if not self.path or not os.path.exists(self.path):
@@ -88,22 +137,27 @@ class ConfigManager:
             json.dump(self.snapshot(), f, indent=2)
 
     def apply_updates(self, updates: dict):
-        for key, value in updates.items():
-            if key not in PERSISTED_CONFIG_KEYS:
-                continue
-            try:
-                if isinstance(getattr(self.state, key), bool):
-                    setattr(self.state, key, bool(value))
-                elif isinstance(getattr(self.state, key), int):
-                    setattr(self.state, key, int(value))
-                elif isinstance(getattr(self.state, key), float):
-                    setattr(self.state, key, float(value))
-                elif isinstance(getattr(self.state, key), list):
-                    setattr(self.state, key, list(value))
-                else:
-                    setattr(self.state, key, value)
-            except Exception:
-                continue
+        """Apply updates with Pydantic validation.
+
+        This prevents the bool("false") bug by using Pydantic's strict type validation.
+        Invalid updates will raise ValidationError with clear error messages.
+        """
+        # Filter to only allowed keys
+        filtered_updates = {k: v for k, v in updates.items() if k in PERSISTED_CONFIG_KEYS}
+
+        # Get current state as dict
+        current_state = self.state.model_dump()
+
+        # Merge updates
+        current_state.update(filtered_updates)
+
+        # Validate and create new state (Pydantic will validate all fields)
+        try:
+            self.state = RuntimeConfig(**current_state)
+        except Exception as e:
+            # Re-raise with context for debugging
+            raise ValueError(f"Config validation failed: {e}") from e
+
         # Reflect back into config module for legacy consumers
         self._apply_to_config()
 
@@ -125,7 +179,6 @@ class ConfigManager:
         config.MAX_CORRELATED_EXPOSURE_PCT = cfg.max_correlated_exposure_pct
         config.TRADE_INTERVAL_MINUTES = cfg.trade_interval
         config.AUTO_TRADE = cfg.auto_trade
-        config.SIMULATION_MODE = cfg.simulation_mode
         config.TOP_GAINERS_COUNT = cfg.top_gainers_count
         config.TOP_GAINERS_UNIVERSE = cfg.top_gainers_universe
         config.TOP_GAINERS_MIN_PRICE = cfg.top_gainers_min_price
