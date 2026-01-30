@@ -1,0 +1,282 @@
+Good — this is finally enough signal to do a **real post-fix re-audit**. I’m going to treat this as a **fresh verification pass** starting from the moment I made the original recommendations, and judge *only* what changed and whether it closes the previously identified risk classes.
+
+I’ll answer your four questions explicitly at the end.
+
+---
+
+# Post-Fix Re-Audit (Phase 0 + Phase 1)
+
+**Scope:** Verify that the concrete changes in the provided diff eliminate the previously identified architectural, test-validity, and change-safety failures — and that no new regressions were introduced.
+
+**Stakes:** High
+**Standard:** Fail-fast, construction-time guarantees, no silent drift
+
+---
+
+## 1. Phase 0 fixes — verification
+
+### 1.1 Boolean parsing (`bool("false")`)
+
+**Status: PASS**
+
+You replaced the dataclass config with a **Pydantic model** and added a `field_validator` on `auto_trade` that runs *before* coercion .
+
+Key points:
+
+* Strings `"true"` / `"false"` are handled correctly.
+* Invalid strings raise a validation error.
+* The dangerous `bool(value)` pattern is gone.
+
+**Residual note (minor):**
+Your re-audit test example expects `ValueError`, but Pydantic raises `ValidationError`. This is a **test expectation issue**, not a safety issue.
+
+**Risk class closed:** ❌ Silent safety inversion
+**Confidence:** Very high
+
+---
+
+### 1.2 Analytics import collision
+
+**Status: PASS**
+
+You added `analytics/__init__.py` and made it a proper package .
+
+This eliminates:
+
+* accidental binding to `site-packages/analytics`
+* false test passes against the wrong code
+
+**Risk class closed:** ❌ Illusory test coverage
+**Confidence:** Very high
+
+---
+
+### 1.3 Import-time dependency coupling
+
+**Status: PASS**
+
+You deferred `alpaca_trade_api` imports into the `AlpacaBroker` constructor .
+
+This allows:
+
+* test collection without Alpaca installed
+* mocking without import-time crashes
+
+**Risk class closed:** ❌ Environment-dependent failures
+**Confidence:** Very high
+
+---
+
+### 1.4 FakeBroker external dependency leak
+
+**Status: PASS**
+
+FakeBroker no longer initializes or touches Alpaca at all (confirmed in diff context).
+
+This restores **hermetic simulation**, which matters both epistemically and operationally.
+
+**Risk class closed:** ❌ SIM/LIVE leakage
+**Confidence:** High
+
+---
+
+### 1.5 Dependency pinning
+
+**Status: PASS (with correct caveat)**
+
+You added a `requirements.lock` and documented regeneration expectations .
+
+This is sufficient for:
+
+* paper trading
+* micro-capital live
+
+You correctly did **not** over-engineer CI pin enforcement yet.
+
+**Risk class closed:** ❌ Time-delayed breakage
+**Confidence:** High
+
+---
+
+## 2. Phase 1 fixes — verification
+
+### 2.1 SIMULATION_MODE removal
+
+**Status: PASS**
+
+The diff shows:
+
+* `SIMULATION_MODE` removed from `config.py`
+* no fallback logic in `server/lifespan.py`
+* no field in `RuntimeConfig`
+* no coordinator inference path
+
+ 
+
+This closes the **dual-source-of-truth** class completely.
+
+**Risk class closed:** ❌ Control-plane ambiguity
+**Confidence:** Very high
+
+---
+
+### 2.2 Universe-scoped config persistence
+
+**Status: PASS**
+
+`ConfigManager` now:
+
+* requires a universe
+* writes to `data/{universe}/config_state.json`
+* is instantiated only *after* universe selection
+
+
+
+This was one of the highest-risk findings across *three* audits. It is now resolved.
+
+**Risk class closed:** ❌ Cross-universe contamination
+**Confidence:** Very high
+
+---
+
+### 2.3 Explicit universe requirement (Coordinator)
+
+**Status: PASS**
+
+Coordinator now:
+
+* rejects `None`
+* throws a clear `TypeError`
+* does not read config for inference
+
+
+
+This enforces your own contract: *no component without explicit universe*.
+
+**Risk class closed:** ❌ Implicit execution context
+**Confidence:** Very high
+
+---
+
+### 2.4 Universe mismatch assertions
+
+**Status: PASS**
+
+Universe mismatch checks are now present at construction/rebuild time (per diff and verification notes).
+
+This converts what used to be **epistemic drift** into **fail-fast crash**, which is exactly what you want at this stage.
+
+**Risk class closed:** ❌ Silent universe mismatch
+**Confidence:** High
+
+---
+
+### 2.5 Documentation contradictions
+
+**Status: PASS**
+
+README:
+
+* no longer claims SIM market is always open
+* points to correct analytics paths
+* documents `TRADING_MODE` correctly
+
+
+
+This matters because operator trust is a *safety surface*.
+
+---
+
+## 3. Regression analysis
+
+I looked specifically for **new failure surfaces introduced by the fixes**.
+
+### 3.1 Startup sequencing
+
+Universe is now determined *before* config load, and config manager is universe-scoped.
+
+This is **strictly safer** than the previous model.
+
+### 3.2 Global mutable config
+
+Still exists, but:
+
+* no longer controls universe
+* no longer persists universe-adjacent flags
+
+This downgrades it from **critical** to **medium technical debt** (acceptable for paper).
+
+### 3.3 Tests
+
+No evidence that the fixes:
+
+* weaken existing tests
+* reintroduce import fragility
+* mask failures
+
+You did not yet add new end-to-end tests, but that was not required for Phase 1.
+
+**Conclusion:** No regressions detected.
+
+---
+
+## 4. Answers to your four questions
+
+### 1. Are all changes architecturally correct?
+
+**Yes.**
+They now match the system’s own stated contract and eliminate the previously contradictory control paths.
+
+---
+
+### 2. Were any regressions introduced?
+
+**No material regressions detected.**
+Net safety strictly increased.
+
+---
+
+### 3. Is it safe to proceed to paper trading?
+
+**Yes — explicitly approved.**
+
+Paper trading now satisfies:
+
+* deterministic startup
+* correct config semantics
+* universe isolation
+* truthful logs
+* no SIM/LIVE leakage paths
+
+Proceed.
+
+---
+
+### 4. Any remaining issues to address?
+
+Only **Phase-2 / pre-LIVE items**, not blockers for paper:
+
+**Before micro-capital LIVE ($1–$10):**
+
+1. One end-to-end paper harness (signal → risk → broker stub → analytics)
+2. Hard kill switch test (prove it trips)
+3. Tighten one or two low-signal tests (replace `assertIsNotNone`)
+
+None of these invalidate paper trading.
+
+---
+
+## Final verdict
+
+**Phase 0 + Phase 1 are legitimately complete.**
+This is not a “docs say done” situation — the underlying failure modes are actually closed.
+
+You should:
+
+* start paper trading immediately
+* collect logs + metrics for 1–2 weeks
+* then move toward micro-capital LIVE on the previously stated timeline
+
+If you want, the *next* useful artifact is a **LIVE-readiness gate checklist** that is binary and unemotional.
+
+But as of now: **you’re clear to proceed.**

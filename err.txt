@@ -1,84 +1,260 @@
-(index):2748 Fetching analytics for period: 30d
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-(index):3146 Failed to fetch config: TypeError: Cannot read properties of undefined (reading 'toUpperCase')
-    at fetchConfig ((index):3141:59)
-fetchConfig @ (index):3146
-:8000/api/logs?_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/observability/expectations?_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-(index):2763 Equity data points for 30d: 5
-(index):2775 Trades for 30d: 0
-(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
-(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
-    at renderPositionPieChart ((index):2563:25)
-    at fetchAnalytics ((index):2797:21)
-fetchAnalytics @ (index):2819
-(index):1859 WebSocket connected
-:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CNFLX%2CGOOGL%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-(index):2748 Fetching analytics for period: 30d
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-(index):2763 Equity data points for 30d: 6
-(index):2775 Trades for 30d: 0
-(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
-(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
-    at renderPositionPieChart ((index):2563:25)
-    at fetchAnalytics ((index):2797:21)
-fetchAnalytics @ (index):2819
-:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CNFLX%2CGOOGL%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-(index):2748 Fetching analytics for period: 30d
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-(index):2763 Equity data points for 30d: 7
-(index):2775 Trades for 30d: 0
-(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
-(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
-    at renderPositionPieChart ((index):2563:25)
-    at fetchAnalytics ((index):2797:21)
-fetchAnalytics @ (index):2819
-:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CGOOGL%2CNFLX%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-(index):2748 Fetching analytics for period: 30d
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-(index):2763 Equity data points for 30d: 8
-(index):2775 Trades for 30d: 0
-(index):2785 Round-trip trades detected: 0 (0 best, 0 worst)
-(index):2819 Failed to fetch analytics: ReferenceError: backgroundColor is not defined
-    at renderPositionPieChart ((index):2563:25)
-    at fetchAnalytics ((index):2797:21)
-fetchAnalytics @ (index):2819
-:8000/api/assets/names?symbols=AMZN%2CBAC%2CBMY%2CC%2CCMCSA%2CCSCO%2CFCX%2CLMT%2CMETA%2CMU%2CNVDA%2CSCHW%2CSLB%2CTSLA%2CTSM%2CUSB%2CWFC%2CWMT%2CXOM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=T%2CVZ%2CPFE%2CKO%2CAAPL%2CSBUX%2CINTC%2CNFLX%2CGOOGL%2CMSFT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-(index):3094 Failed to fetch status: TypeError: Cannot read properties of undefined (reading 'portfolio_value')
-    at updateStatus ((index):1897:87)
-    at fetchStatus ((index):3083:17)
-fetchStatus @ (index):3094
-:8000/api/assets/names?symbols=CMCSA%2CT%2CVZ%2CWFC%2CBAC%2CPFE%2CKO%2CFCX%2CSLB%2CAAPL%2CSBUX%2CINTC%2CAMZN%2CNVDA%2CNFLX%2CGOOGL%2CMSFT%2CMETA%2CLMT%2CIBM&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
-:8000/api/assets/names?symbols=SPY%2CQQQ%2CDIA%2CIVV%2CVOO%2CIWM%2CSMH%2CXLF%2CXLK%2CXLY%2CXLI%2CXLE%2CXLV%2CXLB%2CXLU%2CXLRE%2CXLC&_v=v1.0.1:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+---error---
+
+INFO:     127.0.0.1:34416 - "GET /api/status?_v=v1.0.1 HTTP/1.1" 200 OK
+INFO:     connection closed
+^C^C^CINFO:     Shutting down
+INFO:     Finished server process [71552]
+ERROR:    Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 1512, in uvloop.loop.Loop.run_until_complete
+  File "uvloop/loop.pyx", line 1505, in uvloop.loop.Loop.run_until_complete
+  File "uvloop/loop.pyx", line 1379, in uvloop.loop.Loop.run_forever
+  File "uvloop/loop.pyx", line 557, in uvloop.loop.Loop._run
+  File "uvloop/loop.pyx", line 476, in uvloop.loop.Loop._on_idle
+  File "uvloop/cbhandles.pyx", line 83, in uvloop.loop.Handle._run
+  File "uvloop/cbhandles.pyx", line 63, in uvloop.loop.Handle._run
+  File "/mnt/c/Users/aarel/Documents/coding/market-watch/venv/lib/python3.12/site-packages/uvicorn/server.py", line 70, in serve
+    with self.capture_signals():
+  File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/mnt/c/Users/aarel/Documents/coding/market-watch/venv/lib/python3.12/site-packages/uvicorn/server.py", line 331, in capture_signals
+    signal.raise_signal(captured_signal)
+  File "/usr/lib/python3.12/asyncio/runners.py", line 157, in _on_sigint
+    raise KeyboardInterrupt()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/c/Users/aarel/Documents/coding/market-watch/venv/lib/python3.12/site-packages/starlette/routing.py", line 701, in lifespan
+    await receive()
+  File "/mnt/c/Users/aarel/Documents/coding/market-watch/venv/lib/python3.12/site-packages/uvicorn/lifespan/on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+INFO:     Stopping reloader process [71550]
+
+
+
+
+---AUDITOR Reply---
+
+
+
+What this error actually is (plain truth)
+
+This is not a crash and not a logic error.
+
+This is a graceful shutdown path that is being interpreted as an error.
+
+What happened, step by step
+
+Uvicorn is running your FastAPI/Starlette app using uvloop
+
+You hit Ctrl+C (SIGINT) or the process received a termination signal
+
+Uvicorn captures the signal and raises KeyboardInterrupt
+
+During shutdown, Starlette’s lifespan context is active
+
+The lifespan coroutine is cancelled as part of shutdown
+
+Python raises:
+
+asyncio.exceptions.CancelledError
+
+
+The stack trace prints because nothing is explicitly handling it
+
+This is normal asyncio semantics.
+
+Why this suddenly surfaced now
+
+Before Phase 0 / Phase 1, you had:
+
+looser startup/shutdown semantics
+
+fewer long-lived background tasks
+
+less explicit lifecycle management
+
+After the recent changes:
+
+you are using lifespan events
+
+agents and managers likely start background tasks
+
+shutdown now cancels active awaits
+
+So now you are seeing the truth of async cancellation, instead of hiding it.
+
+That’s actually progress.
+
+Why this matters (this is the real issue)
+
+The problem is not the exception.
+
+The problem is that your system currently:
+
+does not explicitly define shutdown semantics
+
+does not distinguish expected cancellation from failure
+
+may be leaving agents, tasks, or resources in ambiguous states
+
+This directly affects:
+
+observability correctness
+
+paper trading confidence
+
+LIVE readiness
+
+If you don’t handle this explicitly:
+
+logs look scary when nothing is wrong
+
+agents may not flush state cleanly
+
+UI may see partial shutdown as a “failure”
+
+What the dev team needs to understand (key insight)
+
+asyncio.CancelledError during shutdown is expected and correct.
+Treating it as an error is incorrect.
+
+But you must handle it intentionally.
+
+What needs to be fixed (non-negotiable items)
+1. Explicit lifespan shutdown handling
+
+In your FastAPI / Starlette lifespan code:
+
+CancelledError must be caught and treated as normal shutdown
+
+cleanup must still run
+
+Example pattern (conceptual, not exact code):
+
+try:
+    await receive()
+except asyncio.CancelledError:
+    logger.info("Lifespan cancelled — shutting down cleanly")
+    raise
+
+
+The key is logging and intent, not suppression.
+
+2. Agent shutdown protocol must exist
+
+Every long-running agent/task must:
+
+listen for cancellation
+
+exit cleanly
+
+flush any buffered analytics
+
+emit a final heartbeat/state
+
+If agents ignore cancellation or die silently:
+
+observability lies
+
+shutdown appears “broken”
+
+3. Observability must classify this as “shutdown”, not “error”
+
+Right now, if this propagates to logs/UI:
+
+it looks like a fault
+
+alerts may fire incorrectly
+
+Required semantic distinction:
+
+SHUTDOWN_REQUESTED
+
+TASK_CANCELLED (EXPECTED)
+
+CRASH / UNHANDLED_EXCEPTION (different)
+
+4. UI must not interpret this as system failure
+
+If the backend restarts and the UI sees:
+
+no agents
+
+no data
+
+empty panels
+
+That must be shown as:
+
+“System stopped” or “Restarting”
+
+Not:
+
+“Loading…” forever
+
+This ties directly to your earlier UI questions.
+
+What this is not
+
+To be explicit:
+
+❌ Not a Python 3.12 bug
+
+❌ Not a uvloop bug
+
+❌ Not a FastAPI bug
+
+❌ Not something to “fix by suppressing errors”
+
+This is correct async behavior revealing missing lifecycle design.
+
+The correct framing to the dev team
+
+If you want to raise this cleanly, say something like:
+
+We’re seeing CancelledError during shutdown in the lifespan handler. This looks like expected async cancellation on SIGINT, but we’re not currently handling it explicitly.
+
+Can we formalize shutdown semantics so that:
+
+cancellation is logged as expected,
+
+agents exit cleanly,
+
+observability reflects shutdown vs failure,
+
+and UI doesn’t misinterpret it as a runtime error?
+
+That frames it as system correctness, not a bug hunt.
+
+Bottom line
+
+This error is a signal, not a failure.
+
+It tells you:
+
+your system is now async-correct enough to surface lifecycle truth
+
+but shutdown semantics are not yet first-class
+
+Handling this properly is required before LIVE, but does not block paper trading.
+
+If you want next, I can:
+
+draft a shutdown lifecycle contract
+
+define agent cancellation rules
+
+or help you write a “what is an error vs expected behavior” spec for logs and UI

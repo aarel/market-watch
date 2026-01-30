@@ -48,9 +48,10 @@
         }
         .status-badge.running { background: rgba(63,185,80,0.15); color: var(--green); }
         .status-badge.stopped { background: rgba(248,81,73,0.15); color: var(--red); }
+        .status-badge.alert { background: rgba(210,153,34,0.15); color: var(--yellow); font-weight: 600; }
         .status-badge.paper { background: rgba(210,153,34,0.15); color: var(--yellow); }
-        .status-badge.sim { background: rgba(210,153,34,0.15); color: var(--yellow); }
-        .status-badge.live { background: rgba(63,185,80,0.15); color: var(--green); }
+        .status-badge.sim { background: rgba(139,148,158,0.15); color: var(--text-dim); }
+        .status-badge.live { background: rgba(248,81,73,0.2); color: var(--red); font-weight: 700; }
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -868,22 +869,20 @@
                 </span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <span id="market-strip" class="status-badge stopped">MARKET</span>
                 <span class="tooltip tooltip-left tooltip-topbar">
-                    <span id="sim-mode" class="status-badge stopped">SIM</span>
-                    <span class="tooltip-text">Execution mode. SIM = simulated broker. LIVE = real brokerage connection.</span>
+                    <span id="market-strip" class="status-badge stopped">MARKET CLOSED</span>
+                    <span class="tooltip-text">Market status from broker clock. OPEN = tradable hours, CLOSED = outside trading hours.</span>
                 </span>
                 <span class="tooltip tooltip-left tooltip-topbar">
-                    <span id="trading-mode" class="status-badge paper">PAPER</span>
-                    <span class="tooltip-text">Funding mode. PAPER = paper account (no real money). LIVE = real money at risk.</span>
+                    <span id="universe-badge" class="status-badge paper">UNIVERSE: PAPER</span>
+                    <span class="tooltip-text">Execution universe. SIMULATION = FakeBroker (synthetic data). PAPER = Alpaca paper trading (no real money). LIVE = Real capital at risk. Universe is immutable per process.</span>
                 </span>
-                <button class="status-badge stopped" id="bot-toggle" style="border:none; cursor:pointer;"
-                        onclick="toggleAutoTrade()">
-                    AUTO-TRADE
-                </button>
                 <span class="tooltip tooltip-left tooltip-topbar">
-                    <i class="info-icon">?</i>
-                    <span class="tooltip-text"><strong>Auto-Trading toggle:</strong> Green = On, Red = Off. Click to start/stop the bot without refreshing.</span>
+                    <button class="status-badge stopped" id="bot-toggle" style="border:none; cursor:pointer;"
+                            onclick="toggleAutoTrade()">
+                        AUTO-TRADE
+                    </button>
+                    <span class="tooltip-text">Auto-trade toggle. Click to enable/disable automated trading. Green = enabled, Yellow = blocked by circuit breaker, Red = disabled.</span>
                 </span>
             </div>
         </header>
@@ -1908,19 +1907,37 @@
                 marketStrip.className = data.market_open ? 'status-badge running' : 'status-badge stopped';
             }
 
-            // SIM mode - GREEN=ON, RED=OFF
-            const simMode = document.getElementById('sim-mode');
-            if (simMode) {
-                const isSim = !!data.simulation || (data.bot && data.bot.trading_mode === 'paper');
-                simMode.textContent = isSim ? 'SIM ON' : 'SIM OFF';
-                simMode.className = isSim ? 'status-badge running' : 'status-badge stopped';
+            // Universe badge - Immutable, from backend (SIMULATION/PAPER/LIVE)
+            const universeBadge = document.getElementById('universe-badge');
+            if (universeBadge && data.bot && data.bot.trading_mode) {
+                const universe = data.bot.trading_mode.toUpperCase();
+                universeBadge.textContent = `UNIVERSE: ${universe}`;
+                // Color code: SIMULATION=yellow, PAPER=yellow, LIVE=red
+                if (universe === 'LIVE') {
+                    universeBadge.className = 'status-badge live';
+                } else if (universe === 'SIMULATION') {
+                    universeBadge.className = 'status-badge sim';
+                } else {
+                    universeBadge.className = 'status-badge paper';
+                }
             }
 
-            // Auto-trade - GREEN=ON, RED=OFF
+            // Auto-trade - Tri-state: ENABLED / BLOCKED / DISABLED
             const autoToggle = document.getElementById('bot-toggle');
             if (autoToggle) {
-                autoToggle.textContent = data.bot.auto_trade ? 'AUTO-TRADE ON' : 'AUTO-TRADE OFF';
-                autoToggle.className = data.bot.auto_trade ? 'status-badge running' : 'status-badge stopped';
+                const autoTradeEnabled = data.bot.auto_trade;
+                const circuitBreakerActive = currentAgentStatus?.agents?.risk?.circuit_breaker?.active === true;
+
+                if (!autoTradeEnabled) {
+                    autoToggle.textContent = 'AUTO-TRADE: DISABLED';
+                    autoToggle.className = 'status-badge stopped';
+                } else if (circuitBreakerActive) {
+                    autoToggle.textContent = 'AUTO-TRADE: BLOCKED';
+                    autoToggle.className = 'status-badge alert';
+                } else {
+                    autoToggle.textContent = 'AUTO-TRADE: ENABLED';
+                    autoToggle.className = 'status-badge running';
+                }
             }
 
             // Positions
@@ -3136,10 +3153,19 @@
                 updateWatchlistDropdown(data.watchlist);
                 applyWatchlistMode(document.getElementById('watchlist-mode').value);
 
-                // Trading mode badge
-                const modeBadge = document.getElementById('trading-mode');
-                modeBadge.textContent = data.trading_mode.toUpperCase();
-                modeBadge.className = `status-badge ${data.trading_mode}`;
+                // Universe badge (if not already updated by status update)
+                const universeBadge = document.getElementById('universe-badge');
+                if (universeBadge && data.trading_mode) {
+                    const universe = data.trading_mode.toUpperCase();
+                    universeBadge.textContent = `UNIVERSE: ${universe}`;
+                    if (universe === 'LIVE') {
+                        universeBadge.className = 'status-badge live';
+                    } else if (universe === 'SIMULATION') {
+                        universeBadge.className = 'status-badge sim';
+                    } else {
+                        universeBadge.className = 'status-badge paper';
+                    }
+                }
 
                 updateRiskPanel();
             } catch (err) {

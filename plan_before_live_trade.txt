@@ -1,0 +1,220 @@
+❯ market's closed but autotrade and paper trade is on. am I supposed to just leave this and see whats up after? its friday too which kind of sucks since I'll have the whole weekend
+  without being able to make edits and test them or progress paper trading to get a lot of data that can be used (Momentum looks at past 20 days right?) also, are there different
+  strategies or whatever, not only top gainers but maybe penny stocks like on robinhood app?
+
+● Great questions! Let me address each:
+
+  1. Market Closed - What to Do Now
+
+  Yes, you can leave it running. The system will:
+  - Poll every few seconds
+  - See market is closed
+  - Wait idle until Monday 9:30 AM EST
+  - Automatically start trading when market opens
+
+  Or you can stop it and restart Monday morning - either way works.
+
+  The issue is you mentioned agents showing "Loading" - they should show "IDLE (market closed)" instead. This is one of the P1 items.
+
+  ---
+  2. Weekend Development - Use SIMULATION Mode!
+
+  You're right, Friday evening is unfortunate timing. But you can develop and test over the weekend using SIMULATION mode:
+
+  # In .env, change:
+  TRADING_MODE=simulation
+  AUTO_TRADE=true
+
+  # Restart
+  ./start_app.sh
+
+  SIMULATION mode:
+  - ✅ Uses FakeBroker (synthetic prices, no real API)
+  - ✅ Works 24/7, doesn't care about market hours
+  - ✅ Lets you test code changes immediately
+  - ✅ No API rate limits
+  - ✅ Perfect for development
+
+  Use SIMULATION this weekend to:
+  - Test P1 improvements
+  - Debug agent lifecycle
+  - Test shutdown semantics
+  - Verify observability panels
+  - Run hundreds of test trades
+
+  Then switch back to PAPER Monday morning for real data.
+
+  ---
+  3. Momentum Strategy - Let Me Check
+
+  Let me look at what the momentum strategy actually does:
+
+● Searched for 3 patterns, read 3 files (ctrl+o to expand)
+
+● Perfect! Let me answer all your questions:
+
+  ---
+  3. Momentum Strategy - Yes, 20 Days
+
+  Current momentum strategy (strategies/momentum.py):
+  - ✅ Lookback: 20 days (config.LOOKBACK_DAYS)
+  - Calculates rate of change over 20-day period
+  - Buy signal: Momentum > 2% over 20 days
+  - Sell signal: Momentum drops below -1% OR stop-loss at -5%
+
+  Example:
+  - Stock was $100 20 days ago, now $105 → 5% momentum → BUY
+  - Stock drops to $102 (2% momentum) → HOLD
+  - Stock drops to $99 (-1% momentum) → SELL
+
+  ---
+  4. Available Strategies - You Have 4!
+
+  Your system has 4 built-in strategies:
+
+  1. Momentum (current default)
+
+  STRATEGY=momentum
+  - Buys stocks with strong upward price momentum (2%+ over 20 days)
+  - Sells on momentum reversal or 5% stop-loss
+  - Best for: Trending markets, riding winners
+
+  2. Breakout
+
+  STRATEGY=breakout
+  - Buys when price breaks above 20-day high
+  - Sells when price breaks below 20-day low
+  - Best for: Volatile markets, catching big moves
+
+  3. Mean Reversion
+
+  STRATEGY=mean_reversion
+  - Buys oversold stocks (expecting bounce back)
+  - Sells overbought stocks
+  - Best for: Range-bound markets, quick profits
+
+  4. RSI (Relative Strength Index)
+
+  STRATEGY=rsi
+  - Uses RSI indicator to find oversold/overbought stocks
+  - Buy when RSI < 30 (oversold), sell when RSI > 70 (overbought)
+  - Best for: Technical traders, oscillating markets
+
+  To change strategy:
+  # In .env file
+  STRATEGY=breakout  # or momentum, mean_reversion, rsi
+
+  ---
+  5. Penny Stocks & Watchlist Options
+
+  Penny Stocks Configuration
+
+  Current filter:
+  TOP_GAINERS_MIN_PRICE = 5.0  # Only stocks above $5
+
+  To include penny stocks:
+  # In .env
+  TOP_GAINERS_MIN_PRICE=1.0   # Stocks above $1
+  # or
+  TOP_GAINERS_MIN_PRICE=0.50  # Stocks above $0.50
+
+  ⚠️ Warning about penny stocks:
+  - Higher volatility (bigger gains AND losses)
+  - Lower liquidity (harder to sell)
+  - Circuit breaker will trigger more often
+  - 5% stop-loss might hit instantly
+
+  Watchlist Modes
+
+  You have 2 watchlist modes:
+
+  Mode 1: Top Gainers (current default)
+
+  WATCHLIST_MODE=top_gainers
+  - Automatically finds stocks with highest % gain today
+  - Refreshes dynamically
+  - Good for momentum trading
+  - Filters by MIN_PRICE
+
+  Mode 2: Static Watchlist
+
+  WATCHLIST_MODE=static
+  WATCHLIST=["AAPL", "NVDA", "TSLA", "AMD", "PLTR"]  # Set in config.py
+  - Trades only specific stocks you choose
+  - Good for: Blue chips, stocks you trust, specific sectors
+  - Can include penny stocks manually
+
+  ---
+  Weekend Action Plan
+
+  Since it's Friday evening, here's what I recommend:
+
+  Option A: Leave PAPER running (passive)
+
+  # Just leave it running
+  # It will auto-start trading Monday 9:30 AM EST
+  # Check back Monday to see results
+
+  Option B: Switch to SIMULATION for weekend development (active)
+
+  # Stop current server (Ctrl+C)
+
+  # Edit .env
+  TRADING_MODE=simulation
+  AUTO_TRADE=true
+  STRATEGY=momentum  # or try breakout, mean_reversion, rsi
+
+  # Restart
+  ./start_app.sh
+
+  Weekend experiments with SIMULATION:
+  1. Test different strategies:
+    - Try each strategy (momentum, breakout, mean_reversion, rsi)
+    - See which generates more signals
+    - Compare win rates
+  2. Test penny stocks:
+    - Set TOP_GAINERS_MIN_PRICE=1.0
+    - See if trades execute faster (more volatility)
+  3. Work on P1 improvements:
+    - Fix agent "Loading" states
+    - Add shutdown semantics
+    - Improve observability
+  4. Generate test data:
+    - SIMULATION generates synthetic trades
+    - You'll have analytics data to verify dashboards work
+
+  Monday morning: Switch back to PAPER to see real market behavior.
+
+  ---
+  Example .env for Weekend Testing
+
+  # Simulation mode - works 24/7
+  TRADING_MODE=simulation
+  AUTO_TRADE=true
+
+  # Try different strategy
+  STRATEGY=breakout  # or momentum, mean_reversion, rsi
+
+  # Test penny stocks
+  TOP_GAINERS_MIN_PRICE=1.0
+
+  # Watchlist mode
+  WATCHLIST_MODE=top_gainers
+
+  ---
+  Bottom Line
+
+  For this weekend:
+  - ✅ Use SIMULATION mode to develop and test
+  - ✅ Try different strategies (breakout might be fun!)
+  - ✅ Test penny stocks safely
+  - ✅ Work on P1 improvements
+
+  Monday morning:
+  - ✅ Switch back to PAPER mode
+  - ✅ Let it trade with real Alpaca paper money
+  - ✅ Collect real market data
+
+  The 20-day lookback won't be a problem - Alpaca provides historical data, so the momentum calculation will work on day 1 of paper trading.
+
+  Want me to help you set up SIMULATION mode for weekend testing, or do you prefer to leave PAPER running idle?

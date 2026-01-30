@@ -1,0 +1,343 @@
+I’m going to answer this at the same DRA reasoning level, just applied to UI as a safety-critical system, not dumbed down. I’ll be explicit where the UI currently violates the post-Phase-1 contract you just enforced in code.
+
+I’ll structure this as:
+
+Environment truth vs UI claims
+
+Critical UI mismatches (must fix before paper/live)
+
+Observability gaps (epistemic risk)
+
+Configuration surface problems
+
+Concrete UI changes (actionable)
+
+Verdict: paper-trading readiness from a UI standpoint
+
+1. Environment truth vs what the UI currently communicates
+
+From the screenshots, the UI is presenting multiple environment signals simultaneously:
+
+Top-right badges:
+
+MARKET (red)
+
+SIM ON (green)
+
+PAPER
+
+AUTO-TRADE ON
+
+This is not compatible with the post-Phase-1 architecture.
+
+Ground truth after Phase 1 (from your backend):
+
+There is exactly one universe per process: LIVE, PAPER, or SIMULATION
+
+SIMULATION_MODE no longer exists
+
+“SIM” is a universe, not a toggle
+
+Market open/closed is orthogonal to universe
+
+Auto-trade is a validated runtime config, not a mode
+
+UI implication:
+
+Right now, the UI is encoding a pre-Phase-1 mental model:
+
+“SIM is a toggle that can coexist with PAPER”
+
+That is architecturally false now.
+
+2. Critical UI mismatches (production-blocking if left unchanged)
+2.1 SIM ON badge is now invalid
+
+Problem
+
+UI shows SIM ON as if simulation is an overlay
+
+Backend no longer supports this concept
+
+Risk
+
+Operator believes they are “safe” because SIM is on
+
+But process is actually running PAPER or LIVE
+
+This is classic epistemic harm
+
+Required change
+
+Remove SIM ON entirely
+
+Replace with a single Universe badge:
+
+UNIVERSE: PAPER
+
+UNIVERSE: SIMULATION
+
+UNIVERSE: LIVE
+
+Color-coded, immutable, derived from server state.
+
+2.2 MARKET badge is ambiguous
+
+You show MARKET in red, but:
+
+Is that “market open”?
+
+Or “market context loaded”?
+
+Or “market data stale”?
+
+There is no legend.
+
+Given your code changes, the UI must distinguish:
+
+Signal	Meaning
+Market Open	Broker clock says tradable
+Market Closed	Broker clock closed
+Data Freshness	Quotes within threshold
+Execution Enabled	Auto-trade + breaker inactive
+
+Right now these are collapsed into a single badge.
+
+Required change
+Split into:
+
+MARKET: OPEN / CLOSED
+
+DATA: FRESH / STALE (Xs)
+
+EXECUTION: ENABLED / BLOCKED
+
+2.3 AUTO-TRADE ON lacks guardrails
+
+The UI shows AUTO-TRADE ON as a green badge, but:
+
+There is no visible confirmation that:
+
+circuit breaker is inactive
+
+daily loss limit not breached
+
+universe ≠ SIMULATION (if PAPER/LIVE)
+
+Risk
+
+Auto-trade appears enabled even when execution is blocked
+
+Operator misreads system readiness
+
+Required change
+Auto-trade badge should be tri-state:
+
+AUTO-TRADE: ENABLED
+
+AUTO-TRADE: BLOCKED (Circuit Breaker)
+
+AUTO-TRADE: DISABLED (Config)
+
+3. Observability: good foundation, but still lying by omission
+
+Your Observability panel is directionally excellent, but incomplete.
+
+What it does well
+
+Explicit OK / WARN / FAIL counts
+
+Human-readable findings
+
+“Run Eval” affordance
+
+Separation from risk limits
+
+This is better than most retail trading UIs.
+
+Critical missing pieces
+3.1 No universe context in observability
+
+Observability must be universe-scoped.
+
+Right now:
+
+“All expectations within bounds.”
+
+But for which universe?
+
+Required
+
+Header: Observability (PAPER)
+
+Eval result must include universe id / session id
+
+3.2 No freshness / heartbeat indicators
+
+Your AGENTS panel shows “Loading” for all agents.
+
+Ambiguity
+
+Is the agent down?
+
+Starting?
+
+Blocked by market closed?
+
+Crashed?
+
+Required
+For each agent:
+
+Last tick timestamp
+
+State: RUNNING / IDLE / BLOCKED / ERROR
+
+Reason (market closed, breaker active, waiting for data)
+
+3.3 Alerts panel lacks severity semantics
+
+Alerts are shown as WARNs, but:
+
+Circuit breaker activation is not just a warning
+
+It is a hard execution state change
+
+Required
+
+Severity taxonomy:
+
+INFO (telemetry)
+
+WARN (approaching limits)
+
+FAIL (execution halted)
+
+Visual differentiation (not just color)
+
+4. Configuration surface problems
+4.1 Configuration implies hot-reload of unsafe fields
+
+The configuration UI allows editing:
+
+Strategy
+
+Risk limits
+
+Thresholds
+
+Max positions
+
+But the backend now has strict rules:
+
+Some config changes require rebuild
+
+Some require restart
+
+Some are runtime-safe
+
+The UI does not communicate this.
+
+Risk
+Operator believes changes apply immediately when they do not (or vice versa).
+
+Required
+Each config field must declare:
+
+Runtime-safe
+
+Requires rebuild
+
+Requires restart
+
+And the UI must enforce or warn accordingly.
+
+4.2 Watchlist ambiguity
+
+You allow both:
+
+Top % Gainers mode
+
+Manual watchlist entry
+
+But the UI does not make precedence explicit.
+
+Required
+Explicit rule displayed:
+
+“Watchlist source: TOP GAINERS (overrides manual list)”
+
+5. Positions panel: correctness but missing provenance
+
+The Positions panel is mostly correct, but:
+
+5.1 Missing symbol name
+
+You have “AMZN — Loading name…”
+
+This is minor UX, but in trading systems:
+
+Missing metadata reduces trust
+
+Looks like data pipeline instability
+
+Fixing this matters psychologically.
+
+5.2 No universe label per position
+
+Every position should show:
+
+Universe
+
+Broker
+
+Opened at (timestamp)
+
+Especially when you move to LIVE.
+
+6. Concrete UI changes (priority-ordered)
+P0 – Must fix before paper trading UI freeze
+
+Remove SIM ON badge
+
+Add single immutable UNIVERSE badge
+
+Split MARKET into:
+
+Market Open/Closed
+
+Data Freshness
+
+Auto-trade tri-state badge
+
+Observability header shows universe + session id
+
+P1 – Before micro-capital LIVE
+
+Agent heartbeat + last tick
+
+Config fields labeled by reload semantics
+
+Alert severity taxonomy
+
+Execution-blocked explanation panel (“Why am I not trading?”)
+
+P2 – Trust & clarity improvements
+
+Position provenance
+
+Watchlist precedence clarity
+
+Explicit “Paper vs Live consequences” banner when LIVE
+
+Final verdict (UI perspective)
+
+Is the UI usable for paper trading right now?
+Yes — with one caveat:
+
+You must remove or correct the SIM ON mental model, or you risk operator misinterpretation even in paper mode.
+
+Is the UI ready for micro-capital LIVE as-is?
+No — not because of execution, but because of epistemic risk.
+
+The backend is now safer than the UI is communicating.

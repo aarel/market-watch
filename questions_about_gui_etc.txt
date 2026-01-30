@@ -1,0 +1,192 @@
+Below is a **clean, high-signal inquiry** you can send to the dev team. It is framed to elicit precise answers, surface root causes, and avoid hand-waving. After that, I give you a **direct interpretation** of what likely needs to be fixed, so you may not even need to ask.
+
+---
+
+## A. Rephrased inquiry (intelligent, precise, non-accusatory)
+
+> **Context:**
+> Following the Phase 0 / Phase 1 backend changes (explicit universe, removal of SIMULATION_MODE, stricter config validation, and improved observability semantics), I want to confirm that the UI and agent lifecycle correctly reflect the new execution model—particularly during **market-closed periods** and **paper/sim operation**.
+>
+> **Questions:**
+>
+> 1. **Agent lifecycle vs. market state**
+>    Are agents (data, signal, risk, execution, monitor, alert) designed to be *inactive* when the market is closed, or should they still transition into a defined non-trading state (e.g., `IDLE`, `BLOCKED`, `WAITING_FOR_MARKET`) rather than remaining indefinitely in `Loading`?
+>
+> 2. **Observability decoupling**
+>    Is observability currently coupled to active market data / trading loops?
+>    If so, is this intentional, or should observability agents still emit:
+>
+>    * heartbeats
+>    * last-evaluated timestamps
+>    * stale-data indicators
+>      even when the market is closed or execution is disabled?
+>
+> 3. **Universe and header state correctness**
+>    The header still displays `SIM ON` and a red `MARKET` indicator without an explicit `OPEN / CLOSED` distinction.
+>
+>    * Is the UI still deriving state from legacy flags rather than the authoritative runtime universe?
+>    * Should the header now be driven exclusively by server-reported universe + broker clock status?
+>
+> 4. **Data availability vs. UI “loading” states**
+>    Several panels (symbol names, analytics & reporting, position concentration, trade performance, historical trades, watchlist signals) remain in a permanent `Loading` or empty state when the market is closed.
+>
+>    * Is this because upstream agents are not running, or because the UI is waiting on signals that are only emitted during active trading?
+>
+> 5. **Analytics population expectations**
+>    Should historical analytics, trade logs, and position concentration charts be expected to populate from persisted data regardless of market state, or are they currently tied to a live session loop?
+>
+> 6. **Alert retention and evaluation window**
+>    Risk & observability alerts appear truncated and not time-normalized.
+>    Would it be more correct to:
+>
+>    * evaluate alerts over a rolling 24-hour window (e.g., 00:00–23:59), and
+>    * archive prior periods for auditability and trend analysis?
+>
+> 7. **Meta-observability**
+>    Is there value in introducing a lightweight “observability review” agent that periodically evaluates:
+>
+>    * agent uptime
+>    * stale states
+>    * missed evaluations
+>    * overall system health
+>      and emits a single synthesized health score or summary?
+>
+> **Goal:**
+> Ensure that during market-closed periods, paper trading, and simulation, the system presents **truthful, interpretable, and non-misleading state**, rather than appearing stalled or broken.
+
+---
+
+## B. What this really implies (you may not need to ask)
+
+Based on the screenshots **and** the recent fixes, here is what is almost certainly happening:
+
+### 1. Agents are incorrectly tied to “market open”
+
+Agents are likely:
+
+* instantiated lazily
+* or only start their loops when `market_open == True`
+
+**Fix needed:**
+Agents must enter a **defined non-trading state** when the market is closed, not remain in `Loading`.
+
+Expected states:
+
+* `INITIALIZED`
+* `IDLE (market closed)`
+* `BLOCKED (breaker)`
+* `RUNNING`
+
+---
+
+### 2. Observability is still downstream of execution
+
+Right now, observability appears to depend on:
+
+* trades
+* signals
+* execution ticks
+
+That is backwards.
+
+**Fix needed:**
+Observability must be **upstream and always-on**:
+
+* heartbeats independent of market
+* “no data because market closed” is a *state*, not silence
+
+---
+
+### 3. UI is still partially wired to legacy flags
+
+The presence of:
+
+* `SIM ON`
+* red `MARKET` with no semantic label
+
+means the UI is still reading:
+
+* old config fields
+* or inferred booleans
+
+**Fix needed:**
+UI header must be driven by a single `/system/status` endpoint:
+
+```json
+{
+  "universe": "PAPER",
+  "market_state": "CLOSED",
+  "execution_state": "BLOCKED",
+  "auto_trade": "ENABLED"
+}
+```
+
+No local inference.
+
+---
+
+### 4. “Loading” states are masking “intentionally idle”
+
+Many panels should show:
+
+* “No data yet”
+* “Market closed”
+* “No completed trades”
+
+Instead they show `Loading`, which implies failure.
+
+**Fix needed:**
+Replace indefinite loading with **terminal empty states** once data is known to be absent.
+
+---
+
+### 5. Analytics are incorrectly session-bound
+
+Historical analytics should render from persisted storage even if:
+
+* no agents are running
+* market is closed
+
+If they don’t, the analytics loader is probably tied to a live loop.
+
+**Fix needed:**
+Decouple analytics read paths from runtime agent execution.
+
+---
+
+### 6. Alerts need time semantics
+
+Your intuition is correct: alerts need:
+
+* a defined evaluation window
+* archival semantics
+* severity aggregation
+
+This is not cosmetic — it’s auditability.
+
+---
+
+### 7. Meta-observability agent is a good idea (later)
+
+Not required now, but your instinct is right:
+
+* once LIVE, humans will not inspect raw logs
+* a summarizing agent becomes valuable
+
+This is **Phase 2 / pre-scale**, not immediate.
+
+---
+
+## Bottom line
+
+You are not asking for “new features.”
+You are uncovering **state-model mismatches** between:
+
+* backend correctness (now strong)
+* agent lifecycle assumptions (lagging)
+* UI truthfulness (lagging)
+
+If you want, next I can:
+
+* reduce this to a **fix checklist**
+* or help you write a **one-page internal design note** explaining the correct mental model so the UI and agents converge cleanly
