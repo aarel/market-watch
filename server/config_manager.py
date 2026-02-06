@@ -36,6 +36,11 @@ class RuntimeConfig(BaseModel):
     top_gainers_min_price: float = config.TOP_GAINERS_MIN_PRICE
     top_gainers_min_volume: int = config.TOP_GAINERS_MIN_VOLUME
 
+    # Alert configuration
+    alerts_enabled: bool = False
+    alert_email_enabled: bool = False
+    alert_webhook_enabled: bool = False
+
     model_config = {"frozen": False}  # Allow field updates
 
     @field_validator('auto_trade', mode='before')

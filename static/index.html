@@ -1256,7 +1256,7 @@
 
         <div class="grid" style="margin-bottom: 20px;">
             <!-- Activity Log -->
-            <div class="card" style="grid-column: 1 / -1;">
+            <div class="card">
                 <div class="card-header">
                     <h2>Activity Log</h2>
                     <span class="tooltip">
@@ -1266,6 +1266,20 @@
                 </div>
                 <div class="log-container" id="log-container">
                     <div class="empty-state">No activity yet</div>
+                </div>
+            </div>
+
+            <!-- Alert History -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Alert History</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Recent alerts sent via email or webhook. Shows alert type, severity, timestamp, and delivery status.</span>
+                    </span>
+                </div>
+                <div class="log-container" id="alert-history-container">
+                    <div class="empty-state">No alerts yet</div>
                 </div>
             </div>
         </div>
@@ -1526,7 +1540,59 @@
                     <input type="number" class="config-input" id="trade-interval" step="5" value="5" />
                 </div>
                 <div class="config-error" id="error-trade-interval"></div>
-                <div class="btn-group" style="display: flex; gap: 8px;">
+
+                <!-- Alert Configuration -->
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(139,148,158,0.15);">
+                    <h3 style="margin-bottom: 15px; color: var(--text-color);">Alert Settings</h3>
+                    <div class="config-row">
+                        <span class="config-label">
+                            Alerts Enabled
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Master switch for all alert notifications. When disabled, no alerts will be sent.</span>
+                            </span>
+                        </span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="alerts-enabled" onchange="updateConfig()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-label">
+                            Email Alerts
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Send alerts via email. Configure SMTP settings in .env file.</span>
+                            </span>
+                        </span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="alert-email-enabled" onchange="updateConfig()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <button class="btn btn-sm" onclick="testEmailAlert()" style="font-size: 12px; padding: 4px 12px;">Test</button>
+                        </div>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-label">
+                            Webhook Alerts
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Send alerts via webhook (Discord, Slack, Telegram). Configure webhook URL in .env file.</span>
+                            </span>
+                        </span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="alert-webhook-enabled" onchange="updateConfig()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <button class="btn btn-sm" onclick="testWebhookAlert()" style="font-size: 12px; padding: 4px 12px;">Test</button>
+                        </div>
+                    </div>
+                    <div id="alert-test-message" style="margin-top: 10px; padding: 8px; border-radius: 4px; display: none;"></div>
+                </div>
+
+                <div class="btn-group" style="display: flex; gap: 8px; margin-top: 20px;">
                     <span class="tooltip">
                         <button class="btn" style="background: rgba(139,148,158,0.15); color: var(--text-dim);" onclick="resetToDefaults()">Reset Defaults</button>
                         <span class="tooltip-text">Reset all configuration to recommended default values.</span>
@@ -3594,6 +3660,17 @@
                     }
                 }
 
+                // Alert settings
+                if (document.getElementById('alerts-enabled')) {
+                    document.getElementById('alerts-enabled').checked = data.alerts_enabled || false;
+                }
+                if (document.getElementById('alert-email-enabled')) {
+                    document.getElementById('alert-email-enabled').checked = data.alert_email_enabled || false;
+                }
+                if (document.getElementById('alert-webhook-enabled')) {
+                    document.getElementById('alert-webhook-enabled').checked = data.alert_webhook_enabled || false;
+                }
+
                 updateRiskPanel();
             } catch (err) {
                 console.error('Failed to fetch config:', err);
@@ -3655,6 +3732,53 @@
             });
             container.innerHTML = items.join('');
             console.log(`Rendered ${items.length} observability entries`);
+        }
+
+        async function fetchAlertHistory() {
+            try {
+                const res = await apiFetch('/api/alerts/history?limit=20');
+                if (!res.ok) return;
+                const data = await res.json();
+                renderAlertHistory(data.alerts || []);
+            } catch (err) {
+                console.error('Failed to fetch alert history:', err);
+            }
+        }
+
+        function renderAlertHistory(alerts) {
+            const container = document.getElementById('alert-history-container');
+            if (!container) {
+                console.error('alert-history-container not found');
+                return;
+            }
+            if (!alerts || alerts.length === 0) {
+                container.innerHTML = '<div class="empty-state">No alerts yet</div>';
+                return;
+            }
+            // Alerts come from API newest first
+            const items = alerts.map(alert => {
+                const ts = alert.timestamp ? new Date(alert.timestamp).toLocaleString() : '-';
+                const severityClass = {
+                    'low': 'ok',
+                    'medium': 'warning',
+                    'high': 'alert',
+                    'critical': 'error'
+                }[alert.severity] || 'ok';
+                const title = escapeHtml(alert.title || 'Alert');
+                const trigger = escapeHtml(alert.trigger || '');
+                const delivered = alert.delivered ? '✓' : (alert.delivery_errors && alert.delivery_errors.length > 0 ? '✗' : '⋯');
+                const deliveryIcon = alert.delivered ? '<span style="color: #28a745;">✓</span>' :
+                                    (alert.delivery_errors && alert.delivery_errors.length > 0 ? '<span style="color: #dc3545;">✗</span>' : '<span style="color: #ffc107;">⋯</span>');
+
+                return `<div class="log-entry">
+                    <span class="log-time">${ts}</span>
+                    <span class="log-type ${severityClass}">${alert.severity.toUpperCase()}</span>
+                    <span>${title}</span>
+                    <span style="margin-left: auto; font-size: 16px;">${deliveryIcon}</span>
+                </div>`;
+            });
+            container.innerHTML = items.join('');
+            console.log(`Rendered ${items.length} alert history entries`);
         }
 
 
@@ -3774,7 +3898,10 @@
                 max_drawdown_pct: getNumber('max-drawdown-limit') / 100,
                 max_sector_exposure_pct: getNumber('max-sector-exposure', currentConfig?.max_sector_exposure_pct ? currentConfig.max_sector_exposure_pct * 100 : 80) / 100,
                 max_correlated_exposure_pct: getNumber('max-correlated-exposure', currentConfig?.max_correlated_exposure_pct ? currentConfig.max_correlated_exposure_pct * 100 : 80) / 100,
-                trade_interval: parseInt(document.getElementById('trade-interval')?.value || '5')
+                trade_interval: parseInt(document.getElementById('trade-interval')?.value || '5'),
+                alerts_enabled: document.getElementById('alerts-enabled')?.checked || false,
+                alert_email_enabled: document.getElementById('alert-email-enabled')?.checked || false,
+                alert_webhook_enabled: document.getElementById('alert-webhook-enabled')?.checked || false
             };
             if (watchlistMode === 'static') {
                 config.watchlist = watchlist;
@@ -3874,6 +4001,77 @@
             }
         });
 
+        // Alert test functions
+        async function testEmailAlert() {
+            const msgEl = document.getElementById('alert-test-message');
+            msgEl.textContent = 'Sending test email...';
+            msgEl.style.display = 'block';
+            msgEl.style.background = 'rgba(255,193,7,0.1)';
+            msgEl.style.color = '#ffc107';
+
+            try {
+                const res = await apiFetch('/api/alerts/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel: 'email' })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    msgEl.textContent = '✓ Test email sent successfully! Check your inbox.';
+                    msgEl.style.background = 'rgba(40,167,69,0.1)';
+                    msgEl.style.color = '#28a745';
+                } else {
+                    msgEl.textContent = '✗ ' + (data.message || 'Failed to send test email');
+                    msgEl.style.background = 'rgba(220,53,69,0.1)';
+                    msgEl.style.color = '#dc3545';
+                }
+            } catch (err) {
+                msgEl.textContent = '✗ Error: ' + err.message;
+                msgEl.style.background = 'rgba(220,53,69,0.1)';
+                msgEl.style.color = '#dc3545';
+            }
+
+            setTimeout(() => {
+                msgEl.style.display = 'none';
+            }, 10000);
+        }
+
+        async function testWebhookAlert() {
+            const msgEl = document.getElementById('alert-test-message');
+            msgEl.textContent = 'Sending test webhook...';
+            msgEl.style.display = 'block';
+            msgEl.style.background = 'rgba(255,193,7,0.1)';
+            msgEl.style.color = '#ffc107';
+
+            try {
+                const res = await apiFetch('/api/alerts/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel: 'webhook' })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    msgEl.textContent = '✓ Test webhook sent successfully!';
+                    msgEl.style.background = 'rgba(40,167,69,0.1)';
+                    msgEl.style.color = '#28a745';
+                } else {
+                    msgEl.textContent = '✗ ' + (data.message || 'Failed to send test webhook');
+                    msgEl.style.background = 'rgba(220,53,69,0.1)';
+                    msgEl.style.color = '#dc3545';
+                }
+            } catch (err) {
+                msgEl.textContent = '✗ Error: ' + err.message;
+                msgEl.style.background = 'rgba(220,53,69,0.1)';
+                msgEl.style.color = '#dc3545';
+            }
+
+            setTimeout(() => {
+                msgEl.style.display = 'none';
+            }, 10000);
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             connectWebSocket();
@@ -3887,6 +4085,7 @@
             fetchConfig();
             fetchLogs();
             fetchObservabilityLogs();
+            fetchAlertHistory();
             fetchTrades();
             setInterval(fetchTrades, 20000);
             fetchAnalytics('30d');
@@ -3901,6 +4100,7 @@
             // Refresh status every 30 seconds as fallback
             setInterval(fetchStatus, 30000);
             setInterval(fetchObservabilityLogs, 20000);
+            setInterval(fetchAlertHistory, 20000);
             setInterval(() => fetchAnalytics(analyticsPeriod), 60000);
         });
 

@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 import config
 from .lifespan import lifespan as full_lifespan, ws_manager
-from .routers import status, config as cfg_router, analytics, trading, observability
+from .routers import status, config as cfg_router, analytics, trading, observability, alerts
 from .dependencies import get_state
 from .middleware import LatencyMiddleware
 
@@ -56,6 +56,7 @@ app.include_router(cfg_router.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(trading.router, prefix="/api")
 app.include_router(observability.router, prefix="/api")
+app.include_router(alerts.router, prefix="/api")
 
 # Static UI (MUST be last to not catch API/WebSocket routes)
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

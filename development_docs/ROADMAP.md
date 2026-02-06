@@ -3,7 +3,7 @@
 > **Supersedes:** `ROADMAP_v2.md` (original 7-phase plan).
 >
 > **Last updated:** 2026-02-05
-> **Test status:** 302 pass, 5 skip — run with `pytest tests/ --ignore=tests/test_backtest_data.py`
+> **Test status:** 343 pass, 5 skip — run with `pytest tests/ --ignore=tests/test_backtest_data.py`
 
 ---
 
@@ -135,21 +135,35 @@ These phases complete the core platform before adding ML or AI agents.
 
 ---
 
-### Phase C — External Alerts
+### Phase C — External Alerts ✅ **COMPLETE**
 **Goal:** Push critical events to humans without requiring the dashboard to be open.
 
-**Status:** Not started (0/5 done)
+**Status:** 100% complete (5/5 done)
+**Completed:** 2026-02-05
+**Dependencies:** Phase B (alert framework needs monitoring infrastructure) ✅
 
-**Dependencies:** Phase B (alert framework needs monitoring infrastructure)
+#### All Items Complete
+- [x] Alert rule framework (trigger conditions, severity levels, delivery channels)
+- [x] Email channel (SMTP with HTML templates, retry logic)
+- [x] Webhook channel (Discord, Slack, Telegram, generic JSON support)
+- [x] Alert history card in UI (50/50 split with Activity Log, auto-refresh)
+- [x] Configuration UI (enable/disable toggles, test buttons)
 
-#### Work Items
-- [ ] Alert rule framework (trigger conditions, severity levels, delivery channels)
-- [ ] Email channel (daily summary + critical-only alerts)
-- [ ] Webhook channel (generic — covers Telegram, Discord, Slack via single integration)
-- [ ] Alert history card in UI (last N alerts with channel, severity, timestamp)
-- [ ] Configuration UI for alert rules and channel settings
+**Exit criteria met:**
+- ✅ Alerts fire correctly (rule matching, trigger types, severity levels)
+- ✅ Email channel works (SMTP, HTML/text templates, exponential backoff)
+- ✅ Webhook channel works (platform-specific payloads, retry logic)
+- ✅ Tests cover delivery failures and retries (12 email + 13 webhook tests)
+- ✅ 343 tests pass total (302 + 41 new)
+- ✅ Zero technical debt
 
-**Exit criteria:** Alerts fire correctly, email/webhook channels work, tests cover delivery failures and retries.
+**Implementation notes:**
+- AlertManager with rule evaluation and multi-channel dispatch
+- Email: SMTP with TLS/SSL, HTML + plain text, color-coded severity
+- Webhook: Discord embeds, Slack attachments, Telegram markdown
+- Alert history UI: scrollable, 20 most recent, delivery status icons
+- Config UI: master toggle + per-channel enables + test buttons
+- Integration with Phase B anomaly detection
 
 ---
 
