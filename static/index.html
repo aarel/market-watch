@@ -133,6 +133,9 @@
             letter-spacing: 0.02em;
             text-transform: uppercase;
             margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         .metric-value {
             font-size: 22px;
@@ -365,6 +368,37 @@
             border-bottom: 1px solid var(--border);
         }
         .config-row:last-child { border-bottom: none; }
+
+        /* Strategy-specific field visibility */
+        .strategy-specific {
+            display: none; /* Hidden by default */
+        }
+        .strategy-specific.active {
+            display: flex; /* Show when active */
+        }
+        .config-error.strategy-specific {
+            display: none;
+        }
+        .config-error.strategy-specific.active {
+            display: block;
+        }
+
+        /* Config field warnings */
+        .config-warning {
+            font-size: 18px;
+            min-width: 24px;
+            text-align: center;
+        }
+        .config-warning.safe {
+            color: var(--green);
+        }
+        .config-warning.moderate {
+            color: #f59e0b; /* Amber */
+        }
+        .config-warning.risky {
+            color: var(--red);
+        }
+
         .config-label {
             color: var(--text-dim);
             font-size: 14px;
@@ -408,7 +442,8 @@
             max-width: 100%;
         }
         .obs-log-container {
-            height: 220px;
+            position: relative;
+            max-height: 520px;
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -712,64 +747,6 @@
         .obs-status.ok { color: var(--green); }
         .obs-status.warn { color: var(--yellow); }
         .obs-status.fail { color: var(--red); }
-        .obs-status.missing { color: var(--text-dim); }
-        .obs-findings {
-            margin-top: 12px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 12px;
-        }
-        .obs-error {
-            color: var(--red);
-            margin-top: 10px;
-            font-size: 12px;
-        }
-        .obs-section-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-dim);
-            margin-bottom: 10px;
-        }
-        .obs-finding {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .obs-finding:last-child { border-bottom: none; }
-        .obs-finding-title {
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .obs-finding-desc {
-            font-size: 11px;
-            color: var(--text-dim);
-            margin-top: 4px;
-        }
-        .obs-finding-value {
-            font-size: 12px;
-            color: var(--text-dim);
-            margin-top: 4px;
-            text-align: right;
-        }
-        .obs-badge {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            display: inline-block;
-        }
-        .obs-badge.ok { background: rgba(63,185,80,0.2); color: var(--green); }
-        .obs-badge.warn { background: rgba(210,153,34,0.2); color: var(--yellow); }
-        .obs-badge.fail { background: rgba(248,81,73,0.2); color: var(--red); }
-        .obs-badge.missing { background: rgba(139,148,158,0.2); color: var(--text-dim); }
-        .obs-full-width-metric {
-            grid-column: 1 / -1; /* Make it span all columns */
-            width: 100%;
-        }
         .ticker {
             display: flex;
             align-items: center;
@@ -975,32 +952,62 @@
                 </div>
                 <div class="analytics-summary" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
                     <div class="metric-card">
-                        <div class="metric-label">Total Return</div>
+                        <div class="metric-label">Total Return
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Cumulative P&amp;L across all completed trades, expressed as a percentage of starting equity.</span>
+                            </span>
+                        </div>
                         <div class="metric-value" id="metric-return">--</div>
                         <div class="metric-sub" id="metric-period">-</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-label">Max Drawdown</div>
+                        <div class="metric-label">Max Drawdown
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Largest peak-to-trough decline in equity before recovery. Key measure of downside risk.</span>
+                            </span>
+                        </div>
                         <div class="metric-value" id="metric-dd">--</div>
                         <div class="metric-sub">Peak-to-trough</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-label">Volatility / Sharpe</div>
+                        <div class="metric-label">Volatility / Sharpe
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Annualized return volatility (top line). Sharpe ratio = risk-adjusted return; higher is better (bottom line).</span>
+                            </span>
+                        </div>
                         <div class="metric-value" id="metric-vol">--</div>
                         <div class="metric-sub" id="metric-sharpe">--</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-label">Trades Logged</div>
+                        <div class="metric-label">Trades Logged
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Total number of buy and sell trades recorded in the analytics store.</span>
+                            </span>
+                        </div>
                         <div class="metric-value" id="metric-trades">--</div>
                         <div class="metric-sub">Analytics store</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-label">Trade Stats</div>
+                        <div class="metric-label">Trade Stats
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Buy vs. sell count (top line) and total notional value traded (bottom line).</span>
+                            </span>
+                        </div>
                         <div class="metric-value" id="metric-trade-counts">--</div>
                         <div class="metric-sub" id="metric-trade-notional">--</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-label">Top Positions</div>
+                        <div class="metric-label">Top Positions
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Heaviest current open position and its portfolio weight. Shows concentration at a glance.</span>
+                            </span>
+                        </div>
                         <div class="metric-value" id="metric-top-positions">--</div>
                         <div class="metric-sub" id="metric-top-positions-sub">--</div>
                     </div>
@@ -1175,63 +1182,6 @@
                     </div>
                 </div>
             </div>
-            <!-- Activity Log -->
-            <div class="card" style="grid-column: span 2;">
-                <div class="card-header">
-                    <h2>Activity Log</h2>
-                    <span class="tooltip">
-                        <i class="info-icon">?</i>
-                        <span class="tooltip-text">Real-time log of bot activity. Shows trades executed, errors, market status, and system events. Newest entries appear at the top.</span>
-                    </span>
-                </div>
-                <div class="log-container" id="log-container">
-                    <div class="empty-state">No activity yet</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid" style="margin-bottom: 20px;">
-            <!-- Observability Card -->
-            <div class="card">
-                <div class="card-header">
-                    <h2>Observability</h2>
-                    <span class="tooltip">
-                        <i class="info-icon">?</i>
-                        <span class="tooltip-text">
-                            Structured evaluation of agent behavior against expectations. Shows the latest evaluation run and any warnings or failures.
-                        </span>
-                    </span>
-                    <button class="btn" id="obs-run-btn" onclick="runObservabilityNow()" style="margin-left: auto; padding: 6px 12px; font-size: 12px; background: var(--border); color: var(--text);">
-                        Run Eval
-                    </button>
-                </div>
-                <div class="obs-full-width-metric obs-card" style="margin-bottom: 12px;">
-                    <div class="obs-label">Last Eval</div>
-                    <div class="obs-value" id="obs-last-run">-</div>
-                </div>
-                <div class="obs-grid" id="observability-summary">
-                    <div class="obs-card">
-                        <div class="obs-label">OK</div>
-                        <div class="obs-value obs-status ok" id="obs-ok">0</div>
-                    </div>
-                    <div class="obs-card">
-                        <div class="obs-label">Warn</div>
-                        <div class="obs-value obs-status warn" id="obs-warn">0</div>
-                    </div>
-                    <div class="obs-card">
-                        <div class="obs-label">Fail</div>
-                        <div class="obs-value obs-status fail" id="obs-fail">0</div>
-                    </div>
-                    <div class="obs-card">
-                        <div class="obs-label">Missing</div>
-                        <div class="obs-value obs-status missing" id="obs-missing">0</div>
-                    </div>
-                </div>
-                <div class="obs-error" id="obs-error"></div>
-                <div class="obs-findings" id="observability-findings">
-                    <div class="empty-state">No evaluation yet</div>
-                </div>
-            </div>
             <!-- Risk Card -->
             <div class="card" id="risk-card">
                 <div class="card-header">
@@ -1254,15 +1204,33 @@
                     </span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">Open Positions</span>
+                    <span class="stat-label">
+                        Open Positions
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Current open positions vs. the maximum allowed. New buys are blocked once the limit is reached until a position is closed. Limit is set in Configuration.</span>
+                        </span>
+                    </span>
                     <span class="stat-value" id="risk-open-positions">-</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">Daily Loss Limit</span>
+                    <span class="stat-label">
+                        Daily Loss Limit
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">If the account loses more than this percentage from today's opening equity, the circuit breaker triggers and halts all trading until manually reset. Set in Configuration.</span>
+                        </span>
+                    </span>
                     <span class="stat-value" id="risk-daily-loss">-</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">Max Drawdown</span>
+                    <span class="stat-label">
+                        Max Drawdown
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">If equity drops more than this percentage from its all-time peak (not just today's open), the circuit breaker triggers. A stricter long-term guard than the daily loss limit. Set in Configuration.</span>
+                        </span>
+                    </span>
                     <span class="stat-value" id="risk-max-dd">-</span>
                 </div>
                 <div class="help-text" id="risk-breaker-reason">-</div>
@@ -1277,11 +1245,27 @@
                     <h2>Risk & Observability Alerts</h2>
                     <span class="tooltip">
                         <i class="info-icon">?</i>
-                        <span class="tooltip-text">Latest WARN/FAIL events from the structured observability log (up to 30, showing ~10 with scroll). Use this to see why trades were blocked.</span>
+                        <span class="tooltip-text">Today's WARN/FAIL events from agent activity. Shows why trades were blocked or flagged. Also logged daily to logs/risk-and-obs-alerts/.</span>
                     </span>
                 </div>
                 <div class="log-container obs-log-container" id="obs-log-container">
                     <div class="empty-state">No warnings yet</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-bottom: 20px;">
+            <!-- Activity Log -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <div class="card-header">
+                    <h2>Activity Log</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Real-time log of bot activity. Shows trades executed, errors, market status, and system events. Newest entries appear at the top.</span>
+                    </span>
+                </div>
+                <div class="log-container" id="log-container">
+                    <div class="empty-state">No activity yet</div>
                 </div>
             </div>
         </div>
@@ -1299,24 +1283,37 @@
 
                 <div class="config-row">
                     <span class="config-label">
-                        Strategy
+                        Strategy Preset
                         <span class="tooltip">
                             <i class="info-icon">?</i>
-                            <span class="tooltip-text"><strong>Trading Strategy:</strong><br><br>
-                            <strong>Momentum</strong> - Buy when price accelerating up<br>
-                            <strong>Mean Reversion</strong> - Buy dips, sell bounces<br>
-                            <strong>Breakout</strong> - Buy price breakouts from ranges<br>
-                            <strong>RSI</strong> - Buy oversold, sell overbought</span>
+                            <span class="tooltip-text"><strong>Strategy Preset:</strong> Selects strategy + optimal config.<br><br>
+                            <strong>Momentum</strong> - Top gainers, ride trends<br>
+                            <strong>Mean Reversion</strong> - Blue chips, buy dips<br>
+                            <strong>Breakout</strong> - Explosive moves, high volume<br>
+                            <strong>RSI</strong> - Contrarian timing, static list<br>
+                            <strong>Custom</strong> - Manual settings (auto-switches when you edit)</span>
                         </span>
                     </span>
-                    <select class="config-input" style="width: 160px;" id="strategy">
-                        <option value="momentum">Momentum</option>
-                        <option value="mean_reversion">Mean Reversion</option>
-                        <option value="breakout">Breakout</option>
-                        <option value="rsi">RSI</option>
+                    <select class="config-input" style="width: 160px;" id="strategy" onchange="handleStrategyPresetChange(this.value)">
+                        <option value="momentum" title="Top gainers watchlist, 2% momentum threshold, 20 positions. Rides strong trends.">Momentum</option>
+                        <option value="mean_reversion" title="Static blue chip watchlist, 10 positions. Buys dips, sells bounces.">Mean Reversion</option>
+                        <option value="breakout" title="Top gainers, high volume filter, 15 positions. Catches explosive breakouts.">Breakout</option>
+                        <option value="rsi" title="Static watchlist, 10 positions. Buys oversold (RSI<30), sells overbought (RSI>70).">RSI</option>
+                        <option value="custom" title="Manual configuration. All fields editable, no auto-changes.">Custom</option>
                     </select>
                 </div>
                 <div class="config-error" id="error-strategy"></div>
+
+                <div class="config-row" id="strategy-info-row">
+                    <span class="config-label" id="strategy-info-label">
+                        Momentum Strategy
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text" id="strategy-info-tooltip">Buys stocks with strong upward momentum, sells on reversal. Uses Buy Threshold and Sell Threshold fields below.</span>
+                        </span>
+                    </span>
+                    <span class="config-value" id="strategy-info-value" style="color: var(--text-dim); font-size: 13px; max-width: 60%; text-align: right;">Uses Buy/Sell Thresholds</span>
+                </div>
 
                 <div class="config-row">
                     <span class="config-label">
@@ -1326,9 +1323,9 @@
                             <span class="tooltip-text">Choose between a manual watchlist or a dynamic top gainers list. Top gainers auto-refresh every trade interval.</span>
                         </span>
                     </span>
-                    <select class="config-input" id="watchlist-mode">
-                        <option value="top_gainers">Top % Gainers</option>
-                        <option value="static">Manual</option>
+                    <select class="config-input" id="watchlist-mode" onchange="handleConfigChange('watchlist-mode')">
+                        <option value="top_gainers" title="Auto-updates to today's top 20 gainers by %. Chases momentum daily.">Top % Gainers</option>
+                        <option value="static" title="Fixed list of symbols you choose. Good for blue chips you know well.">Manual</option>
                     </select>
                 </div>
                 <div class="config-error" id="error-watchlist-mode"></div>
@@ -1393,28 +1390,28 @@
                 <input type="text" class="watchlist-input" id="watchlist" placeholder="SPY, QQQ, AAPL" />
                 <div class="config-error" id="error-watchlist"></div>
 
-                <div class="config-row">
+                <div class="config-row strategy-specific momentum-only" data-strategy="momentum">
                     <span class="config-label">
-                        Buy Threshold
+                        Buy Threshold (Momentum)
                         <span class="tooltip">
                             <i class="info-icon">?</i>
                             <span class="tooltip-text"><strong>Momentum % to trigger a BUY.</strong><br><br>If a stock's 20-day momentum exceeds this %, the bot buys. Higher = fewer trades but stronger signals. Lower = more trades but riskier.<br><br>Example: 2% means buy if stock is up 2%+ over 20 days.</span>
                         </span>
                     </span>
-                    <input type="number" class="config-input" id="momentum-threshold" step="0.5" value="2" />
+                    <input type="number" class="config-input" id="momentum-threshold" step="0.1" min="0" value="2" />
                 </div>
-                <div class="config-error" id="error-momentum-threshold"></div>
-                <div class="config-row">
+                <div class="config-error momentum-only" id="error-momentum-threshold"></div>
+                <div class="config-row strategy-specific momentum-only" data-strategy="momentum">
                     <span class="config-label">
-                        Sell Threshold
+                        Sell Threshold (Momentum)
                         <span class="tooltip">
                             <i class="info-icon">?</i>
                             <span class="tooltip-text"><strong>Momentum % to trigger a SELL.</strong><br><br>If momentum drops below this (usually negative), the bot sells. This catches trend reversals before big losses.<br><br>Example: -1% means sell if momentum goes negative.</span>
                         </span>
                     </span>
-                    <input type="number" class="config-input" id="sell-threshold" step="0.5" value="-1" />
+                    <input type="number" class="config-input" id="sell-threshold" step="0.1" value="-1" />
                 </div>
-                <div class="config-error" id="error-sell-threshold"></div>
+                <div class="config-error momentum-only" id="error-sell-threshold"></div>
                 <div class="config-row">
                     <span class="config-label">
                         Stop Loss
@@ -1423,7 +1420,10 @@
                             <span class="tooltip-text"><strong>Maximum loss % before automatic sell.</strong><br><br>If a position drops this much from your entry price, the bot sells immediately to prevent bigger losses. Essential risk management!<br><br>Example: 5% means sell if down 5% from purchase.</span>
                         </span>
                     </span>
-                    <input type="number" class="config-input" id="stop-loss" step="0.5" value="5" />
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" class="config-input" id="stop-loss" step="0.1" min="0.1" value="5" />
+                        <span class="config-warning" id="warning-stop-loss" style="display: none;"></span>
+                    </span>
                 </div>
                 <div class="config-error" id="error-stop-loss"></div>
                 <div class="config-row">
@@ -1434,7 +1434,10 @@
                             <span class="tooltip-text"><strong>Maximum % of portfolio in one stock.</strong><br><br>Prevents putting all your eggs in one basket. If set to 50%, the bot won't put more than half your portfolio in any single stock.<br><br>Lower = safer but slower gains. <strong>HIGH RISK: 100% = all-in!</strong></span>
                         </span>
                     </span>
-                    <input type="number" class="config-input" id="max-position" step="5" min="0" max="100" value="50" />
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" class="config-input" id="max-position" step="5" min="0" max="100" value="50" />
+                        <span class="config-warning" id="warning-max-position" style="display: none;"></span>
+                    </span>
                 </div>
                 <div class="config-error" id="error-max-position"></div>
                 <div class="config-row">
@@ -1445,7 +1448,10 @@
                             <span class="tooltip-text"><strong>Maximum trades per day.</strong><br><br>Safety limit to prevent runaway trading. Conservative = 5, Aggressive = 20+. Resets daily at market open.</span>
                         </span>
                     </span>
-                    <input type="number" class="config-input" id="max-daily-trades" step="1" min="1" value="5" />
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" class="config-input" id="max-daily-trades" step="1" min="1" value="5" />
+                        <span class="config-warning" id="warning-max-daily-trades" style="display: none;"></span>
+                    </span>
                 </div>
                 <div class="config-error" id="error-max-daily-trades"></div>
                 <div class="config-row">
@@ -1456,7 +1462,10 @@
                             <span class="tooltip-text">Hard cap on concurrent holdings. Buys are blocked once this count is reached.</span>
                         </span>
                     </span>
-                    <input type="number" class="config-input" id="max-open-positions" step="1" min="1" value="10" />
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" class="config-input" id="max-open-positions" step="1" min="1" value="10" />
+                        <span class="config-warning" id="warning-max-open-positions" style="display: none;"></span>
+                    </span>
                 </div>
                 <div class="config-error" id="error-max-open-positions"></div>
                 <div class="config-row">
@@ -1467,7 +1476,10 @@
                             <span class="tooltip-text">Pauses buys when portfolio drops more than this percent intraday.</span>
                         </span>
                     </span>
-                    <input type="number" class="config-input" id="daily-loss-limit" step="0.1" min="0" value="3" />
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" class="config-input" id="daily-loss-limit" step="0.1" min="0" value="3" />
+                        <span class="config-warning" id="warning-daily-loss-limit" style="display: none;"></span>
+                    </span>
                 </div>
                 <div class="config-error" id="error-daily-loss-limit"></div>
                 <div class="config-row">
@@ -1659,7 +1671,7 @@
         function formatMoney(value) {
             const num = Number(value);
             if (!Number.isFinite(num)) return '-';
-            return `$${num.toFixed(2)}`;
+            return num < 0 ? `-$${(-num).toFixed(2)}` : `$${num.toFixed(2)}`;
         }
 
         function formatPercent(value, digits = 1, showSign = true) {
@@ -1877,6 +1889,10 @@
         function handleMessage(msg) {
             if (msg.event === 'status') {
                 updateStatus(msg);
+                // Update agents if included in status
+                if (msg.agents) {
+                    updateAgents(msg);
+                }
             } else if (msg.event === 'signals') {
                 updateSignals(msg.signals);
             } else if (msg.event === 'log') {
@@ -1893,18 +1909,26 @@
 
         function updateStatus(data) {
             // Account
-            document.getElementById('portfolio-value').textContent = `$${data.account.portfolio_value.toFixed(2)}`;
-            document.getElementById('buying-power').textContent = `$${data.account.buying_power.toFixed(2)}`;
-            document.getElementById('cash').textContent = `$${data.account.cash.toFixed(2)}`;
-            const maxDailyTrades = data.bot.max_daily_trades ?? '-';
+            if (data.account) {
+                document.getElementById('portfolio-value').textContent = formatMoney(data.account.portfolio_value);
+                document.getElementById('buying-power').textContent = formatMoney(data.account.buying_power);
+                document.getElementById('cash').textContent = formatMoney(data.account.cash);
+            } else {
+                document.getElementById('portfolio-value').textContent = '--';
+                document.getElementById('buying-power').textContent = '--';
+                document.getElementById('cash').textContent = '--';
+            }
+            const maxDailyTrades = data.bot?.max_daily_trades ?? '-';
+            const dailyTrades = data.bot?.daily_trades ?? 0;
             document.getElementById('daily-trades').textContent = maxDailyTrades === '-'
-                ? `${data.bot.daily_trades}`
-                : `${data.bot.daily_trades} / ${maxDailyTrades}`;
+                ? `${dailyTrades}`
+                : `${dailyTrades} / ${maxDailyTrades}`;
             // Market status strip - GREEN=OPEN, RED=CLOSED
             const marketStrip = document.getElementById('market-strip');
-            if (marketStrip && data.market_open !== undefined) {
-                marketStrip.textContent = data.market_open ? 'MARKET OPEN' : 'MARKET CLOSED';
-                marketStrip.className = data.market_open ? 'status-badge running' : 'status-badge stopped';
+            const marketOpen = data.bot?.market_open ?? data.market_open;
+            if (marketStrip && marketOpen !== undefined) {
+                marketStrip.textContent = marketOpen ? 'MARKET OPEN' : 'MARKET CLOSED';
+                marketStrip.className = marketOpen ? 'status-badge running' : 'status-badge stopped';
             }
 
             // Universe badge - Immutable, from backend (SIMULATION/PAPER/LIVE)
@@ -1924,7 +1948,7 @@
 
             // Auto-trade - Tri-state: ENABLED / BLOCKED / DISABLED
             const autoToggle = document.getElementById('bot-toggle');
-            if (autoToggle) {
+            if (autoToggle && data.bot) {
                 const autoTradeEnabled = data.bot.auto_trade;
                 const circuitBreakerActive = currentAgentStatus?.agents?.risk?.circuit_breaker?.active === true;
 
@@ -1995,7 +2019,7 @@
         }
 
         function setTradeSymbolOptions(symbols = null) {
-            const signalSymbols = symbols || currentSignals.map(s => s.symbol);
+            const signalSymbols = symbols || (currentSignals || []).map(s => s.symbol);
             const seen = new Set();
             const unique = (arr) => arr.filter((s) => {
                 if (!s || seen.has(s)) return false;
@@ -2003,8 +2027,8 @@
                 return true;
             });
 
-            const holdings = unique(currentPositions.map(p => p.symbol));
-            const watchlist = unique(currentWatchlist);
+            const holdings = unique((currentPositions || []).map(p => p.symbol));
+            const watchlist = unique(currentWatchlist || []);
             const signals = unique(signalSymbols);
             const list = [...holdings, ...watchlist, ...signals];
             const select = document.getElementById('trade-symbol');
@@ -2577,7 +2601,7 @@
                     labels,
                     datasets: [{
                         data,
-                        backgroundColor,
+                        backgroundColor: backgroundColors,
                         borderWidth: 0
                     }]
                 },
@@ -2699,9 +2723,17 @@
             console.log(`Trade matching: ${processedBuys} buys, ${processedSells} sells (${skippedSells} sells skipped - no position)`);
             console.log(`Completed round-trips: ${completedTrades.length}`);
 
+            // Sort by date for full list (newest first)
+            const byDate = [...completedTrades].sort((a, b) => {
+                const ta = new Date(a.timestamp || 0).getTime();
+                const tb = new Date(b.timestamp || 0).getTime();
+                return tb - ta;
+            });
+
             return {
                 best: completedTrades.slice(0, 3),
                 worst: completedTrades.slice(-3).reverse(),
+                allTrades: byDate,
                 roundTrips: completedTrades.length,
             };
         }
@@ -2741,6 +2773,28 @@
                 ? analysis.worst.map(t => renderTradeCard(t, false)).join('')
                 : '<div class="empty-state">No losing trades yet</div>';
 
+            // Render full trade list (newest first)
+            const allTradesHTML = analysis.allTrades && analysis.allTrades.length > 0
+                ? `<div style="grid-column: 1 / -1; margin-top: 20px;">
+                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text);">
+                        📊 All Round-Trip Trades (${analysis.allTrades.length}) — Newest First
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                        ${analysis.allTrades.map(trade => {
+                            const pnlClass = trade.pnl > 0 ? 'trend-positive' : 'trend-negative';
+                            const date = trade.timestamp ? new Date(trade.timestamp).toLocaleDateString() : '-';
+                            return `<div style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border); display: grid; grid-template-columns: 80px 1fr auto auto auto; gap: 12px; align-items: center; font-size: 13px;">
+                                <span style="color: var(--text-dim);">${date}</span>
+                                <span style="font-weight: 500;">${buildSymbolTooltip(trade.symbol)}</span>
+                                <span style="color: var(--text-dim);">${formatNumber(trade.qty, 2)} @ ${formatMoney(trade.buy_price)} → ${formatMoney(trade.sell_price)}</span>
+                                <span class="${pnlClass}" style="font-weight: 600;">${formatPercent(trade.pnl_pct, 2)}</span>
+                                <span class="${pnlClass}" style="font-weight: 600; min-width: 80px; text-align: right;">${formatMoney(trade.pnl)}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>`
+                : '';
+
             container.innerHTML = `
                 <div>
                     <div style="font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 12px;">
@@ -2754,6 +2808,7 @@
                     </div>
                     ${worstHTML}
                 </div>
+                ${allTradesHTML}
             `;
         }
 
@@ -3048,10 +3103,15 @@
             }
 
             try {
-                const res = await apiFetch('/api/trade', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol, action, amount, qty, mode })
+                // Build query parameters
+                const params = new URLSearchParams({ symbol, action, mode });
+                if (mode === 'qty' && qty !== null) {
+                    params.append('qty', qty);
+                } else if (mode === 'notional' && amount !== null) {
+                    params.append('amount', amount);
+                }
+                const res = await apiFetch(`/api/trade/manual?${params}`, {
+                    method: 'POST'
                 });
                 if (!res.ok) {
                     const message = await parseErrorResponse(res, 'Trade failed');
@@ -3073,12 +3133,13 @@
             }
 
             const time = new Date(entry.timestamp).toLocaleTimeString();
+            const logType = entry.type || 'info';
             const div = document.createElement('div');
             div.className = 'log-entry';
             div.innerHTML = `
                 <span class="log-time">${time}</span>
-                <span class="log-type ${entry.type}">${entry.type.toUpperCase()}</span>
-                <span>${entry.message}</span>
+                <span class="log-type ${logType}">${logType.toUpperCase()}</span>
+                <span>${entry.message || ''}</span>
             `;
             if (prepend) {
                 container.insertBefore(div, container.firstChild);
@@ -3097,19 +3158,381 @@
                 const res = await apiFetch('/api/status');
                 if (!res.ok) return;
                 const data = await res.json();
-                updateStatus({
-                    account: data.account,
-                    positions: data.positions,
-                    bot: data.bot,
-                    config: null,
-                    top_gainers: data.top_gainers ?? [],
-                    market_indices: data.market_indices ?? [],
-                    market_open: data.market_open ?? data.account?.market_open
-                });
-                updateSignals(data.signals);
+                // /api/status only returns {running, agents}
+                // Account/positions/etc come from WebSocket
+                if (data.agents) {
+                    updateAgents(data);
+                }
             } catch (err) {
                 console.error('Failed to fetch status:', err);
             }
+        }
+
+        // ============================================================
+        // Strategy Preset System
+        // ============================================================
+
+        let currentPreset = null; // Tracks active preset or "custom"
+        let presetSwitchInProgress = false; // Prevents change detection during preset switch
+
+        const STRATEGY_PRESETS = {
+            momentum: {
+                strategy: 'momentum',
+                watchlist_mode: 'top_gainers',
+                watchlist: [], // Uses top gainers, not static list
+                momentum_threshold: 0.02,
+                sell_threshold: -0.01,
+                max_open_positions: 20,
+                top_gainers_count: 20,
+                top_gainers_min_price: 5.0,
+                top_gainers_min_volume: 1000000,
+            },
+            mean_reversion: {
+                strategy: 'mean_reversion',
+                watchlist_mode: 'static',
+                watchlist: ['SPY', 'QQQ', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'NFLX'],
+                max_open_positions: 10,
+                top_gainers_count: 20,
+                // NOTE: momentum_threshold and sell_threshold NOT included
+                // Mean Reversion uses hardcoded defaults: 20-day MA, 3% deviation, 1% return
+            },
+            breakout: {
+                strategy: 'breakout',
+                watchlist_mode: 'top_gainers',
+                watchlist: [],
+                max_open_positions: 15,
+                top_gainers_count: 20,
+                top_gainers_min_price: 5.0,
+                top_gainers_min_volume: 2000000, // Higher volume for explosive moves
+                // NOTE: momentum_threshold and sell_threshold NOT included
+                // Breakout uses hardcoded defaults: 20-day lookback, 1% breakout threshold
+            },
+            rsi: {
+                strategy: 'rsi',
+                watchlist_mode: 'static',
+                watchlist: ['SPY', 'QQQ', 'DIA', 'IWM', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA'],
+                max_open_positions: 10,
+                top_gainers_count: 20,
+                // NOTE: momentum_threshold and sell_threshold NOT included
+                // RSI uses hardcoded defaults: 14-period RSI, 30 oversold, 70 overbought
+            },
+        };
+
+        const STRATEGY_INFO = {
+            momentum: {
+                label: 'Momentum Strategy',
+                value: 'Uses Buy/Sell Thresholds',
+                tooltip: 'Buys stocks with strong upward momentum, sells on reversal. Uses Buy Threshold and Sell Threshold fields below.',
+            },
+            mean_reversion: {
+                label: 'Mean Reversion Strategy',
+                value: 'Hardcoded: 20-day MA, 3% deviation',
+                tooltip: 'Buys when price drops 3% below 20-day moving average, sells when it returns 1% above. These thresholds are hardcoded expert defaults (not configurable in UI).',
+            },
+            breakout: {
+                label: 'Breakout Strategy',
+                value: 'Hardcoded: 20-day high/low, 1% threshold',
+                tooltip: 'Buys on breakout above 20-day high, sells on breakdown below 20-day low. Uses 1% confirmation threshold. These are hardcoded expert defaults (not configurable in UI).',
+            },
+            rsi: {
+                label: 'RSI Strategy',
+                value: 'Hardcoded: 14-period, 30/70 levels',
+                tooltip: 'Buys when RSI crosses above 30 (oversold), sells when RSI crosses below 70 (overbought). Uses standard 14-period RSI. These are hardcoded expert defaults (not configurable in UI).',
+            },
+            custom: {
+                label: 'Custom Configuration',
+                value: 'Manual settings',
+                tooltip: 'Custom configuration mode. Note: Only Momentum strategy uses Buy/Sell Threshold fields from config. Other strategies (Mean Reversion, Breakout, RSI) use hardcoded expert defaults that cannot be changed in the UI.',
+            },
+        };
+
+        function handleStrategyPresetChange(newPreset) {
+            if (presetSwitchInProgress) return;
+
+            // If switching to Custom, just update tracking and UI
+            if (newPreset === 'custom') {
+                currentPreset = 'custom';
+                updateStrategyInfo('custom');
+                // Keep field visibility based on current strategy value
+                const currentStrategy = document.getElementById('strategy').value;
+                updateStrategyFieldVisibility(currentStrategy === 'custom' ? 'momentum' : currentStrategy);
+                return;
+            }
+
+            // If already on this preset, no-op
+            if (currentPreset === newPreset) return;
+
+            // Warn about losing current values
+            const oldPreset = currentPreset || 'current';
+            const confirmMsg = `Switch to ${capitalize(newPreset)} preset?\n\nCurrent ${oldPreset === 'custom' ? 'custom' : capitalize(oldPreset)} values will be lost.`;
+
+            if (!confirm(confirmMsg)) {
+                // User cancelled - revert dropdown
+                document.getElementById('strategy').value = currentPreset || 'momentum';
+                return;
+            }
+
+            // Apply the preset
+            applyPreset(newPreset);
+        }
+
+        function applyPreset(presetName) {
+            const preset = STRATEGY_PRESETS[presetName];
+            if (!preset) {
+                console.error(`Unknown preset: ${presetName}`);
+                return;
+            }
+
+            presetSwitchInProgress = true;
+            currentPreset = presetName;
+
+            console.log(`Applying ${presetName} preset:`, preset);
+
+            // Fill in all preset values
+            for (const [key, value] of Object.entries(preset)) {
+                const fieldId = key.replace(/_/g, '-'); // Convert snake_case to kebab-case
+                const element = document.getElementById(fieldId);
+
+                if (!element) continue;
+
+                if (element.type === 'checkbox') {
+                    element.checked = value;
+                } else if (Array.isArray(value)) {
+                    element.value = value.join(', ');
+                } else {
+                    element.value = value;
+                }
+            }
+
+            // Trigger watchlist mode UI update
+            applyWatchlistMode(preset.watchlist_mode);
+
+            // Update strategy-specific UI
+            updateStrategyInfo(presetName);
+            updateStrategyFieldVisibility(presetName);
+
+            presetSwitchInProgress = false;
+            console.log(`${capitalize(presetName)} preset applied`);
+        }
+
+        function updateStrategyInfo(strategyName) {
+            const info = STRATEGY_INFO[strategyName] || STRATEGY_INFO.custom;
+
+            const labelElement = document.getElementById('strategy-info-label');
+            const valueElement = document.getElementById('strategy-info-value');
+            const tooltipElement = document.getElementById('strategy-info-tooltip');
+
+            if (labelElement) {
+                // Update label text (keep tooltip structure)
+                const labelText = labelElement.childNodes[0];
+                if (labelText) {
+                    labelText.textContent = info.label + '\n                        ';
+                }
+            }
+
+            if (valueElement) {
+                valueElement.textContent = info.value;
+            }
+
+            if (tooltipElement) {
+                tooltipElement.textContent = info.tooltip;
+            }
+        }
+
+        function updateStrategyFieldVisibility(strategyName) {
+            // Show/hide strategy-specific fields based on selected strategy
+            const allStrategyFields = document.querySelectorAll('.strategy-specific');
+
+            allStrategyFields.forEach(field => {
+                const fieldStrategy = field.dataset.strategy;
+                if (fieldStrategy === strategyName) {
+                    field.classList.add('active');
+                } else {
+                    field.classList.remove('active');
+                }
+            });
+
+            console.log(`Updated field visibility for strategy: ${strategyName}`);
+        }
+
+        // ============================================================
+        // Config Field Warnings
+        // ============================================================
+
+        const CONFIG_WARNINGS = {
+            'stop-loss': {
+                safe: { max: 10, min: 3, icon: '✓', message: 'Balanced stop loss' },
+                moderate: { max: 15, min: 2, icon: '⚠', message: 'Tight stop (< 3%) may whipsaw, loose (> 10%) allows big losses' },
+                risky: { max: null, min: 0, icon: '⚠', message: 'Extreme stop loss — < 2% = frequent stops, > 15% = huge losses' },
+            },
+            'max-position': {
+                safe: { max: 30, min: 0, icon: '✓', message: 'Diversified' },
+                moderate: { max: 50, min: 31, icon: '⚠', message: 'Concentrated — 30-50% in one stock is risky' },
+                risky: { max: 100, min: 51, icon: '⚠', message: 'Very risky — over half your portfolio in one position!' },
+            },
+            'max-daily-trades': {
+                safe: { max: 15, min: 0, icon: '✓', message: 'Conservative' },
+                moderate: { max: 25, min: 16, icon: '⚠', message: 'Pattern Day Trader rules may apply (need $25k+ account)' },
+                risky: { max: null, min: 26, icon: '⚠', message: 'Very aggressive — 25+ trades/day burns capital and requires PDT account' },
+            },
+            'max-open-positions': {
+                safe: { max: 20, min: 8, icon: '✓', message: 'Balanced' },
+                moderate: { max: 30, min: 4, icon: '⚠', message: '< 5 = concentrated, > 20 = over-diversified' },
+                risky: { max: null, min: 0, icon: '⚠', message: '< 4 = extreme concentration risk, > 30 = returns diluted' },
+            },
+            'daily-loss-limit': {
+                safe: { max: 5, min: 2, icon: '✓', message: 'Prudent circuit breaker' },
+                moderate: { max: 10, min: 1, icon: '⚠', message: '< 2% may stop you out too easily, > 5% allows big losses' },
+                risky: { max: null, min: 0, icon: '⚠', message: 'Extreme — < 1% too sensitive, > 10% allows huge daily losses' },
+            },
+        };
+
+        function validateFieldWarnings(fieldId) {
+            const warningConfig = CONFIG_WARNINGS[fieldId];
+            if (!warningConfig) return;
+
+            const input = document.getElementById(fieldId);
+            const warningElement = document.getElementById(`warning-${fieldId}`);
+            if (!input || !warningElement) return;
+
+            const value = parseFloat(input.value);
+            if (isNaN(value)) {
+                warningElement.style.display = 'none';
+                return;
+            }
+
+            // Determine risk level
+            let level = null;
+            let config = null;
+
+            if (warningConfig.safe.min !== null && value >= warningConfig.safe.min &&
+                (warningConfig.safe.max === null || value <= warningConfig.safe.max)) {
+                level = 'safe';
+                config = warningConfig.safe;
+            } else if (warningConfig.moderate.min !== null && value >= warningConfig.moderate.min &&
+                       (warningConfig.moderate.max === null || value <= warningConfig.moderate.max)) {
+                level = 'moderate';
+                config = warningConfig.moderate;
+            } else if (warningConfig.risky) {
+                level = 'risky';
+                config = warningConfig.risky;
+            }
+
+            if (level && config) {
+                warningElement.textContent = config.icon;
+                warningElement.title = config.message;
+                warningElement.className = `config-warning ${level}`;
+                warningElement.style.display = 'inline';
+            } else {
+                warningElement.style.display = 'none';
+            }
+        }
+
+        function wireWarningValidators() {
+            // Attach validators to all warning-enabled fields
+            for (const fieldId of Object.keys(CONFIG_WARNINGS)) {
+                const input = document.getElementById(fieldId);
+                if (input) {
+                    input.addEventListener('input', () => validateFieldWarnings(fieldId));
+                    input.addEventListener('change', () => validateFieldWarnings(fieldId));
+                    // Validate on page load
+                    validateFieldWarnings(fieldId);
+                }
+            }
+        }
+
+        // ============================================================
+        // Preset-Defining Fields (switching these triggers Custom mode)
+        // ============================================================
+
+        const PRESET_DEFINING_FIELDS = new Set([
+            'strategy', 'watchlist-mode', 'watchlist',
+            'momentum-threshold', 'sell-threshold',
+            'max-open-positions',
+            'top-gainers-count', 'top-gainers-universe',
+            'top-gainers-min-price', 'top-gainers-min-volume',
+        ]);
+
+        function handleConfigChange(fieldId) {
+            // Don't switch to custom during preset application
+            if (presetSwitchInProgress) return;
+
+            // If already custom, no-op
+            if (currentPreset === 'custom') return;
+
+            // Only switch to custom if this field is preset-defining
+            // (Risk/operational fields don't break the preset)
+            if (!PRESET_DEFINING_FIELDS.has(fieldId)) {
+                console.log(`Config field "${fieldId}" changed, but it's not preset-defining — keeping preset`);
+                return;
+            }
+
+            // Switch to custom
+            console.log(`Config field "${fieldId}" changed manually, switching to Custom preset`);
+            currentPreset = 'custom';
+            document.getElementById('strategy').value = 'custom';
+            updateStrategyInfo('custom');
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+        }
+
+        function detectCurrentPreset(config) {
+            // Check if config matches any preset exactly
+            for (const [presetName, presetConfig] of Object.entries(STRATEGY_PRESETS)) {
+                let matches = true;
+
+                for (const [key, value] of Object.entries(presetConfig)) {
+                    const configValue = config[key];
+
+                    // Compare arrays
+                    if (Array.isArray(value)) {
+                        if (!Array.isArray(configValue) || value.length !== configValue.length) {
+                            matches = false;
+                            break;
+                        }
+                        if (!value.every((v, i) => v === configValue[i])) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    // Compare primitives
+                    else if (configValue !== value) {
+                        matches = false;
+                        break;
+                    }
+                }
+
+                if (matches) {
+                    currentPreset = presetName;
+                    console.log(`Detected preset: ${presetName}`);
+                    // Update UI to reflect detected preset
+                    updateStrategyInfo(presetName);
+                    updateStrategyFieldVisibility(presetName);
+                    return;
+                }
+            }
+
+            // No match - must be custom
+            currentPreset = 'custom';
+            console.log('Config is custom (no preset match)');
+            updateStrategyInfo('custom');
+            // For custom, show fields based on actual strategy value
+            const strategyName = config.strategy || 'momentum';
+            updateStrategyFieldVisibility(strategyName);
+        }
+
+        function wireConfigChangeHandlers() {
+            // Wire up change detection to all config inputs
+            const configInputs = document.querySelectorAll('.config-input');
+            configInputs.forEach(input => {
+                if (input.id === 'strategy') return; // Skip strategy dropdown (has own handler)
+
+                input.addEventListener('change', () => {
+                    handleConfigChange(input.id);
+                });
+            });
         }
 
         async function fetchConfig() {
@@ -3118,7 +3541,11 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 currentConfig = data;
-                document.getElementById('strategy').value = data.strategy || 'momentum';
+
+                // Detect if config matches a preset
+                detectCurrentPreset(data);
+
+                document.getElementById('strategy').value = currentPreset || data.strategy || 'momentum';
                 document.getElementById('watchlist-mode').value = data.watchlist_mode || 'static';
                 document.getElementById('watchlist').value = data.watchlist.join(', ');
                 document.getElementById('momentum-threshold').value = (data.momentum_threshold * 100).toFixed(1);
@@ -3189,20 +3616,9 @@
             }
         }
 
-        async function fetchObservability() {
+        async function fetchObservabilityLogs() {
             try {
-                const res = await apiFetch('/api/observability');
-                if (!res.ok) return;
-                const data = await res.json();
-                updateObservability(data);
-            } catch (err) {
-                console.error('Failed to fetch observability:', err);
-            }
-        }
-
-        async function fetchObservabilityLogs(limit = 30) {
-            try {
-                const res = await apiFetch(`/api/observability/logs?limit=${limit}&level=warn`);
+                const res = await apiFetch(`/api/observability/logs?level=warn`);
                 if (!res.ok) return;
                 const data = await res.json();
                 renderObservabilityLogs(data.logs || []);
@@ -3211,202 +3627,36 @@
             }
         }
 
-        async function fetchExpectations() {
-            try {
-                const res = await apiFetch('/api/observability/expectations');
-                if (!res.ok) return;
-                const data = await res.json();
-                updateExpectations(data.expectations || []);
-            } catch (err) {
-                console.error('Failed to fetch expectations:', err);
-            }
-        }
-
-        async function runObservabilityNow() {
-            const btn = document.getElementById('obs-run-btn');
-            const prevText = btn ? btn.textContent : 'Run Eval';
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = 'Running...';
-            }
-            try {
-                const res = await apiFetch('/api/observability/evaluate', { method: 'POST' });
-                if (!res.ok) {
-                    const message = await parseErrorResponse(res, 'Evaluation failed');
-                    alert(message);
-                    return;
-                }
-                await fetchObservability();
-            } catch (err) {
-                alert('Evaluation failed: ' + err);
-            } finally {
-                if (btn && btn.textContent === 'Running...') {
-                    btn.disabled = false;
-                    btn.textContent = prevText;
-                }
-            }
-        }
-
-        function renderObservabilityLogs(entries, fromEvaluation = false) {
+        function renderObservabilityLogs(entries) {
             const container = document.getElementById('obs-log-container');
-            if (!container) return;
-
-            // If this is from evaluation, always update and mark it
-            if (fromEvaluation) {
-                container.dataset.hasEvaluation = entries && entries.length > 0 ? 'true' : 'false';
-            }
-
-            // If we have evaluation findings, don't let empty log fetches override them
-            if (!fromEvaluation && container.dataset.hasEvaluation === 'true' && (!entries || entries.length === 0)) {
-                return; // Keep showing evaluation findings
-            }
-
-            if (!entries || entries.length === 0) {
-                container.innerHTML = '<div class=\"empty-state\">No warnings yet</div>';
+            if (!container) {
+                console.error('obs-log-container not found');
                 return;
             }
-            const items = entries.slice(-30).reverse().map(entry => {
+            if (!entries || entries.length === 0) {
+                container.innerHTML = '<div class="empty-state">No warnings yet</div>';
+                return;
+            }
+            // Entries come from API in chronological order (oldest first)
+            // Reverse to show newest first, take first 30
+            const recentEntries = entries.slice().reverse().slice(0, 30);
+            const items = recentEntries.map(entry => {
                 const ts = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '-';
                 const symbol = entry.symbol ? buildSymbolTooltip(entry.symbol, 'inline-symbol') : '';
                 const reason = escapeHtml(entry.reason || entry.event_type || 'Warn');
                 const outcome = escapeHtml(entry.outcome || 'warn');
-                return `<div class=\"log-entry\">
-                    <span class=\"log-time\">${ts}</span>
-                    <span class=\"log-type warning\">${outcome.toUpperCase()}</span>
-                    ${symbol ? `<span class=\"log-symbol\">${symbol}</span>` : ''}
+                const outcomeClass = outcome === 'fail' ? 'error' : 'warning';
+                return `<div class="log-entry">
+                    <span class="log-time">${ts}</span>
+                    <span class="log-type ${outcomeClass}">${outcome.toUpperCase()}</span>
+                    ${symbol ? `<span class="log-symbol">${symbol}</span>` : ''}
                     <span>${reason}</span>
                 </div>`;
-            }).slice(0, 30).reverse();
+            });
             container.innerHTML = items.join('');
+            console.log(`Rendered ${items.length} observability entries`);
         }
 
-        function updateObservability(payload) {
-            const summary = payload?.latest || null;
-            const error = payload?.error || null;
-            const lastRunEl = document.getElementById('obs-last-run');
-            const okEl = document.getElementById('obs-ok');
-            const warnEl = document.getElementById('obs-warn');
-            const failEl = document.getElementById('obs-fail');
-            const missingEl = document.getElementById('obs-missing');
-            const findingsEl = document.getElementById('observability-findings');
-            const errorEl = document.getElementById('obs-error');
-            const btn = document.getElementById('obs-run-btn');
-            const evaluationEnabled = payload && typeof payload.evaluation_enabled === 'boolean'
-                ? payload.evaluation_enabled
-                : null;
-            const findingsHeader = '<div class="obs-section-title">Findings</div>';
-
-            if (!lastRunEl || !findingsEl) return;
-
-            if (errorEl) {
-                errorEl.textContent = error ? `Last error: ${error}` : '';
-            }
-
-            if (btn && evaluationEnabled !== null) {
-                btn.disabled = !evaluationEnabled;
-                btn.textContent = evaluationEnabled ? 'Run Eval' : 'Eval Disabled';
-            }
-
-            if (!summary) {
-                lastRunEl.textContent = payload?.evaluation_enabled === false ? 'Disabled' : '-';
-                okEl.textContent = '0';
-                warnEl.textContent = '0';
-                failEl.textContent = '0';
-                missingEl.textContent = '0';
-                findingsEl.innerHTML = `${findingsHeader}<div class="empty-state">${error ? escapeHtml(error) : 'No evaluation yet'}</div>`;
-                return;
-            }
-
-            lastRunEl.textContent = summary.generated_at ? new Date(summary.generated_at).toLocaleString() : '-';
-            const counts = summary.status_counts || {};
-            okEl.textContent = counts.ok ?? 0;
-            warnEl.textContent = counts.warn ?? 0;
-            failEl.textContent = counts.fail ?? 0;
-            missingEl.textContent = counts.missing ?? 0;
-
-            const findings = (summary.findings || []).filter(f => f.status !== 'ok');
-            if (error) {
-                findingsEl.innerHTML = `${findingsHeader}<div class="empty-state">${escapeHtml(error)}</div>`;
-                return;
-            }
-            if (!findings.length) {
-                findingsEl.innerHTML = `${findingsHeader}<div class="empty-state">All expectations within bounds.</div>`;
-                return;
-            }
-
-            const maxItems = 6;
-            const items = findings.slice(0, maxItems).map(f => {
-                const status = (f.status || 'missing').toLowerCase();
-                const valueText = (f.value === null || f.value === undefined) ? 'n/a' : formatNumber(f.value, 4);
-                return `
-                    <div class="obs-finding">
-                        <div>
-                            <div class="obs-finding-title">${escapeHtml(`${f.agent}.${f.metric}`)}</div>
-                            <div class="obs-finding-desc">${escapeHtml(f.description || '')}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <span class="obs-badge ${escapeHtml(status)}">${escapeHtml(status)}</span>
-                            <div class="obs-finding-value">${escapeHtml(valueText)}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            const extra = findings.length > maxItems
-                ? `<div class="help-text">Showing ${maxItems} of ${findings.length} findings.</div>`
-                : '';
-
-            findingsEl.innerHTML = findingsHeader + items + extra;
-
-            // Surface WARN/FAIL findings into the alerts card for visibility
-            const nonOk = (summary.findings || []).filter(f => ['warn', 'fail'].includes((f.status || '').toLowerCase()));
-            if (nonOk.length) {
-                const mapped = nonOk.map(f => ({
-                    timestamp: summary.generated_at,
-                    outcome: f.status,
-                    reason: f.description || `${f.agent}.${f.metric}`,
-                    symbol: f.symbol || '',
-                }));
-                renderObservabilityLogs(mapped, true);
-            } else {
-                // Clear alerts if evaluation shows no issues
-                renderObservabilityLogs([], true);
-            }
-        }
-
-        function updateExpectations(expectations) {
-            const el = document.getElementById('observability-expectations');
-            if (!el) return;
-            const header = '<div class="obs-section-title">Expectations</div>';
-            if (!expectations || expectations.length === 0) {
-                el.innerHTML = `${header}<div class="empty-state">Expectations not loaded</div>`;
-                return;
-            }
-
-            const items = expectations.map(exp => {
-                const bounds = [];
-                if (exp.min_value !== null && exp.min_value !== undefined) {
-                    bounds.push(`>= ${exp.min_value}`);
-                }
-                if (exp.max_value !== null && exp.max_value !== undefined) {
-                    bounds.push(`<= ${exp.max_value}`);
-                }
-                const boundsText = bounds.length ? bounds.join(', ') : 'n/a';
-                return `
-                    <div class="obs-finding">
-                        <div>
-                            <div class="obs-finding-title">${escapeHtml(`${exp.agent}.${exp.metric}`)}</div>
-                            <div class="obs-finding-desc">${escapeHtml(exp.description || '')}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div class="obs-finding-value">${escapeHtml(boundsText)}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            el.innerHTML = header + items;
-        }
 
         function updateRiskPanel() {
             const breakerEl = document.getElementById('risk-breaker-status');
@@ -3629,14 +3879,14 @@
             connectWebSocket();
             applyWatchlistMode(document.getElementById('watchlist-mode').value);
             wireConfigErrorClears();
+            wireConfigChangeHandlers();
+            wireWarningValidators();
             setupTickerTooltip();
             setupSymbolTooltip();
             fetchStatus();
             fetchConfig();
             fetchLogs();
-            fetchObservability();
             fetchObservabilityLogs();
-            fetchExpectations();
             fetchTrades();
             setInterval(fetchTrades, 20000);
             fetchAnalytics('30d');
@@ -3650,7 +3900,6 @@
 
             // Refresh status every 30 seconds as fallback
             setInterval(fetchStatus, 30000);
-            setInterval(fetchObservability, 60000);
             setInterval(fetchObservabilityLogs, 20000);
             setInterval(() => fetchAnalytics(analyticsPeriod), 60000);
         });

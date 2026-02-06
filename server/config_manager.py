@@ -28,6 +28,7 @@ class RuntimeConfig(BaseModel):
     max_drawdown_pct: float = config.MAX_DRAWDOWN_PCT
     max_sector_exposure_pct: float = config.MAX_SECTOR_EXPOSURE_PCT
     max_correlated_exposure_pct: float = config.MAX_CORRELATED_EXPOSURE_PCT
+    rvol_threshold: float = config.RVOL_THRESHOLD
     trade_interval: int = config.TRADE_INTERVAL_MINUTES
     auto_trade: bool = config.AUTO_TRADE
     top_gainers_count: int = config.TOP_GAINERS_COUNT
@@ -68,23 +69,28 @@ PERSISTED_CONFIG_KEYS = set(RuntimeConfig.model_fields.keys())
 
 class ConfigManager:
     def __init__(self, path: str = None, universe: Optional[Universe] = None):
-        """Initialize ConfigManager with optional universe-scoped path.
+        """Initialize ConfigManager with universe or explicit path.
 
         Args:
-            path: Explicit path override (for testing)
+            path: Explicit path override (for testing only)
             universe: Universe for scoped config (generates path: data/{universe}/config_state.json)
 
-        If both path and universe are None, falls back to config.CONFIG_STATE_PATH for
-        backward compatibility, but this is deprecated - universe should always be provided.
+        Raises:
+            TypeError: If both path and universe are None (universe is required in production)
         """
         if path:
+            # Explicit path provided (testing only)
             self.path = path
         elif universe:
             # Universe-scoped path: data/{universe}/config_state.json
             self.path = get_data_path(universe, "config_state.json")
         else:
-            # Deprecated fallback for backward compatibility
-            self.path = config.CONFIG_STATE_PATH
+            # No fallback - universe is required unless explicit path provided
+            raise TypeError(
+                "ConfigManager requires either 'universe' parameter (production) "
+                "or 'path' parameter (testing only). "
+                "Example: ConfigManager(universe=Universe.PAPER)"
+            )
 
         self.universe = universe
         self.state = RuntimeConfig()

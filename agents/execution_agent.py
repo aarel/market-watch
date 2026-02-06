@@ -1,4 +1,5 @@
 """Execution Agent - submits orders to the broker."""
+import asyncio
 import time
 from typing import TYPE_CHECKING
 
@@ -61,12 +62,14 @@ class ExecutionAgent(BaseAgent):
                     await self._fail(event, "Position not found")
                     return
 
-            if order and getattr(order, "status", "filled") == "filled":
+            if order:
+                order = await self._await_fill(order)
                 await self._success(event, order)
                 if self.risk_agent:
                     self.risk_agent.increment_trade_count()
             else:
-                reason = getattr(order, "rejected_reason", None) or "Order returned None"
+                # This should never happen since submit_order raises on failure
+                reason = "Order submission returned None (unexpected)"
                 await self._fail(event, reason)
 
         except Exception as e:
@@ -123,6 +126,7 @@ class ExecutionAgent(BaseAgent):
                 return {"success": False, "error": "Action must be 'buy' or 'sell'"}
 
             if order:
+                order = await self._await_fill(order)
                 self._orders_executed += 1
                 self._recent_orders.append({
                     "symbol": symbol,
@@ -130,6 +134,8 @@ class ExecutionAgent(BaseAgent):
                     "order_id": order.id,
                     "manual": True,
                 })
+                if self.risk_agent:
+                    self.risk_agent.increment_trade_count()
 
                 # Emit event
                 event = OrderExecuted(
@@ -196,6 +202,25 @@ class ExecutionAgent(BaseAgent):
         """Create a readable client order id for source tracking."""
         safe_symbol = symbol.replace(" ", "").replace("/", "_")
         return f"{prefix}-{safe_symbol}-{int(time.time() * 1000)}"
+
+    async def _await_fill(self, order):
+        """Re-fetch order after a short delay to capture fill details.
+
+        Alpaca paper market orders fill asynchronously — submit_order returns
+        pending_new before the fill is recorded.  A single short poll is
+        sufficient for paper market orders.  Falls back to the original order
+        object if the broker doesn't support get_order or the refetch fails.
+        """
+        if not hasattr(self.broker, 'get_order'):
+            return order
+        await asyncio.sleep(0.5)
+        try:
+            refreshed = self.broker.get_order(order.id)
+            if refreshed:
+                return refreshed
+        except Exception:
+            pass
+        return order
 
     def _order_fields(self, order) -> dict:
         """Extract common fields from an order object for analytics/logging."""

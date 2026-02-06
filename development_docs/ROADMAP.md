@@ -1,1496 +1,513 @@
-# Market-Watch Evolution Roadmap
+# Market-Watch Roadmap v3
 
-> A living document outlining the transformation of Market-Watch from a functional trading bot into a professional-grade algorithmic trading platform.
-
-**Document Status:** Active Development
-**Last Updated:** 2026-01-26
-**Current Phase:** Phase 11 - Testing & CI/CD (In Progress)
-
-**Related Documents:**
-- **[TECHNICAL_REPORT.md](TECHNICAL_REPORT.md)** - Comprehensive technical analysis (architecture, code review, testing, security, performance)
-- **[README.md](README.md)** - User guide and quick start
-- **[SIM_MODE_AUTO_SWITCHING_CONTEXT.md](SIM_MODE_AUTO_SWITCHING_CONTEXT.md)** - Feature specification for auto-switching SIM mode
-- **[CONFIG_ALIGNMENT_NOTES.md](CONFIG_ALIGNMENT_NOTES.md)** - Configuration system changes and notes
+> **Supersedes:** `ROADMAP_v2.md` (original 7-phase plan).
+>
+> **Last updated:** 2026-02-05
+> **Test status:** 302 pass, 5 skip — run with `pytest tests/ --ignore=tests/test_backtest_data.py`
 
 ---
 
-## Table of Contents
+## Architectural Contract (non-negotiable)
 
-1. [Vision & Goals](#vision--goals)
-2. [Target Audiences](#target-audiences)
-3. [Current State Assessment](#current-state-assessment)
-4. [Phase 1: Backtesting Engine](#phase-1-backtesting-engine) ✅ **COMPLETE**
-5. [Phase 2: Strategy Framework](#phase-2-strategy-framework) ✅ **COMPLETE**
-6. [Phase 3: Risk Management](#phase-3-risk-management)
-7. [Phase 4: Analytics & Reporting](#phase-4-analytics--reporting)
-8. [Phase 5: Enhanced Paper Trading](#phase-5-enhanced-paper-trading)
-9. [Phase 6: Multi-Broker Support](#phase-6-multi-broker-support)
-10. [Phase 7: Alerts & Notifications](#phase-7-alerts--notifications)
-11. [Phase 8: Configuration Management](#phase-8-configuration-management)
-12. [Phase 9: Market Awareness](#phase-9-market-awareness)
-13. [Phase 10: Documentation & Onboarding](#phase-10-documentation--onboarding)
-14. [Phase 11: Testing & Reliability](#phase-11-testing--reliability)
-15. [Phase 12: Track Record Verification](#phase-12-track-record-verification)
-16. [Technical Debt & Maintenance](#technical-debt--maintenance)
-17. [Success Metrics](#success-metrics)
+These invariants from `roadmap-review.md` remain binding. Any feature that
+violates them is rejected regardless of utility.
+
+1. **Universe as type.** LIVE / PAPER / SIMULATION are construction-time, not
+   runtime. Every execution path carries a universe value.
+2. **Isolation by construction.** Cross-universe state sharing is impossible by
+   default. Shared brokers, shared persistence namespaces, and boolean mode flags
+   are forbidden.
+3. **Fail fast on ambiguity.** Ambiguous execution context halts the system.
+4. **Falsifiability.** Every correctness claim has a measurable disproof.
 
 ---
 
-## Vision & Goals
+## Quality Contract (new for v3)
 
-### The Problem
+**No technical debt carried forward between phases.**
 
-Most retail algorithmic trading tools fall into two categories:
+Phases are completed only when:
+- All checkboxes are done
+- All tests pass
+- No known bugs or workarounds
+- Code is production-ready
 
-1. **Expensive platforms** ($100+/month) with steep learning curves
-2. **Toy projects** that look good in demos but lack the rigor for real money
-
-Market-Watch aims to occupy the middle ground: **a serious tool that's accessible to individuals**.
-
-### The Vision
-
-Transform Market-Watch into a platform where:
-
-- **Strategies can be validated** before risking capital
-- **Risk is managed systematically**, not through hope
-- **Performance is measurable** and comparable to benchmarks
-- **The learning curve is gentle** but the ceiling is high
-- **Trust is verifiable**, not claimed
-
-### Core Principles
-
-1. **Prove before you trade** - No strategy goes live without backtested evidence
-2. **Transparency over mystery** - Every decision the bot makes should be explainable
-3. **Safety by default** - Conservative defaults, require explicit opt-in for aggressive settings
-4. **Data ownership** - Users own their data, can export everything, no lock-in
-5. **Honest metrics** - Report realistic performance, including costs and slippage
+**Exceptions:**
+- Unexpected issues discovered during implementation (document in phase notes)
+- Experiments that failed (document why, archive the attempt)
 
 ---
 
-## Target Audiences
+## Current State (2026-02-05)
 
-### Investors
+### Completed (Production-Ready)
 
-**Who they are:** Individuals or funds evaluating algorithmic strategies for capital allocation.
+| Area | Detail | Tests |
+|------|--------|-------|
+| **Universe isolation** | Enum, scoped brokers, scoped persistence, scoped event bus, construction-time assertions (`state.py:80-98`). Closure-capture bug fixed. | TestUniverseMismatchAssertion, TestConfigNamespaceIsolation |
+| **Backtesting** | Data fetch/cache, event-driven simulation, full metrics suite (Sharpe, Sortino, drawdown, win rate, etc.), CLI, benchmark comparison. | (test_backtest_data.py broken, needs fix) |
+| **Strategy framework** | 4 pluggable strategies (Momentum, Mean Reversion, Breakout, RSI). Registry + SignalAgent integration. Strategy-specific thresholds are hardcoded (only Momentum configurable). | TestStrategySelection (11 tests) |
+| **Strategy presets** | UI dropdown with 5 presets (Momentum, Mean Reversion, Breakout, RSI, Custom). Auto-configuration, confirmation dialogs, tooltips. | TestStrategyPresetDefinitions, TestPresetSwitching (9 tests) |
+| **Conditional field visibility** | Buy/Sell Threshold fields only shown for Momentum strategy. Strategy info row explains what each strategy uses. | (UI only, no backend tests needed) |
+| **Config warnings** | Dynamic warnings on risky values (stop loss, position %, daily trades, open positions, loss limit). Green/amber/red indicators with tooltips. | TestWarningThresholds, TestPresetDefiningFields (12 tests) |
+| **Smart Custom switching** | Editing preset-defining fields (strategy, thresholds, watchlist) switches to Custom. Editing operational fields (risk limits) preserves preset. | TestPresetDefiningFields |
+| **Risk system** | Position sizing, circuit breakers, daily-loss / max-drawdown limits, sector + correlation exposure checks, RVOL filter. All universe-aware. | TestRiskAgentRVOL (3 tests) |
+| **Config persistence** | `ConfigManager` + Pydantic `RuntimeConfig`. `field_validator` handles `bool("false")` coercion. Per-universe config files. | TestBoolCoercionAtBoundary (5 tests) |
+| **Paper trading** | Functional via Alpaca paper account. | (manual verification) |
+| **Observability** | Real pipeline only: ObservabilityAgent → `agent_events.jsonl` → `/api/observability/logs` → UI. Today-only filter (NY EST), no entry limit, daily CSV to `logs/risk-and-obs-alerts/`. Stub eval system removed. | (integration test needed) |
+| **Analytics** | Equity curve, trade recording, AnalyticsAgent, JSONL store. API endpoints functional. | TestAnalyticsStore |
+| **Dependencies** | Pinned in `requirements.lock`. All deps locked. | (implicit in all tests) |
+| **UI** | Grid layout: Trades / Risk & Limits / Risk & Obs Alerts (row), Activity Log (full-width row), Configuration. Tooltips on all fields. Strategy info row. Warning indicators. | (UI testing needed) |
 
-**What they need:**
-- Verifiable track records with auditable trade history
-- Professional risk metrics (Sharpe, Sortino, max drawdown, VaR)
-- Clear documentation of strategy logic and edge
-- Stress test results across market regimes
-- Regulatory compliance considerations
+### Known Issues (Blockers for Phase A)
 
-**What convinces them:**
-- Multi-year backtest with out-of-sample validation
-- Live track record matching backtest expectations
-- Transparent fee and cost accounting
-- Professional presentation and reporting
-
-### Active Traders
-
-**Who they are:** Individuals who trade their own capital and want automation.
-
-**What they need:**
-- Reliable execution without babysitting
-- Customizable strategies matching their trading style
-- Real-time monitoring and alerts
-- Detailed trade analytics for improvement
-- Multiple broker support for best execution
-
-**What convinces them:**
-- Stability and uptime track record
-- Flexibility to implement their ideas
-- Clear performance attribution
-- Active development and support
-
-### Hobbyists & Learners
-
-**Who they are:** People interested in algorithmic trading as a skill or interest.
-
-**What they need:**
-- Low barrier to entry (easy setup, free tier)
-- Educational content explaining concepts
-- Safe environment to experiment (paper trading)
-- Visible feedback on what's happening and why
-- Community and documentation
-
-**What convinces them:**
-- "It just works" first experience
-- Learning something new within the first hour
-- Fun factor - seeing strategies compete
-- Clear path from beginner to advanced
+- **Analytics UI:** Some metric cards show "--"; `filled_avg_price` may be null, blocking per-trade P&L
+- **Dead config:** `OBSERVABILITY_EVAL_ENABLED`, `OBSERVABILITY_EVAL_INTERVAL_MINUTES` — nothing uses them
+- **Zero integration tests** for end-to-end trade flow
+- **No CI/CD pipeline**
+- **Backtest test broken:** `test_backtest_data.py` has broken `@patch('alpaca_trade_api')` — always ignore it
 
 ---
 
-## Current State Assessment
+## Phases — Foundation (A-G)
 
-### What Works Well
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Alpaca Integration | ✅ Solid | Orders, positions, market data all functional |
-| Paper Trading | ✅ Functional | Uses real market data with simulated execution |
-| Live Trading | ✅ Functional | Requires explicit opt-in, safety measures in place |
-| Web UI | ✅ Basic | Real-time updates, manual trading, config changes |
-| Strategy Framework | ✅ Working | 4 pluggable strategies (momentum, mean reversion, breakout, RSI) |
-| Risk Controls | ✅ Complete | Position sizing, circuit breakers, sector/correlation exposure |
-| Backtesting | ✅ Working | Engine, historical data, metrics, CLI exports |
-| Testing Suite | ✅ Unit tests | Unit tests complete (backtest, strategies, metrics, API); integration pending |
-| Observability | ✅ Basic | Structured logs, scheduled evaluations, UI summary |
-| Simulation Mode | ✅ Limited | FakeBroker for testing without API credentials |
-| Config Persistence | ✅ Basic | Runtime changes persisted to JSON file on save. |
-
-### What's Missing
-
-| Capability | Impact | Priority |
-|------------|--------|----------|
-| Advanced Analytics | High - Deeper P&L, attribution, and position analysis needed | Phase 4 |
-| Integration/System Testing & CI | High - Essential for production reliability | Phase 11 |
-| Advanced Configuration | Medium - No profiles, versioning, or advanced UI | Phase 8 |
-| Alerts & Notifications | Medium - No external notifications (email, SMS, etc.) | Phase 7 |
-| Multi-Broker | Medium - Alpaca lock-in | Phase 6 |
-| Documentation & Onboarding Polish| Medium - Core docs updated, but needs user guides/tutorials | Phase 10 |
-
-### Technical Debt
-
-> **Detailed Analysis:** See [TECHNICAL_REPORT.md Section 7](TECHNICAL_REPORT.md#7-technical-debt) for comprehensive code-level debt analysis.
-
-**Quick Summary:**
-- ✅ Configuration split documented and aligned (`.env` and `config_state.json`)
-- ⚠️ Root directory cluttered with 7+ obsolete files (cleanup plan in TECHNICAL_REPORT)
-- ⚠️ No schema validation for config JSON (can crash silently)
-- ⚠️ Broker cannot switch at runtime (blocks SIM auto-switching)
-- ⚠️ Monolithic UI file (3,600 lines in single HTML file)
-- ⚠️ Bare except clauses in 3 locations (swallow errors)
-- ⚠️ Analytics UI broken (metrics show "--", charts don't render)
-- ⚠️ No integration tests (182 unit tests, 0 end-to-end tests)
-- ✅ Logging mostly standardized (event-driven model)
-- ⚠️ Type hinting partial (newer code has, older code lacks)
-
-**30+ specific issues tracked** with severity levels, line numbers, and fixes in TECHNICAL_REPORT.md Section 7 and Appendix E.
+These phases complete the core platform before adding ML or AI agents.
 
 ---
 
-## Phase 1: Backtesting Engine
+### Phase A — Hardening ✅ **COMPLETE**
+**Goal:** Close remaining gaps from DRA audits. Make the platform trustworthy before scaling features.
 
-> **Status:** ✅ COMPLETE
-> **Priority:** Critical
-> **Completed:** 2025-01-19
+**Status:** 100% complete (11/11 done)
+**Completed:** 2026-02-05
 
-### Why This First
+#### All Items Complete
+- [x] P0 closure-capture bug fixed
+- [x] Dependencies pinned
+- [x] Danger-path tests added (universe mismatch, bool coercion, config isolation)
+- [x] Observability stubs removed; real pipeline wired end-to-end
+- [x] Root docs consolidated into `development_docs/`
+- [x] Strategy preset system with conditional field visibility
+- [x] Config warnings on risky values
+- [x] Analytics UI verified (shows real data, no "--" cards)
+- [x] Dead config flags deleted (`OBSERVABILITY_EVAL_*` removed from config.py, .env.example, docs)
+- [x] Integration test: full trade lifecycle created (`test_trade_lifecycle_integration.py` - 3 tests)
+- [x] Backtest decision made (defer to Phase H - not blocking Phase A)
 
-Backtesting is foundational. Without it:
-- Cannot validate strategy changes before deployment
-- Cannot compare parameter configurations objectively
-- Cannot provide investors with historical performance data
-- Cannot stress-test against historical market conditions
-- Users are essentially gambling, not trading systematically
-
-### Requirements
-
-#### Functional Requirements
-
-1. **Historical Data Management**
-   - Download historical OHLCV data from Alpaca API
-   - Cache data locally to avoid repeated API calls
-   - Support date range selection (start date, end date)
-   - Handle data gaps, splits, and adjustments
-   - Support multiple symbols simultaneously
-   - Data format: Daily bars minimum, intraday optional
-
-2. **Backtest Engine**
-   - Event-driven simulation iterating through historical bars
-   - Simulate order execution with configurable fill assumptions
-   - Track positions, cash, and portfolio value over time
-   - Support the existing MomentumStrategy (and future strategies)
-   - Generate trade log with entry/exit prices, P&L per trade
-   - Calculate equity curve (portfolio value at each time step)
-
-3. **Performance Metrics**
-   - Total return (absolute and percentage)
-   - Annualized return
-   - Sharpe ratio (risk-adjusted return)
-   - Sortino ratio (downside risk-adjusted)
-   - Maximum drawdown (peak-to-trough decline)
-   - Maximum drawdown duration
-   - Win rate (percentage of profitable trades)
-   - Profit factor (gross profit / gross loss)
-   - Average win vs average loss
-   - Number of trades
-   - Exposure time (percentage of time in market)
-
-4. **Benchmark Comparison**
-   - Compare strategy performance against buy-and-hold
-   - Compare against SPY or user-specified benchmark
-   - Calculate alpha and beta
-   - Information ratio
-
-5. **Results Output**
-   - Summary statistics printout
-   - Trade-by-trade log (CSV export)
-   - Equity curve data (CSV export)
-   - JSON format for programmatic access
-
-#### Non-Functional Requirements
-
-1. **Performance**
-   - Backtest 5 years of daily data for 10 symbols in under 30 seconds
-   - Memory efficient - don't load entire history into RAM if avoidable
-
-2. **Accuracy**
-   - Use close prices for signal calculation (matching live behavior)
-   - Use next-day open for execution simulation (realistic fill)
-   - Account for the fact that you can't trade on today's close after seeing it
-
-3. **Usability**
-   - Command-line interface for running backtests
-   - Clear progress indication for long backtests
-   - Helpful error messages for common issues (missing data, invalid dates)
-
-### Architecture
-
-```
-backtest/
-├── __init__.py
-├── data.py           # Historical data fetching and caching
-├── engine.py         # Core backtest simulation engine
-├── metrics.py        # Performance metric calculations
-├── results.py        # Results formatting and export
-└── cli.py            # Command-line interface
-
-# Data flow:
-1. User specifies: strategy, symbols, date range, initial capital
-2. data.py fetches/loads historical OHLCV data
-3. engine.py iterates through each bar chronologically
-4. Strategy generates signals based on available data (no lookahead)
-5. engine.py simulates order execution
-6. metrics.py calculates performance statistics
-7. results.py formats and exports results
-```
-
-### Data Storage
-
-```
-data/
-└── historical/
-    ├── AAPL_daily.csv
-    ├── GOOGL_daily.csv
-    ├── SPY_daily.csv
-    └── ...
-
-# CSV Format:
-timestamp,open,high,low,close,volume
-2023-01-03,125.07,130.90,124.17,130.15,112117500
-2023-01-04,126.89,128.66,125.08,126.36,89113600
-...
-```
-
-### API Design
-
-```python
-# Running a backtest programmatically
-from backtest import BacktestEngine, HistoricalData
-
-# Load data
-data = HistoricalData()
-data.load(
-    symbols=['AAPL', 'GOOGL', 'MSFT'],
-    start='2021-01-01',
-    end='2023-12-31'
-)
-
-# Run backtest (momentum strategy is built-in)
-engine = BacktestEngine(
-    data=data,
-    initial_capital=100000,
-    commission=0.00,  # Alpaca is commission-free
-    slippage=0.001    # 0.1% slippage assumption
-)
-
-# Configure strategy parameters
-engine.set_strategy_params(
-    lookback_days=20,
-    momentum_threshold=0.02,
-    sell_threshold=-0.01
-)
-
-results = engine.run()
-
-# Access results
-print(results.summary())
-print(f"Total Return: {results.total_return:.2%}")
-print(f"Sharpe Ratio: {results.sharpe_ratio:.2f}")
-print(f"Max Drawdown: {results.max_drawdown:.2%}")
-
-# Export
-results.to_csv('backtest_results.csv')
-results.trades_to_csv('trade_log.csv')
-```
-
-### Command-Line Interface
-
-```bash
-# Basic backtest
-python -m backtest --symbols AAPL,GOOGL,MSFT --start 2021-01-01 --end 2023-12-31
-
-# With custom parameters
-python -m backtest \
-  --symbols AAPL,GOOGL,MSFT,NVDA,TSLA \
-  --start 2020-01-01 \
-  --end 2023-12-31 \
-  --capital 100000 \
-  --momentum-threshold 0.03 \
-  --lookback 15 \
-  --output results/my_backtest.json
-
-# Download/update historical data
-python -m backtest --download --symbols AAPL,GOOGL,MSFT --start 2020-01-01
-
-# Compare against benchmark
-python -m backtest --symbols AAPL,GOOGL --benchmark SPY --start 2021-01-01
-```
-
-### Metrics Calculations
-
-```python
-# Sharpe Ratio
-# (Average Return - Risk Free Rate) / Standard Deviation of Returns
-sharpe = (avg_daily_return - risk_free_rate) / std_daily_return * sqrt(252)
-
-# Sortino Ratio
-# Like Sharpe but only penalizes downside volatility
-sortino = (avg_daily_return - risk_free_rate) / downside_deviation * sqrt(252)
-
-# Maximum Drawdown
-# Largest peak-to-trough decline in portfolio value
-max_drawdown = max((peak - trough) / peak for peak, trough in drawdown_periods)
-
-# Profit Factor
-# Gross profits divided by gross losses
-profit_factor = sum(winning_trades) / abs(sum(losing_trades))
-
-# Win Rate
-win_rate = num_profitable_trades / total_trades
-```
-
-### Edge Cases to Handle
-
-1. **Insufficient data** - Strategy needs N days of history; first N days can't generate signals
-2. **Missing bars** - Market holidays, halted stocks; forward-fill or skip
-3. **Position sizing** - Can't buy fractional shares in backtest if not supported
-4. **Cash management** - Handle case where signal fires but insufficient cash
-5. **Same-day trades** - If multiple signals on same day, process in deterministic order
-6. **Dividends/splits** - Use adjusted close prices or handle explicitly
-
-### Testing the Backtest Engine
-
-1. **Known outcome test** - Create synthetic data with predictable pattern, verify backtest produces expected result
-2. **Boundary tests** - Single day, single symbol, no trades generated
-3. **Benchmark test** - Buy-and-hold backtest should match actual historical return
-4. **Reproducibility** - Same inputs always produce same outputs
-
-### Deliverables
-
-- [x] `backtest/data.py` - Historical data management
-- [x] `backtest/engine.py` - Core simulation engine
-- [x] `backtest/metrics.py` - Performance calculations
-- [x] `backtest/results.py` - Results formatting and export
-- [x] `backtest/cli.py` - Command-line interface
-- [x] `backtest/__init__.py` - Package exports
-- [x] `backtest/__main__.py` - Module entry point
-- [x] `data/historical/` directory structure for cached data
-- [x] Unit tests for metric calculations (completed in Phase 11)
-- [ ] Integration test with real historical data (deferred to Phase 11)
-- [x] Documentation - See [docs/BACKTEST.md](docs/BACKTEST.md)
-
-### Phase 1 Documentation ✅
-
-Documentation created at `docs/BACKTEST.md` covering:
-- Purpose and capabilities
-- Architecture and design decisions
-- API reference (HistoricalData, BacktestEngine, BacktestResults)
-- CLI usage guide with examples
-- Example workflows
-- Interpretation of all metrics
-- Limitations and assumptions
-- Troubleshooting guide
+**Exit criteria met:**
+- ✅ All checkboxes done (11/11)
+- ✅ 275 tests pass, 5 skip (at Phase A completion)
+- ✅ Analytics UI shows real data (verified live)
+- ✅ Zero dead code
+- ✅ No technical debt carried forward
 
 ---
 
-## Phase 2: Strategy Framework
+### Phase B — Observability & Monitoring ✅ **COMPLETE**
+**Goal:** Operational confidence without manual log-diving.
 
-> **Status:** ✅ COMPLETE
-> **Priority:** High
-> **Completed:** 2025-01-19
+**Status:** 100% complete (4/4 done)
+**Completed:** 2026-02-05
+**Dependencies:** Phase A complete ✅
 
-### Goals
+#### All Items Complete
+- [x] Per-endpoint latency tracking (p50 / p95), surfaced in health endpoint
+- [x] Anomaly detection on agent event stream (unusual spike in warn/fail counts)
+- [x] Alert on detected anomaly (integrated with ObservabilityAgent)
+- [x] Health endpoint returns latency snapshot alongside status
 
-- Abstract strategy interface allowing pluggable strategies
-- Ship 2-3 built-in strategies beyond momentum
-- Enable users to create custom strategies easily
-- Support strategy parameter configuration
+**Exit criteria met:**
+- ✅ Health endpoint shows latency metrics (p50/p95 per endpoint + summary)
+- ✅ Anomaly detection monitors warn/fail event rates
+- ✅ Baseline establishment and spike detection (3x threshold)
+- ✅ New API endpoints: /api/observability/anomalies, /api/observability/baseline
+- ✅ Tests cover latency tracking (12 tests) and anomaly detection (15 tests)
+- ✅ 302 tests pass total (275 + 27 new)
+- ✅ Zero technical debt
 
-### Proposed Strategy Interface
-
-```python
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import List, Optional
-from enum import Enum
-
-class Signal(Enum):
-    BUY = "buy"
-    SELL = "sell"
-    HOLD = "hold"
-
-@dataclass
-class TradeSignal:
-    symbol: str
-    signal: Signal
-    strength: float  # 0.0 to 1.0, for position sizing
-    reason: str      # Human-readable explanation
-
-class Strategy(ABC):
-    """Base class for all trading strategies."""
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Strategy name for display and logging."""
-        pass
-
-    @property
-    @abstractmethod
-    def required_history(self) -> int:
-        """Number of historical bars needed to generate signals."""
-        pass
-
-    @abstractmethod
-    def analyze(self, symbol: str, bars: pd.DataFrame) -> TradeSignal:
-        """
-        Analyze a symbol and return a trading signal.
-
-        Args:
-            symbol: The ticker symbol
-            bars: DataFrame with OHLCV data, most recent bar last
-
-        Returns:
-            TradeSignal with recommendation
-        """
-        pass
-
-    def configure(self, **params):
-        """Update strategy parameters."""
-        for key, value in params.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-```
-
-### Built-in Strategies to Implement
-
-1. **MomentumStrategy** (extract from SignalAgent into new interface)
-   - Buy when price momentum exceeds threshold
-   - Sell when momentum reverses
-   - Currently implemented in `agents/signal_agent.py`
-
-2. **MeanReversionStrategy**
-   - Buy when price deviates below moving average
-   - Sell when price returns to or exceeds average
-   - Parameters: MA period, deviation threshold
-
-3. **BreakoutStrategy**
-   - Buy when price breaks above N-day high
-   - Sell when price breaks below N-day low
-   - Parameters: lookback period, confirmation bars
-
-4. **RSIStrategy**
-   - Buy when RSI crosses above oversold threshold
-   - Sell when RSI crosses below overbought threshold
-   - Parameters: RSI period, oversold level, overbought level
-
-### Custom Strategy Loading
-
-```python
-# User creates strategies/my_strategy.py
-class MyCustomStrategy(Strategy):
-    name = "My Custom Strategy"
-    required_history = 30
-
-    def analyze(self, symbol, bars):
-        # Custom logic here
-        pass
-
-# System auto-discovers strategies in strategies/ directory
-```
-
-### Deliverables
-
-- [x] Abstract `Strategy` base class - `strategies/base.py`
-- [x] Extract momentum logic from `SignalAgent` into `MomentumStrategy` class
-- [x] Implement `MeanReversionStrategy` - MA-based mean reversion
-- [x] Implement `BreakoutStrategy` - Channel breakout system
-- [x] Implement `RSIStrategy` - RSI overbought/oversold signals
-- [x] Strategy registry in `strategies/__init__.py` with `get_strategy()` function
-- [x] Strategy selection via `STRATEGY` environment variable
-- [x] SignalAgent refactored to use pluggable strategies
-- [x] Coordinator updated to load strategy from config
-- [x] Documentation - See [docs/STRATEGIES.md](docs/STRATEGIES.md)
-
-### What Was Built
-
-**Strategy Framework:**
-- 4 complete trading strategies (Momentum, Mean Reversion, Breakout, RSI)
-- Clean abstraction with `Strategy` base class
-- Registry system for easy strategy instantiation
-- Full integration with SignalAgent and server.py
-
-**Configuration:**
-- `STRATEGY` environment variable for strategy selection
-- Backward compatible with existing config parameters
-- Fallback to momentum strategy if invalid strategy specified
-
-**Documentation:**
-- Comprehensive strategy guide with examples
-- Custom strategy creation tutorial
-- Strategy selection guidelines
-- Performance comparison table
+**Implementation notes:**
+- `LatencyTracker` with thread-safe rolling window (RLock-protected deque)
+- `LatencyMiddleware` measures all /api/* requests via perf_counter
+- `AnomalyDetector` tracks warn/fail event rates, detects spikes >3x baseline
+- Fixed deadlock bug (Lock → RLock for reentrant locking)
+- Fixed negative rate calculations (added abs() for time span)
+- ObservabilityAgent auto-records anomaly events
 
 ---
 
-## Phase 3: Risk Management
+### Phase C — External Alerts
+**Goal:** Push critical events to humans without requiring the dashboard to be open.
 
-> **Status:** ✅ Complete
-> **Priority:** High
-> **Dependencies:** Phase 2 (risk rules need to interact with strategies)
+**Status:** Not started (0/5 done)
 
-### Goals
+**Dependencies:** Phase B (alert framework needs monitoring infrastructure)
 
-- Systematic position sizing based on risk, not arbitrary amounts
-- Portfolio-level risk limits
-- Automatic risk controls that can pause trading
-- Configurable risk parameters
+#### Work Items
+- [ ] Alert rule framework (trigger conditions, severity levels, delivery channels)
+- [ ] Email channel (daily summary + critical-only alerts)
+- [ ] Webhook channel (generic — covers Telegram, Discord, Slack via single integration)
+- [ ] Alert history card in UI (last N alerts with channel, severity, timestamp)
+- [ ] Configuration UI for alert rules and channel settings
 
-### Risk Components
-
-#### Position Sizing
-
-```python
-class PositionSizer:
-    """Calculate position sizes based on risk parameters."""
-
-    def calculate_size(
-        self,
-        symbol: str,
-        signal_strength: float,
-        current_price: float,
-        account_value: float,
-        current_positions: dict
-    ) -> int:
-        """
-        Returns number of shares to buy.
-
-        Considers:
-        - Maximum position size (% of portfolio)
-        - Available cash
-        - Signal strength (scale position by confidence)
-        - Volatility adjustment (smaller positions in volatile stocks)
-        - Existing exposure to correlated assets
-        """
-        pass
-```
-
-#### Risk Limits
-
-| Limit | Description | Default |
-|-------|-------------|---------|
-| Max Position Size | Maximum % of portfolio in single position | 10% |
-| Max Sector Exposure | Maximum % of portfolio in single sector | 30% |
-| Max Correlated Exposure | Maximum % in highly correlated assets | 40% |
-| Daily Loss Limit | Stop trading if daily loss exceeds | 3% |
-| Max Drawdown Limit | Pause trading if drawdown exceeds | 15% |
-| Max Open Positions | Maximum number of concurrent positions | 10 |
-
-#### Circuit Breakers
-
-```python
-class CircuitBreaker:
-    """Automatic trading halts based on risk conditions."""
-
-    def check(self, portfolio_state: PortfolioState) -> Tuple[bool, str]:
-        """
-        Returns (should_halt, reason) tuple.
-
-        Triggers:
-        - Daily loss limit hit
-        - Max drawdown exceeded
-        - Unusual market volatility (VIX spike)
-        - Technical issues (API errors, data gaps)
-        """
-        pass
-```
-
-### Deliverables
-
-- [x] `PositionSizer` class with configurable rules
-- [x] Risk limit enforcement in order execution (max open positions)
-- [x] Sector exposure checks (configurable map + limit)
-- [x] Correlation exposure checks (threshold + lookback)
-- [x] `CircuitBreaker` class with configurable triggers
-- [x] Risk controls surfaced & editable in UI (open positions, drawdown, daily loss)
-- [x] Runtime config persistence (reload on restart)
-- [x] Risk metrics in backtest results
-- [x] Documentation refresh for current parameters
+**Exit criteria:** Alerts fire correctly, email/webhook channels work, tests cover delivery failures and retries.
 
 ---
 
-## Phase 4: Analytics & Reporting
+### Phase D — Analytics Completion
+**Goal:** Dashboard shows real, trustworthy numbers. Reports are exportable.
 
-> **Status:** 75% Complete (equity curve works, metrics display broken, charts need fixes)
-> **Priority:** High
-> **Dependencies:** Phase 1 (uses same metrics calculations)
-> **Last Updated:** 2026-01-25
-> **Known Issues:** See [TECHNICAL_REPORT.md Section 7.2](TECHNICAL_REPORT.md#72-analytics-issues) for detailed analysis of UI bugs and data issues
+**Status:** 20% complete (1/5 done, partial overlap with Phase A)
 
-### Goals
+**Dependencies:** Phase A (`filled_avg_price` fix)
 
-- Comprehensive performance dashboard
-- Trade-by-trade analysis
-- Benchmark comparisons
-- Exportable reports for external analysis
+#### Work Items
+- [ ] Fix `filled_avg_price` pipeline (shared prerequisite with Phase A)
+- [ ] Per-trade P&L display (win / loss table with entry/exit prices)
+- [ ] Period returns (daily / weekly / monthly) derived from equity curve
+- [ ] HTML report template (snapshot export)
+- [ ] Verify CSV export completeness (trades + equity)
 
-### Dashboard Components
-
-#### Equity Curve Chart
-- Portfolio value over time
-- Benchmark overlay
-- Drawdown visualization
-- Markers for significant events (trades, circuit breaker triggers)
-
-#### Performance Summary
-- Period returns (daily, weekly, monthly, yearly, all-time)
-- Risk metrics (Sharpe, Sortino, max drawdown)
-- Win/loss statistics
-- Comparison vs benchmarks
-
-#### Trade Analysis
-- Recent trades table with P&L
-- Best and worst trades
-- Trade duration analysis
-- Entry/exit timing analysis
-
-#### Position Analysis
-- Current positions with unrealized P&L
-- Position concentration chart
-- Sector/correlation exposure
-
-### Report Generation
-
-```bash
-# Generate PDF report
-python -m reports generate --period 2023-Q4 --format pdf
-
-# Generate investor-ready report
-python -m reports investor --period 2023 --format pdf --include-methodology
-```
-
-### Deliverables
-
-- [x] Equity curve visualization (with benchmark overlay) ✅
-- [x] API endpoints for analytics data ✅
-- [x] Data export (CSV, JSON; equity/trades) ✅
-- [x] AnalyticsAgent recording equity snapshots and trades ✅
-- [x] Analytics store (JSONL persistence) ✅
-- [x] Performance summary metrics display (cards now parse summary + trades) ✅
-- [x] Trade analysis views (table & P&L now populated by AnalyticsAgent) ✅
-- [x] Position concentration chart (data serialization + chart update) ✅
-- [ ] Report generation (PDF, HTML) - Deferred (pending automation)
-
-### Known Issues (2026-01-25)
-
-1. **Reporting output still pending**
-   - HTML/PDF exports exist as lightweight template but need formatting + scheduling
-   - **Action:** Build report generation workflow (PDF snapshot, HTML templated output)
+**Exit criteria:** All analytics cards show real data, P&L is accurate, reports export correctly, tests validate calculations.
 
 ---
 
-## Phase 5: Enhanced Paper Trading
+### Phase E — Market Awareness
+**Goal:** Avoid trading into known danger zones.
 
-> **Status:** Planned
-> **Priority:** Medium
-> **Dependencies:** Phase 4 (uses analytics components)
+**Status:** Not started (0/5 done)
 
-### Goals
+**Dependencies:** Phase C (pre-event alerts need alert framework)
 
-- Transform paper trading from "testing" to "learning"
-- Annotated trade decisions
-- What-if analysis
-- Multi-configuration comparison
+#### Work Items
+- [ ] Trading window configuration (avoid open/close volatility spikes)
+- [ ] Market holiday calendar enforcement
+- [ ] Economic calendar integration (pause around FOMC, CPI, etc.)
+- [ ] Earnings date awareness for watchlist symbols
+- [ ] Pre-event alert (feeds into Phase C alert framework)
 
-### Features
-
-#### Annotated Trade Log
-
-Every trade includes:
-- Signal that triggered it
-- Strategy reasoning ("Momentum crossed 2.3%, above 2.0% threshold")
-- Market context at time of trade
-- Subsequent performance
-
-#### What-If Analysis
-
-After paper trading period:
-- "If you'd held 2 more days, you'd have made $X more/less"
-- "If stop loss was 3% instead of 5%, you'd have..."
-- Parameter sensitivity analysis
-
-#### A/B Testing
-
-Run multiple configurations simultaneously:
-- Same strategy, different parameters
-- Different strategies, same symbols
-- Compare performance side-by-side
-
-### Deliverables
-
-- [ ] Enhanced trade logging with context
-- [ ] What-if analysis engine
-- [ ] A/B testing framework
-- [ ] Comparison dashboard
-- [ ] Paper trading insights report
+**Exit criteria:** Bot respects trading windows, doesn't trade on holidays, pauses before major events, tests cover calendar edge cases.
 
 ---
 
-## Phase 6: Multi-Broker Support
+### Phase F — Testing & CI
+**Goal:** Automated confidence on every change. No manual test runs required.
 
-> **Status:** Planned
-> **Priority:** Medium
-> **Dependencies:** Phase 2 (broker abstraction needs strategy interface)
+**Status:** Not started (0/4 done)
 
-### Goals
+#### Work Items
+- [ ] CI pipeline (GitHub Actions): lint → test → coverage gate
+- [ ] Integration test suite: trade lifecycle, circuit breaker trigger, config change propagation
+- [ ] Broker failure recovery tests (timeout, retry, graceful fallback)
+- [ ] Backtest performance regression test (5yr / 10 symbols benchmark)
+- [ ] Fix broken `test_backtest_data.py` (prerequisite)
 
-- Abstract broker interface
-- Support multiple brokers
-- Enable broker comparison
-
-### Broker Interface
-
-```python
-class Broker(ABC):
-    """Abstract broker interface."""
-
-    @abstractmethod
-    def get_account(self) -> Account:
-        """Get account information."""
-        pass
-
-    @abstractmethod
-    def get_positions(self) -> List[Position]:
-        """Get current positions."""
-        pass
-
-    @abstractmethod
-    def get_bars(self, symbol: str, timeframe: str, limit: int) -> pd.DataFrame:
-        """Get historical price bars."""
-        pass
-
-    @abstractmethod
-    def get_current_price(self, symbol: str) -> float:
-        """Get current price."""
-        pass
-
-    @abstractmethod
-    def submit_order(self, order: Order) -> OrderResult:
-        """Submit an order."""
-        pass
-
-    @abstractmethod
-    def is_market_open(self) -> bool:
-        """Check if market is open."""
-        pass
-```
-
-### Brokers to Support
-
-1. **Alpaca** (existing) - Commission-free, good API
-2. **Interactive Brokers** - Professional-grade, global markets
-3. **TD Ameritrade** - Popular retail broker
-4. **Coinbase/Binance** - Cryptocurrency support
-
-### Deliverables
-
-- [ ] Abstract `Broker` interface
-- [ ] Refactor `AlpacaBroker` to interface
-- [ ] Interactive Brokers implementation
-- [ ] Broker selection in configuration
-- [ ] Broker capability comparison documentation
+**Exit criteria:** CI runs on every commit, coverage >85%, integration tests pass, backtest regression test baseline established.
 
 ---
 
-## Phase 7: Alerts & Notifications
+### Phase G — Configuration Profiles
+**Goal:** Switch between risk/strategy profiles without editing files.
 
-> **Status:** Planned
-> **Priority:** Medium
-> **Dependencies:** Phase 3 (risk alerts need risk management)
+**Status:** Not started (0/4 done)
 
-### Goals
+**Dependencies:** Phase A complete (config system must be solid)
 
-- Timely notifications for important events
-- Multiple delivery channels
-- Configurable alert rules
-
-### Alert Types
-
-| Alert | Trigger | Default |
-|-------|---------|---------|
-| Trade Executed | Order filled | On |
-| Signal Generated | Strategy produces buy/sell signal | Off |
-| Risk Warning | Approaching risk limits | On |
-| Circuit Breaker | Trading halted | On |
-| Daily Summary | End of trading day | On |
-| Error | System error or API issue | On |
-| Performance Milestone | New high or significant drawdown | On |
-
-### Delivery Channels
-
-1. **Email** - Daily summaries, important alerts
-2. **SMS** - Critical alerts only
-3. **Telegram** - Real-time updates
-4. **Discord** - Webhook integration
-5. **Web Push** - Browser notifications
-
-### Deliverables
-
-- [ ] Alert definition framework
-- [ ] Email integration
-- [ ] Telegram bot integration
-- [ ] Discord webhook integration
-- [ ] Alert configuration UI
-- [ ] Alert history log
-
----
-
-## Phase 8: Configuration Management
-
-> **Status:** Planned
-> **Priority:** Medium
-> **Dependencies:** None
-> **Current System:** See [TECHNICAL_REPORT.md Section 4](TECHNICAL_REPORT.md#4-configuration-management) for analysis of existing .env + config_state.json system
-
-### Goals
-
-- Persistent configuration storage
-- Named configuration profiles
-- Version history
-- Import/export
-
-### Features
-
-#### Persistent Storage
-
-Move from in-memory to database:
-- SQLite for single-user deployments
-- PostgreSQL option for multi-user
-
-#### Configuration Profiles
-
-```bash
-# Save current config as profile
-python bot.py --save-profile aggressive
-
-# Load a profile
-python bot.py --profile conservative
-
-# List profiles
-python bot.py --list-profiles
-```
-
-#### Version History
-
-- Track configuration changes over time
-- Revert to previous configurations
-- Annotate why changes were made
-
-### Deliverables
-
-- [ ] Database schema for configuration
-- [ ] Profile management (create, load, delete)
+#### Work Items
+- [ ] Named profiles (e.g., "conservative", "aggressive", "learning")
+- [ ] Save / load / delete via UI and API
 - [ ] Version history with rollback
-- [ ] Import/export (JSON, YAML)
-- [ ] Configuration UI improvements
+- [ ] Import / export (JSON)
+
+**Exit criteria:** Profiles work end-to-end, rollback restores previous state, tests cover edge cases (profile doesn't exist, corrupted JSON).
 
 ---
 
-## Phase 9: Market Awareness
+## Phases — Intelligence (H-K)
 
-> **Status:** Planned
-> **Priority:** Medium
-> **Dependencies:** Phase 7 (uses notification system)
-
-### Goals
-
-- Understand market rhythms and events
-- Avoid trading during dangerous periods
-- Integrate economic calendar
-
-### Features
-
-#### Trading Windows
-
-- Configurable trading hours (avoid open/close volatility)
-- Respect market holidays
-- Handle early closes
-
-#### Economic Calendar
-
-- Integrate economic event calendar
-- Pause trading around FOMC announcements
-- Alert before major events
-
-#### Earnings Awareness
-
-- Track earnings dates for watchlist
-- Option to avoid trading around earnings
-- Post-earnings volatility detection
-
-### Deliverables
-
-- [ ] Trading window configuration
-- [ ] Market holiday calendar
-- [ ] Economic calendar integration
-- [ ] Earnings calendar integration
-- [ ] Pre-event alerts
-- [ ] Documentation of market awareness features
+These phases add ML and AI agent capabilities. **Do not start until Phases A-G are complete.**
 
 ---
 
-## Phase 10: Documentation & Onboarding
+### Phase H — Backtesting Engine (Foundation)
+**Goal:** Validate strategies against historical data. Required before any ML work.
 
-> **Status:** Planned
-> **Priority:** Medium
-> **Dependencies:** All features should be documented as built
-> **Detailed Analysis:** See [TECHNICAL_REPORT.md Section 10](TECHNICAL_REPORT.md#10-documentation-review) for current documentation state and gaps
+**Status:** 5% complete (backtest code exists but broken, needs full rewrite)
 
-### Goals
+**Dependencies:** Phase F complete (CI infrastructure), Phase D complete (analytics trusted)
 
-- New user can go from zero to paper trading in 10 minutes
-- All features documented with examples
-- Architecture explained for contributors
+#### Work Items
+- [ ] Fix broken `test_backtest_data.py` (remove bad mock, fix Alpaca API integration)
+- [ ] Walk-forward validation framework (train on period N, test on period N+1)
+- [ ] Transaction cost modeling (slippage, bid-ask spread, market impact)
+- [ ] Realistic order execution simulation (partial fills, rejections, delays)
+- [ ] Out-of-sample testing framework (prevent overfitting)
+- [ ] Monte Carlo simulation for drawdown estimation
+- [ ] Benchmark comparison (SPY buy-and-hold baseline)
+- [ ] HTML report generation (equity curve, metrics, trade list)
+- [ ] CLI tool for running backtests (`python -m backtest --strategy momentum --period 2020-2023`)
 
-### Documentation Structure
+**Exit criteria:** Backtest engine produces trustworthy results, matches live trading behavior, tests cover edge cases (missing data, splits, dividends).
 
-```
-docs/
-├── getting-started/
-│   ├── installation.md
-│   ├── quick-start.md
-│   ├── first-backtest.md
-│   └── first-paper-trade.md
-├── user-guide/
-│   ├── strategies.md
-│   ├── backtesting.md
-│   ├── paper-trading.md
-│   ├── live-trading.md
-│   ├── risk-management.md
-│   └── analytics.md
-├── reference/
-│   ├── configuration.md
-│   ├── api.md
-│   ├── cli.md
-│   └── metrics.md
-├── development/
-│   ├── architecture.md
-│   ├── contributing.md
-│   └── creating-strategies.md
-└── concepts/
-    ├── momentum-trading.md
-    ├── risk-metrics.md
-    └── backtesting-pitfalls.md
-```
-
-### Deliverables
-
-- [ ] Quick start guide
-- [ ] User guide for each feature
-- [ ] API reference
-- [ ] CLI reference
-- [ ] Strategy development guide
-- [ ] Architecture documentation
-- [ ] Video walkthrough (optional)
+**Estimated effort:** 2-3 months
 
 ---
 
-## Phase 11: Testing & Reliability
+### Phase I — ML Infrastructure
+**Goal:** Build pipelines for feature engineering, model training, and deployment.
 
-> **Status:** ✅ In Progress (Unit Test Suite Complete)
-> **Priority:** High
-> **Dependencies:** Should be ongoing throughout development
-> **Detailed Analysis:** See [TECHNICAL_REPORT.md Section 5](TECHNICAL_REPORT.md#5-testing-infrastructure) for complete test analysis
+**Status:** Not started (0/8 done)
 
-### Goals
+**Dependencies:** Phase H complete (need backtest engine for validation)
 
-- ✅ Comprehensive test coverage (unit tests)
-- [ ] Integration test coverage (end-to-end flows)
-- [ ] Automated CI/CD pipeline
-- [x] System monitoring and health checks (health endpoint + observability)
-- ✅ Graceful error handling (mostly)
+#### Work Items
+- [ ] Historical data storage (years of OHLCV + tick data, handle splits/dividends)
+- [ ] Data validation pipeline (detect bad ticks, fill gaps, survivorship bias checks)
+- [ ] Feature engineering framework (technical indicators, rolling statistics, regime features)
+- [ ] Feature store (pre-computed features, versioned, fast lookup)
+- [ ] Model training pipeline (cross-validation, hyperparameter tuning, versioning)
+- [ ] Model serving infrastructure (load model, compute features in real-time, inference)
+- [ ] A/B testing framework (run strategy A vs strategy B in parallel on paper/sim)
+- [ ] Model monitoring (track prediction accuracy, detect drift, alert on degradation)
 
-### Testing Strategy
+**Exit criteria:** Can train/deploy models end-to-end, A/B tests work, monitoring detects model degradation, tests cover edge cases.
 
-#### Unit Tests ✅ COMPLETE
-
-**Current State:** 182 tests, 100% pass rate, ~0.3s execution time
-
-**Coverage by Module:** (See TECHNICAL_REPORT.md Appendix B for complete map)
-- Analytics: 51 tests (equity metrics, trade outcomes, JSONL persistence)
-- Backtesting: 33 tests (data, engine, metrics, results export)
-- Strategies: 45 tests (momentum, mean reversion, breakout, RSI)
-- Risk Management: 13 tests (circuit breaker, position sizing, exposure limits)
-- API Endpoints: 19 tests (health, observability, security, config)
-- Other: 13 tests (agents, screener, config persistence)
-
-**Strengths:**
-- Fast execution (0.3 seconds total)
-- Isolated tests (no dependencies)
-- Clear naming conventions
-- Good documentation
-
-**Test Quality:** See TECHNICAL_REPORT.md Section 5.3 for detailed quality analysis
-
-#### Integration Tests ❌ MISSING
-
-**Gap Analysis:**
-- Cannot verify full trade flow (data → signal → risk → execution → analytics)
-- Cannot test multi-agent coordination
-- Cannot test error recovery scenarios
-- Cannot test WebSocket message flow
-
-**Required Tests:**
-- End-to-end trade lifecycle (buy signal to analytics log)
-- Circuit breaker triggers stopping trades
-- Stop-loss execution flow
-- Configuration changes affecting agent behavior
-- WebSocket broadcast to multiple clients
-
-**Priority:** High (Phase 11 critical deliverable)
-**Example:** TECHNICAL_REPORT.md Section 5.3.1
-
-#### System Tests ❌ MISSING
-
-**Missing Coverage:**
-- Multi-day paper trading simulation (memory leaks, stability)
-- Broker API failure handling and recovery
-- Data feed interruption recovery
-- WebSocket scalability (100+ connections)
-- Analytics query performance (10,000+ trades)
-
-**Priority:** Medium (Phase 11+)
-
-### Monitoring
-
-**Current:**
-- ✅ Health check endpoint (`/api/health`)
-- ✅ Observability logging (JSONL event stream)
-- ✅ Scheduled evaluation reports
-- ✅ Agent status tracking
-- ✅ Automated TestAgent (scheduled `scripts/run_tests.sh` runs + log file) [logs/tests.jsonl]
-- ✅ UI smoke-check agent (fetches dashboard, ensures selectors) [logs/ui_checks.jsonl]
-- ✅ SessionLogger agent logs SIM account/position snapshots [logs/sessions.jsonl]
-- ✅ ReplayRecorder agent captures intraday bars for offline SIM [data/replay/*.csv]
-
-**Missing:**
-- [ ] Performance metrics (API latency, error rates)
-- [ ] Uptime monitoring integration
-- [ ] Alert on anomalies
-- [ ] Dashboard for operational metrics
-
-**Security Analysis:** TECHNICAL_REPORT.md Section 8
-**Performance Analysis:** TECHNICAL_REPORT.md Section 9
-
-### Deliverables
-
-- [x] Unit test suite (unittest) - **213 tests, 100% pass rate** ✅
-- [x] Test coverage for all strategies (Momentum, Mean Reversion, Breakout, RSI) ✅
-- [x] Test coverage for backtesting engine ✅
-- [x] Test coverage for performance metrics ✅
-- [x] Test coverage for analytics module (store + metrics) ✅
-- [x] Universe isolation enforcement tests (10 tests validating EventBus, event routing, cross-contamination prevention) ✅
-- [x] Broker universe constraint tests (8 tests validating FakeBroker=SIMULATION, AlpacaBroker=LIVE/PAPER) ✅
-- [x] Analytics schema validation tests (14 tests validating provenance fields: universe, session_id, symbol, side) ✅
-- [x] Observability logging & scheduled evaluation (JSONL + reports) ✅
-- [ ] Integration test suite (end-to-end trading cycles)
-- [ ] CI/CD pipeline (GitHub Actions)
-- [x] Health check endpoint ✅
-- [ ] Error recovery mechanisms
-- [x] Observability dashboard (basic UI summary) ✅
-- [x] Scheduled TestAgent for automated regression runs ✅
-
-### Unit Test Suite Status ✅
-
-**Last Updated:** 2026-01-27
-
-- **Total Tests:** 213 tests across 26 modules
-- **Pass Rate:** 100%
-- **Coverage:** Strategies, backtesting, metrics, analytics (store + metrics), security, API, risk controls, observability, health endpoint, universe isolation, broker constraints, schema validation
-- **Recent Additions:**
-  - 10 tests for universe isolation enforcement (test_universe_isolation.py)
-  - 8 tests for broker universe constraints (test_broker_universe.py)
-  - 14 tests for analytics schema validation (test_analytics_schema_validation.py)
-  - 30 tests for analytics store (JSONL persistence)
-  - 18 enhanced tests for analytics metrics
-  - 16 tests for health check endpoint
-  - Added `httpx>=0.24.0` to requirements.txt for TestClient dependency
-- **Documentation:** See [TESTS_FIXED_SUMMARY.md](TESTS_FIXED_SUMMARY.md)
-
-### Configuration & Simulation Mode Improvements (2026-01-25)
-
-**Completed:**
-- [x] Added SIMULATION_MODE to runtime config persistence
-  - Now persists in config_state.json
-  - Survives server restarts
-  - Can be toggled via config API
-- [x] Aligned .env and config_state.json values
-  - Fixed massive mismatches (100% position → 0.15%)
-  - Removed misleading "HIGH RISK" comments
-  - Added missing MAX_OPEN_POSITIONS field
-- [x] Improved .env.example documentation
-  - Clear SIMULATION_MODE explanation
-  - Added note about runtime config override priority
-- [x] Created diagnostic tools
-  - `test_analytics_api.py` - Test analytics endpoints
-  - `CONFIG_ALIGNMENT_NOTES.md` - Full change documentation
-- [x] Fixed UI badge color coding
-  - ON = GREEN, OFF = RED, PAPER = YELLOW
-  - Consistent across all status badges
-
-**Feature Gap Identified: SIM Mode Auto-Switching**
-
-**Problem:** SIMULATION_MODE is currently a manual toggle only. Original vision was for automatic switching based on real market hours:
-- Market OPEN (9:30am-4:30pm ET M-F) → Use real Alpaca API
-- Market CLOSED + 30 min cooldown → Auto-enable SIM mode for 24/7 training
-
-**Why it matters:**
-- Can't train bot during off-hours without manual intervention
-- Analytics don't populate when market is closed
-- Strategy testing limited to market hours
-
-**Requirements for auto-switching:**
-1. Market hours detection (pytz, NYSE calendar)
-2. Background monitor task (check every 1-5 min)
-3. Runtime broker switching (requires refactor)
-4. UI indicators and configuration
-
-**Estimated effort:** 2-3 days development + testing
-
-**Documentation:** See [SIM_MODE_AUTO_SWITCHING_CONTEXT.md](SIM_MODE_AUTO_SWITCHING_CONTEXT.md)
-
-**Proposed deliverables:**
-- [ ] Market hours detection function (`is_market_open_now()`)
-- [ ] Background monitor task with 30-min cooldown
-- [ ] Runtime broker switching mechanism (AutoSwitchingBroker wrapper)
-- [ ] Configuration: `SIM_AUTO_SWITCH_ENABLED`, `SIM_COOLDOWN_MINUTES`
-- [ ] UI countdown to SIM activation after market close
-- [ ] Integration tests for auto-switching behavior
-
-**Dependencies needed:**
-```txt
-pytz>=2023.3
-pandas-market-calendars>=4.3.0  # NYSE holiday calendar
-```
+**Estimated effort:** 3-4 months
 
 ---
 
-## Phase 12: Track Record Verification
+### Phase J — ML Strategy Development
+**Goal:** Replace hardcoded strategies with ML-powered adaptive strategies.
 
-> **Status:** Planned
-> **Priority:** Low (nice-to-have)
-> **Dependencies:** Phase 4 (needs analytics data)
+**Status:** Not started (0/5 done)
 
-### Goals
+**Dependencies:** Phase I complete (ML infrastructure ready)
 
-- Verifiable, tamper-proof trade history
-- Build trust with potential investors
-- Differentiate from competitors who rely on screenshots
+#### Work Items
 
-### Approach
+**J1: Regime Detection (Quick Win)**
+- [ ] Train classifier: bull/bear/chop/risk-off based on VIX, breadth, sector flows
+- [ ] Integrate into Coordinator (switch strategies based on detected regime)
+- [ ] Backtest: validate regime switching improves risk-adjusted returns
+- [ ] Tests: verify regime detection accuracy, strategy switching logic
 
-0. **Provenance tracking** ✅ - Every trade/metric tagged with universe and session_id (completed 2026-01-27)
-   - Schema validation enforces required fields
-   - Type-safe universe separation prevents contamination
-   - Foundation for verifiable track record
-1. **Hash each trade** - Include timestamp, symbol, side, quantity, price, account snapshot
-2. **Chain hashes** - Each trade hash includes previous hash (like blockchain)
-3. **Periodic anchoring** - Publish hash to public blockchain or timestamping service
-4. **Verification tool** - Anyone can verify the chain is unbroken
+**J2: Signal Quality Scoring (Medium Win)**
+- [ ] Train model to predict P(5-day return > 2%) for top gainers
+- [ ] Features: price momentum, volume profile, order book, options flow, sentiment
+- [ ] Integrate into SignalAgent (score each signal, filter low-quality)
+- [ ] Backtest: validate signal scoring improves win rate
+- [ ] Tests: verify scoring thresholds, edge case handling
 
-### Deliverables
+**J3: Adaptive Parameters (Big Win)**
+- [ ] Train models to predict optimal thresholds (momentum_threshold, stop_loss, etc.)
+- [ ] Features: market regime, volatility, correlation, sector rotation
+- [ ] Integrate into ConfigManager (update params based on market conditions)
+- [ ] Backtest: validate adaptive params improve Sharpe ratio
+- [ ] Tests: verify parameter bounds, prevent extreme values
 
-- [ ] Trade hashing system
-- [ ] Hash chain implementation
-- [ ] Public anchoring (optional)
-- [ ] Verification tool
-- [ ] Documentation of verification process
+**J4: Risk Prediction**
+- [ ] Train model to predict tail risk (P(drawdown > 10%) in next N days)
+- [ ] Features: correlation matrix, volatility forecast, positioning
+- [ ] Integrate into RiskAgent (dynamic position sizing based on predicted risk)
+- [ ] Backtest: validate risk prediction reduces max drawdown
+- [ ] Tests: verify risk adjustments, prevent over-reduction
 
----
+**J5: Ensemble Strategies**
+- [ ] Meta-model that weighs strategies based on recent performance
+- [ ] Combine ML signals with traditional indicators
+- [ ] Backtest: validate ensemble beats individual strategies
+- [ ] Tests: verify ensemble logic, prevent overfitting to recent data
 
-## Technical Debt & Maintenance
+**Exit criteria:** ML strategies deployed, backtests show improvement over basic strategies (Sharpe >1.5, drawdown <15%), A/B tests validate live performance matches backtest.
 
-> **Comprehensive Analysis:** See [TECHNICAL_REPORT.md](TECHNICAL_REPORT.md) Section 7 for detailed code-level debt analysis with line numbers and fix examples.
-
-### Critical Issues (2026-01-25)
-
-**Root Directory Clutter:**
-- [ ] **Remove 7 obsolete files** (old AI reviews, test output files)
-  - See TECHNICAL_REPORT.md Section 2.2 for complete cleanup plan
-  - **Impact:** Cleaner project structure, easier navigation
-  - **Effort:** 10 minutes
-
-**File Organization:**
-- [ ] **Move 4 documentation files to docs/** (session notes, context docs)
-- [ ] **Move test_analytics_api.py to scripts/**
-- [ ] **Reorganize docs/ structure** (user-guide/, developer/, operations/, decisions/)
-  - See TECHNICAL_REPORT.md Sections 2.2 and 10 for proposed structure
-
-### Configuration Issues (2026-01-27)
-
-- [x] ~~Configuration split between .env and JSON state file~~ **RESOLVED**
-  - Now documented clearly in .env.example
-  - Priority: config_state.json > .env (runtime overrides)
-  - Both files now aligned with same values
-- [x] ~~SIMULATION_MODE boolean confusion~~ **RESOLVED (2026-01-27)**
-  - Migrated from boolean flag to Universe enum throughout codebase
-  - Type-safe separation: Universe.SIMULATION, Universe.PAPER, Universe.LIVE
-  - Agents check `self.universe != Universe.SIMULATION` instead of `not config.SIMULATION_MODE`
-  - **Impact:** Eliminates confusion, enables proper track record verification
-- [ ] **Broker instantiated at startup** - Can't switch at runtime
-  - Blocks SIM mode auto-switching feature
-  - Need AutoSwitchingBroker wrapper or restart mechanism
-  - **Impact:** Can't automatically enable SIM when market closes
-  - **Analysis:** TECHNICAL_REPORT.md Section 3.1.1
-- [ ] **No schema validation for config_state.json**
-  - Invalid JSON can crash server silently
-  - **Fix:** Add Pydantic validation (TECHNICAL_REPORT.md Section 4.2.2)
-  - **Priority:** Medium
-- [ ] **Configuration persistence uses long if/elif chain**
-  - 16 elif branches in load_config_state()
-  - Error-prone, hard to maintain
-  - **Fix:** Dataclass-based approach (TECHNICAL_REPORT.md Section 3.1.2)
-  - **Priority:** Medium
-
-### Analytics Issues (2026-01-25)
-
-- [ ] **Analytics metric cards showing "--" in UI**
-  - Backend API works, metrics calculated correctly
-  - UI JavaScript not displaying response
-  - OR: Browser caching old JavaScript
-  - **Action:** Debug with `python scripts/test_analytics_api.py`
-  - **Analysis:** TECHNICAL_REPORT.md Sections 3.1.3, 7.2.3
-- [ ] **Position concentration chart not rendering**
-  - Chart.js code exists, white text fix applied
-  - May be version conflict or data format issue
-  - **Action:** Check browser console for errors
-- [ ] **Trades missing filled_avg_price**
-  - AnalyticsAgent records trades with null prices (always None)
-  - Prevents P&L calculations
-  - Need to extract price from OrderExecuted event
-  - **Impact:** Trade stats can't calculate win rate
-  - **Fix:** TECHNICAL_REPORT.md Section 3.2.1 with code example
-  - **Priority:** High
-
-### Code Quality Issues
-
-- [ ] **Bare except clauses** (3 locations)
-  - server.py line 408, analytics/store.py multiple
-  - Swallows all errors, hard to debug
-  - **Fix:** Catch specific exceptions (TECHNICAL_REPORT.md Section 7.1.3)
-- [ ] **Magic numbers and hardcoded values**
-  - Throughout codebase (60 second conversions, thresholds, etc.)
-  - **Examples:** TECHNICAL_REPORT.md Section 7.1.2
-  - **Priority:** Low
-- [ ] **Incomplete type hints**
-  - Newer code has type hints, older code lacks them
-  - **Impact:** Reduced IDE support, harder to catch bugs
-  - **Priority:** Medium
-
-### Architecture Debt
-
-- [ ] **Monolithic UI file** (static/index.html - 3,600 lines)
-  - HTML + CSS + JavaScript all inline
-  - Hard to maintain, browser caching issues
-  - **Analysis:** TECHNICAL_REPORT.md Section 7.2.2
-  - **Priority:** Low (Phase 5+)
-- [ ] **No database layer**
-  - All data in flat files (JSON, JSONL, CSV)
-  - Limits querying, no transactions
-  - **When needed:** Phase 8 (Configuration Management)
-- [ ] **Stop-loss logic duplicated**
-  - Both strategies and MonitorAgent check stop-loss
-  - Redundant but safe (defense in depth)
-  - **Analysis:** TECHNICAL_REPORT.md Section 3.3.3
-
-### Dependencies
-
-- [ ] **Remove unused 'schedule' package**
-  - Not found in any .py file
-  - **Action:** Remove from requirements.txt
-  - **Verified:** TECHNICAL_REPORT.md Section 6.1
-- [ ] **Add missing dependencies for future features**
-  - pytz (market hours detection)
-  - pandas-market-calendars (NYSE holidays)
-
-### Security Issues
-
-- [ ] **No rate limiting on API endpoints**
-  - Risk of DoS via excessive requests
-  - **Fix:** TECHNICAL_REPORT.md Section 8.1.1 with slowapi example
-  - **Priority:** Medium
-- [ ] **No HTTPS enforcement**
-  - Token sent in plaintext if accessed remotely
-  - **Priority:** Critical for production deployment
-- [ ] **No input validation schemas**
-  - Malformed JSON can crash server
-  - **Fix:** TECHNICAL_REPORT.md Section 8.3.1 with Pydantic models
-  - **Priority:** Medium
-
-### Performance Debt
-
-- [ ] **Analytics JSONL files loaded entirely into memory**
-  - Works for current scale (~500KB files)
-  - May need streaming for multi-year data
-  - **Analysis:** TECHNICAL_REPORT.md Section 9.2.1
-- [ ] **No caching for Top Gainers API calls**
-  - Fetches every 1-5 minutes, could cache 5-10 minutes
-  - **Optimization:** TECHNICAL_REPORT.md Section 9.3.1
-  - **Priority:** Low
-
-### Testing Debt
-
-- [ ] **No integration tests**
-  - 182 unit tests (excellent), 0 integration tests
-  - Cannot verify full trade flow or multi-agent coordination
-  - **Priority:** High (Phase 11 deliverable)
-- [ ] **No CI/CD pipeline**
-  - Tests run manually only
-  - **Priority:** High (Phase 11 deliverable)
-- [ ] **No performance/load tests**
-  - Memory usage, WebSocket scalability untested
-  - **Priority:** Medium
-
-### Documentation Debt
-
-- [ ] **Scattered documentation** (15+ locations)
-  - Root, docs/, docs/archive/, session notes
-  - **Proposed structure:** TECHNICAL_REPORT.md Section 2.2
-  - **Priority:** Medium (Phase 10)
-- [ ] **Incomplete API documentation**
-  - No OpenAPI spec, endpoint reference, or error codes
-  - FastAPI can auto-generate at /docs endpoint
-  - **Priority:** Low
-- [ ] **No developer onboarding guide**
-  - How to add strategies, agents, risk checks
-  - **Priority:** Medium (Phase 10)
-- [ ] **Missing docstrings**
-  - ~75% of server.py functions lack docstrings
-  - **Priority:** Low
-
-### Ongoing Tasks
-
-- [x] ~~Remove SIMULATION_MODE boolean confusion~~ **COMPLETED (2026-01-27)** - Migrated to Universe enum
-- [ ] Add type hints throughout codebase (partially done - Universe/UniverseContext fully typed)
-- [ ] Standardize logging format and levels (mostly done - event-driven logging)
-- [ ] ~~Consolidate configuration management~~ **IMPROVED** (documented, aligned)
-- [ ] Improve error messages
-- [ ] Code documentation (docstrings) (partially done)
-- [ ] Dependency updates
-- [ ] Add cache-busting for static/index.html (UI changes require hard refresh)
-
-### Code Quality Standards
-
-- All new code must have type hints
-- All public functions must have docstrings
-- Test coverage target: 80% for new code
-- Linting: flake8/black/isort compliance
+**Estimated effort:** 4-6 months (including iteration and debugging)
 
 ---
 
-## Known Issues Reference
+### Phase K — AI Agent Coordination
+**Goal:** Self-improving system that analyzes performance and proposes improvements.
 
-**Comprehensive Issue Log:** See [TECHNICAL_REPORT.md Appendix E](TECHNICAL_REPORT.md#appendix-e-known-issues-log) for complete tracked issues with severity, status, and ownership.
+**Status:** Not started (0/6 done)
+
+**Dependencies:** Phase J complete (ML strategies deployed), agent maker system available
+
+#### Work Items
+
+**K1: Agent Infrastructure**
+- [ ] AIAgentCoordinator class (subscribes to events, spawns agents, collects recommendations)
+- [ ] Agent maker integration (API client for spawning Claude-powered agents)
+- [ ] Recommendation parser (extract structured actions from agent responses)
+- [ ] Approval workflow (present recommendations to user, apply if approved)
+- [ ] Tests: verify agent spawning, recommendation parsing, approval flow
+
+**K2: Daily Analysis Agent**
+- [ ] Trigger: end of trading day
+- [ ] Task: analyze trades, identify patterns, recommend improvements
+- [ ] Output: markdown report with specific recommendations
+- [ ] Integration: save reports, track recommendation history
+- [ ] Tests: verify agent receives correct context, recommendations are actionable
+
+**K3: Risk Event Response Agent**
+- [ ] Trigger: risk limit hit 3+ times
+- [ ] Task: diagnose root cause, recommend mitigation
+- [ ] Output: root cause analysis + config adjustments
+- [ ] Integration: auto-apply low-risk changes, escalate high-risk
+- [ ] Tests: verify risk diagnosis, auto-adjustment bounds
+
+**K4: Market Regime Agent**
+- [ ] Trigger: daily before market open
+- [ ] Task: analyze overnight news/data, classify regime, recommend strategy
+- [ ] Output: regime classification + strategy recommendation
+- [ ] Integration: ConfigManager updates strategy for the day
+- [ ] Tests: verify regime classification, strategy switching
+
+**K5: Strategy Evolution Agent**
+- [ ] Trigger: weekly on Sunday
+- [ ] Task: review performance, propose strategy modifications
+- [ ] Output: proposed changes with rationale + expected improvement
+- [ ] Integration: human backtests proposals, deploys best
+- [ ] Tests: verify performance analysis, proposals are backtestable
+
+**K6: Error Diagnosis Agent**
+- [ ] Trigger: exception thrown 3+ times in 10 minutes
+- [ ] Task: read logs, diagnose root cause, propose fix
+- [ ] Output: root cause analysis + fix recommendation
+- [ ] Integration: human applies fix (or auto-restart if known issue)
+- [ ] Tests: verify error pattern detection, diagnosis quality
+
+**Exit criteria:** AI agents run automatically, recommendations are high-quality, human approval workflow works, system improves over time without manual tuning.
+
+**Estimated effort:** 3-4 months
+
+---
+
+## Phases — Production (L-M)
+
+These phases make the system robust enough for serious capital.
+
+---
+
+### Phase L — Production Readiness
+**Goal:** Multi-broker support, failover, disaster recovery.
+
+**Status:** Not started (0/6 done)
+
+**Dependencies:** All previous phases complete
+
+#### Work Items
+- [ ] Multi-broker abstraction (generic Broker interface)
+- [ ] Broker failover (primary fails → switch to backup)
+- [ ] Multiple data sources (validate data across sources, detect bad feeds)
+- [ ] Database migration (replace JSONL with PostgreSQL for scale)
+- [ ] Backup and restore (daily backups, tested restore procedure)
+- [ ] Disaster recovery plan (documented, tested quarterly)
+
+**Exit criteria:** System survives broker outages, data corruption, server failures. Backup/restore works. Tests cover all failure modes.
+
+**Estimated effort:** 2-3 months
+
+---
+
+### Phase M — Compliance & Auditability
+**Goal:** Track record attestation, regulatory compliance, investor reporting.
+
+**Status:** Not started (0/5 done)
+
+**Dependencies:** Phase L complete
+
+#### Work Items
+- [ ] Trade record hash chain (tamper-evident log)
+- [ ] Provenance tagging on all records (universe + session_id + git commit)
+- [ ] PDF investor reports (monthly performance summary)
+- [ ] Audit trail (all config changes, manual overrides, system events)
+- [ ] Compliance checks (pattern day trader rules, margin requirements, position limits)
+
+**Exit criteria:** Trade records are auditable, reports are professional-grade, compliance checks prevent violations.
+
+**Estimated effort:** 2-3 months
+
+---
+
+## Backlog (Identified, Not Scheduled)
+
+These are real work items but have no concrete trigger yet. Revisit when a
+preceding phase completes or a user need surfaces.
+
+| Item | Why it's here | Prerequisite |
+|------|---------------|--------------|
+| Real-time tick data | Currently using 1-min bars. Tick data enables better execution. | Phase L complete, data costs justified |
+| Options trading | Volatility selling, hedging. Requires complex risk management. | Phase M complete, capital >$500k |
+| Multiple timeframes | Day trading + swing trading simultaneously. | Phase K complete (agent coordination needed) |
+| Social media sentiment | Twitter/Reddit scraping for signal generation. | Phase J complete (ML infrastructure ready) |
+| Alternative data | Satellite imagery, credit card data, app downloads. | Phase J complete, data costs justified ($10k+/month) |
+| Portfolio optimization | Kelly criterion, risk parity, mean-variance optimization. | Phase J complete (need robust risk models) |
+| Custom strategy DSL | Let users write strategies without coding. | Phase M complete (after proven stable) |
+| Mobile app | Native iOS/Android apps for monitoring. | Phase M complete, user base >100 |
+
+---
+
+## Estimated Timeline
+
+**Assuming full-time work (40 hrs/week):**
+
+| Phase | Effort | Dependencies | Timeline |
+|-------|--------|--------------|----------|
+| A — Hardening | 2-3 weeks | None | Weeks 1-3 |
+| B — Observability | 2-3 weeks | A done | Weeks 4-6 |
+| C — External Alerts | 2-3 weeks | B done | Weeks 7-9 |
+| D — Analytics | 3-4 weeks | A done | Weeks 10-13 |
+| E — Market Awareness | 2-3 weeks | C done | Weeks 14-16 |
+| F — Testing & CI | 3-4 weeks | None | Weeks 17-20 |
+| G — Config Profiles | 2-3 weeks | A done | Weeks 21-23 |
+| **Foundation complete** | **~6 months** | | |
+| H — Backtesting Engine | 8-12 weeks | F, D done | Months 7-9 |
+| I — ML Infrastructure | 12-16 weeks | H done | Months 10-13 |
+| J — ML Strategy Dev | 16-24 weeks | I done | Months 14-19 |
+| K — AI Agent Coord | 12-16 weeks | J done | Months 20-23 |
+| **Intelligence complete** | **~18 months** | | |
+| L — Production Readiness | 8-12 weeks | All done | Months 24-26 |
+| M — Compliance | 8-12 weeks | L done | Months 27-29 |
+| **Production complete** | **~30 months** | | |
+
+**Total: 2.5 years full-time** to complete all phases with no technical debt.
+
+**Part-time (10-20 hrs/week): 5-7 years**
 
 ---
 
 ## Success Metrics
 
-### For Investors
+**Phase completion criteria:**
+- All checkboxes done
+- All tests pass (maintain >85% coverage)
+- No known bugs
+- Documentation updated
+- No technical debt carried forward
 
-- Backtest Sharpe ratio > 1.0
-- Live performance within 20% of backtest
-- Max drawdown documented and reasonable
-- Verifiable track record
+**System-level success (post-Phase K):**
+- Sharpe ratio >1.5 in paper trading over 6+ months
+- Max drawdown <15%
+- Win rate >55%
+- System uptime >99.5%
+- AI agents provide actionable recommendations weekly
 
-### For Traders
-
-- Setup time < 15 minutes
-- System uptime > 99.5%
-- Trade execution latency < 1 second
-- Zero missed trades due to bugs
-
-### For Hobbyists
-
-- Time to first paper trade < 10 minutes
-- Documentation completeness score > 90%
-- Community engagement (GitHub stars, forks)
-
----
-
-## Changelog
-
-| Date | Change |
-|------|--------|
-| 2025-01-19 | Initial roadmap created |
-| 2025-01-19 | Phase 1 (Backtesting) started |
-| 2025-01-19 | Phase 1 (Backtesting) completed - full implementation with CLI and documentation |
-| 2025-01-19 | Phase 2 (Strategy Framework) completed - 4 strategies with pluggable architecture |
-| 2026-01-21 | Improved top gainers reliability (volume fallback), increased bar lookback buffer, ticker now shows unique symbols |
-| 2026-01-21 | Manual trade dropdown now groups holdings/watchlist/signals; ticker auto-scroll restored without duplicates |
-| 2026-01-20 | Phase 11 (Testing) - Achieved 100% test pass rate (83/83 tests) |
-| 2026-01-20 | Added strategy selector and max daily trades controls to UI |
-| 2026-01-20 | Added high risk/high reward configuration options to .env |
-| 2026-01-22 | Added observability evaluator + expectations API and UI summary |
-| 2026-01-22 | Improved ticker flow and added market index proxy ticker |
-| 2026-01-22 | Added position sizing + observability unit tests (94/94 pass) |
-| 2026-01-22 | Added circuit breaker + max open positions; tests 98/98 pass |
-| 2026-01-22 | Added risk UI + backtest risk metrics; tests 99/99 pass |
-| 2026-01-22 | Added breaker reset endpoint + UI indicator; tests 101/101 pass |
-| 2026-01-22 | Added sector/correlation exposure checks + tests 104/104 pass |
-| 2026-01-22 | Added sector map starter file + risk controls documentation |
-| 2026-01-22 | Expanded sector map coverage + added updater script |
-| 2026-01-25 | **Configuration alignment:** Fixed .env / config_state.json mismatches (100% position → 0.15%) |
-| 2026-01-25 | **SIMULATION_MODE runtime persistence:** Added to config_state.json, survives restarts |
-| 2026-01-25 | **UI badge improvements:** Color coding (ON=GREEN, OFF=RED, PAPER=YELLOW) |
-| 2026-01-25 | **Position concentration chart:** Fixed white text rendering with Chart.js fontColor |
-| 2026-01-25 | **Dependencies:** Added httpx>=0.24.0 to requirements.txt for TestClient |
-| 2026-01-25 | **Documentation:** Created CONFIG_ALIGNMENT_NOTES.md and SIM_MODE_AUTO_SWITCHING_CONTEXT.md |
-| 2026-01-25 | **Feature gap identified:** SIM mode auto-switching (market hours detection) not implemented |
-| 2026-01-25 | **Analytics issues documented:** Metrics showing "--", charts not rendering, filled_avg_price missing |
-| 2026-01-25 | **Diagnostic tools:** Created test_analytics_api.py for debugging API responses |
-| 2026-01-25 | **Phase 4 status updated:** 90% → 75% (equity curve works, metrics display broken) |
-| 2026-01-25 | **TECHNICAL_REPORT.md created:** Comprehensive 40,000+ word technical analysis covering architecture, code review, testing, security, performance, and 16 prioritized recommendations |
-| 2026-01-25 | **Technical debt cataloged:** 30+ specific issues identified with severity levels, line numbers, and fix examples |
-| 2026-01-26 | **Server modularization completed:** Refactored monolithic server.py into modular server/ package with routers, lifespan, dependencies, config_manager |
-| 2026-01-26 | **Test suite stability:** 181/181 tests passing (100% pass rate, 0.242s execution time) |
-| 2026-01-26 | **Server routing fixes:** Fixed WebSocket connection failures, added missing API endpoints (/api/status, /api/trades, /api/observability) |
-| 2026-01-26 | **Path resolution fix:** Updated scripts/serve.py to add project root to sys.path, resolving module import errors |
-| 2026-01-26 | **SIMULATION_MODE enabled:** Switched to FakeBroker for testing, server running with simulated trading |
-| 2026-01-26 | **ROADMAP integration:** Cross-referenced TECHNICAL_REPORT sections throughout ROADMAP (Phase 4, Phase 8, Phase 10, Phase 11, Technical Debt) |
-| 2026-01-26 | **Test count update:** Corrected test count from 174 → 181 tests across all ROADMAP references |
-| 2026-01-26 | **Architectural analysis:** Documented simulation-live continuity requirements, mode isolation boundaries, temporal semantics, and falsifiability metrics |
-| 2026-01-27 | **Universe Isolation (Week 2/3)**: Completed type-safe universe separation with provenance tracking - migrated from SIMULATION_MODE boolean to Universe enum throughout codebase |
-| 2026-01-27 | **Test suite expansion**: 213/213 tests passing (added 32 tests: 10 for universe isolation enforcement, 8 for broker constraints, 14 for analytics schema validation) |
-| 2026-01-27 | **Schema validation**: Added SchemaValidationError to analytics store - validates universe match, session_id presence, required trade fields (symbol, side) |
-| 2026-01-27 | **Broker universe enforcement**: AlpacaBroker rejects SIMULATION, FakeBroker rejects LIVE/PAPER - type-safe separation prevents cross-contamination |
-| 2026-01-27 | **Provenance tracking foundation**: All events, metrics, and trades now require universe and session_id - enables Phase 12 track record verification |
-| 2026-01-27 | **Technical debt reduction**: Removed SIMULATION_MODE boolean from config.py and all agent references - replaced with Universe enum checks |
+**Production success (post-Phase M):**
+- Profitable live trading for 12+ consecutive months
+- Annual return >10% with Sharpe >1.5
+- Zero compliance violations
+- Auditable track record
+- Ready for outside capital if desired
 
 ---
 
-*This is a living document. Update it as the project evolves.*
+## Principles (Carried Forward)
+
+1. **Prove before you trade** — no strategy goes live without backtested evidence
+2. **Transparency over mystery** — every bot decision is explainable
+3. **Safety by default** — conservative defaults; aggressive settings require explicit opt-in
+4. **Data ownership** — everything is exportable, no lock-in
+5. **Honest metrics** — report realistic performance including costs and slippage
+6. **No technical debt** — finish each phase completely before moving forward
+
+---
+
+*v3 written 2026-02-05. Previous versions: `ROADMAP_v1.md`, `roadmap-review.md`, `ROADMAP_v2.md`.*

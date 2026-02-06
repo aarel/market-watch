@@ -37,14 +37,11 @@ fi
 # Create log directory
 mkdir -p "$PROJECT_DIR/logs"
 
-# Detect Python path
-PYTHON_PATH=$(which python3)
-if [ -z "$PYTHON_PATH" ]; then
-    PYTHON_PATH=$(which python)
-fi
-
-if [ -z "$PYTHON_PATH" ]; then
-    echo "ERROR: Python not found in PATH"
+# Verify WSL venv exists
+PYTHON_PATH="$PROJECT_DIR/.venv-wsl/bin/python"
+if [ ! -f "$PYTHON_PATH" ]; then
+    echo "ERROR: WSL venv not found at $PYTHON_PATH"
+    echo "Run:  cd $PROJECT_DIR && python3 -m venv .venv-wsl && .venv-wsl/bin/pip install -r requirements.txt"
     exit 1
 fi
 
@@ -56,12 +53,9 @@ cat > "$WRAPPER_SCRIPT" <<EOF
 #!/bin/bash
 # Wrapper script for post-market backtest with logging
 
-cd "$PROJECT_DIR"
-
-# Activate virtual environment if it exists
-if [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
-fi
+PROJECT_DIR="$PROJECT_DIR"
+PYTHON="$PYTHON_PATH"
+cd "\$PROJECT_DIR"
 
 # Run with logging
 LOG_FILE="logs/post_market_\$(date +%Y%m%d_%H%M%S).log"
@@ -69,7 +63,7 @@ echo "========================================" >> "\$LOG_FILE"
 echo "Post-Market Backtest - \$(date)" >> "\$LOG_FILE"
 echo "========================================" >> "\$LOG_FILE"
 
-"\$PYTHON_PATH" scripts/post_market_backtest.py --period 30 >> "\$LOG_FILE" 2>&1
+"\$PYTHON" scripts/post_market_backtest.py --period 30 >> "\$LOG_FILE" 2>&1
 
 EXIT_CODE=\$?
 
@@ -80,7 +74,7 @@ else
 fi
 
 # Keep only last 30 days of logs
-find "$PROJECT_DIR/logs" -name "post_market_*.log" -mtime +30 -delete
+find "\$PROJECT_DIR/logs" -name "post_market_*.log" -mtime +30 -delete
 
 exit \$EXIT_CODE
 EOF
@@ -180,6 +174,41 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "=========================================="
     echo ""
     echo "Check the log file in $PROJECT_DIR/logs/"
+fi
+
+# ── log rotation cron jobs ────────────────────────────────────────────────────
+# Daily:  5:00 AM ET  — move yesterday's completed logs into logs/weekly/
+# Weekly: Sun 11:59 PM ET — archive logs/weekly/ into logs/archive/YYYY-MM/
+#
+# ET cron note: cron runs in system time.  These entries assume the system
+# clock is set to US/Eastern (common in WSL when Windows is ET).  If your
+# system is UTC, shift the hours accordingly (EDT: +4, EST: +5).
+
+ROTATE_SCRIPT="$PROJECT_DIR/scripts/rotate_logs.py"
+DAILY_ROTATE="0 5 * * * $PYTHON_PATH $ROTATE_SCRIPT --daily"
+WEEKLY_ROTATE="59 23 * * 0 $PYTHON_PATH $ROTATE_SCRIPT --weekly"
+
+echo ""
+echo "=========================================="
+echo "Log Rotation Setup"
+echo "=========================================="
+echo ""
+echo "Cron entries to add:"
+echo "  $DAILY_ROTATE"
+echo "  $WEEKLY_ROTATE"
+echo ""
+
+read -p "Add log rotation cron jobs? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    (crontab -l 2>/dev/null; echo "$DAILY_ROTATE"; echo "$WEEKLY_ROTATE") | crontab -
+    if [ $? -eq 0 ]; then
+        echo "✅ Log rotation cron jobs added"
+    else
+        echo "❌ Failed to add log rotation cron jobs"
+    fi
+else
+    echo "Skipped log rotation cron jobs"
 fi
 
 echo ""

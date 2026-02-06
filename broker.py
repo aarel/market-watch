@@ -217,6 +217,10 @@ class AlpacaBroker:
                 names[symbol] = name
         return names
 
+    def get_order(self, order_id):
+        """Get a specific order by ID."""
+        return self.api.get_order(order_id)
+
     def list_orders(self, status="all", limit=50, after=None, until=None, direction="desc"):
         """List orders from Alpaca."""
         return self.api.list_orders(

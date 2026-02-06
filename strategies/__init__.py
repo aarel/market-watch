@@ -53,13 +53,23 @@ def get_strategy(name: str, **params) -> Strategy:
     Example:
         strategy = get_strategy('momentum', lookback_days=30)
     """
+    import inspect
+
     name = name.lower()
     if name not in AVAILABLE_STRATEGIES:
         available = ', '.join(AVAILABLE_STRATEGIES.keys())
         raise ValueError(f"Unknown strategy '{name}'. Available: {available}")
 
     strategy_class = AVAILABLE_STRATEGIES[name]
-    return strategy_class(**params)
+
+    # Filter params to only include those accepted by the strategy's __init__
+    sig = inspect.signature(strategy_class.__init__)
+    valid_params = {
+        k: v for k, v in params.items()
+        if k in sig.parameters
+    }
+
+    return strategy_class(**valid_params)
 
 
 def list_strategies() -> list[str]:

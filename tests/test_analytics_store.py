@@ -353,10 +353,17 @@ class TestParseTimestamp(unittest.TestCase):
         self.assertEqual(ts.day, 24)
 
     def test_parse_datetime_object(self):
-        """Test passing datetime object."""
-        now = datetime.now()
-        ts = _parse_ts(now)
-        self.assertEqual(ts, now)
+        """Test passing datetime object - ensures UTC-aware."""
+        from datetime import timezone
+        # Test naive datetime gets UTC timezone added
+        now_naive = datetime.now()
+        ts = _parse_ts(now_naive)
+        self.assertIsNotNone(ts.tzinfo)
+        self.assertEqual(ts.tzinfo, timezone.utc)
+        # Test UTC-aware datetime is preserved
+        now_utc = datetime.now(timezone.utc)
+        ts_utc = _parse_ts(now_utc)
+        self.assertEqual(ts_utc, now_utc)
 
     def test_parse_none(self):
         """Test None returns None."""

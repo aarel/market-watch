@@ -94,6 +94,27 @@ async def get_analytics_trades(period: str = "90d", limit: int = 100, store=Depe
     return {"period": period, "trades": trades}
 
 
+@router.get("/analytics/trades.csv")
+async def export_trades_csv(period: str = "90d", limit: int = 500, store=Depends(get_analytics_store)):
+    limit = max(1, min(limit, 1000))
+    trades = store.load_trades(period=period, limit=limit)
+    output = io.StringIO()
+    if trades:
+        fieldnames = list(trades[0].keys())
+    else:
+        fieldnames = ["timestamp", "symbol", "action", "qty", "notional", "filled_avg_price", "order_id"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for row in trades:
+        writer.writerow({k: row.get(k, "") for k in fieldnames})
+    filename = f"trades-{period}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.get("/analytics/trade_stats")
 async def get_trade_stats(period: str = "90d", store=Depends(get_analytics_store)):
     trades = store.load_trades(period=period, limit=1000)

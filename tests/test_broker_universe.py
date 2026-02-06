@@ -36,7 +36,7 @@ class TestBrokerUniverseEnforcement(unittest.TestCase):
         self.assertIn("SIMULATION", str(ctx.exception))
         self.assertIn("PAPER", str(ctx.exception))
 
-    @patch('broker.tradeapi.REST')
+    @patch('alpaca_trade_api.REST')
     @patch('broker.config.ALPACA_API_KEY', 'test_key')
     @patch('broker.config.ALPACA_SECRET_KEY', 'test_secret')
     @patch('broker.config.ALPACA_LIVE_URL', 'https://test-live.alpaca.markets')
@@ -56,7 +56,7 @@ class TestBrokerUniverseEnforcement(unittest.TestCase):
         broker = AlpacaBroker(universe=Universe.LIVE)
         self.assertEqual(broker.universe, Universe.LIVE)
 
-    @patch('broker.tradeapi.REST')
+    @patch('alpaca_trade_api.REST')
     @patch('broker.config.ALPACA_API_KEY', 'test_key')
     @patch('broker.config.ALPACA_SECRET_KEY', 'test_secret')
     @patch('broker.config.ALPACA_LIVE_URL', 'https://test-live.alpaca.markets')
@@ -76,7 +76,7 @@ class TestBrokerUniverseEnforcement(unittest.TestCase):
         broker = AlpacaBroker(universe=Universe.PAPER)
         self.assertEqual(broker.universe, Universe.PAPER)
 
-    @patch('broker.tradeapi.REST')
+    @patch('alpaca_trade_api.REST')
     @patch('broker.config.ALPACA_API_KEY', 'test_key')
     @patch('broker.config.ALPACA_SECRET_KEY', 'test_secret')
     @patch('broker.config.ALPACA_LIVE_URL', 'https://test-live.alpaca.markets')

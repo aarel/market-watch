@@ -1,8 +1,4 @@
 """Server package entrypoint with legacy compatibility helpers for tests."""
-from datetime import datetime, timezone
-import os
-import json
-
 from fastapi import HTTPException
 from starlette.requests import Request
 
@@ -56,41 +52,6 @@ def require_api_access(request: Request):
         raise HTTPException(status_code=403, detail="Origin not allowed")
 
 
-# ---------------------------------------------------------------------------
-# Observability helpers (kept for backward-compatible tests)
-# ---------------------------------------------------------------------------
-async def get_observability_expectations():
-    path = getattr(config, "OBSERVABILITY_EVAL_OUTPUT_PATH", None)
-    expectations = []
-    if path and os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as handle:
-                data = json.load(handle)
-                expectations = data.get("expectations", [])
-        except Exception:
-            expectations = []
-    if not expectations:
-        # Provide a minimal default so tests have content
-        expectations = [
-            {"agent": "DataAgent", "rule": "refresh cadence", "status": "ok"},
-            {"agent": "ExecutionAgent", "rule": "order failures", "status": "ok"},
-        ]
-    return {"expectations": expectations}
-
-
-async def _run_observability_eval():
-    # Placeholder evaluator: mark latest eval timestamp
-    state.observability = {"generated_at": datetime.now(timezone.utc).isoformat()}
-
-
-async def run_observability_eval():
-    if not getattr(config, "OBSERVABILITY_ENABLED", True):
-        raise HTTPException(status_code=400, detail="Observability disabled")
-    if not getattr(config, "OBSERVABILITY_EVAL_ENABLED", True):
-        raise HTTPException(status_code=400, detail="Observability eval disabled")
-    await _run_observability_eval()
-    return {"status": "ok", "latest": state.observability}
-
 
 # ---------------------------------------------------------------------------
 # Risk breaker helper (legacy test entrypoint)
@@ -109,8 +70,5 @@ __all__ = [
     "load_config_state",
     "save_config_state",
     "require_api_access",
-    "get_observability_expectations",
-    "run_observability_eval",
-    "_run_observability_eval",
     "reset_risk_breaker",
 ]

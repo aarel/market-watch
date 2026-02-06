@@ -20,6 +20,7 @@ from monitoring.logger import JSONLLogger, SystemLogWriter
 from universe import Universe
 from monitoring.models import Observation
 from monitoring.reason_codes import classify_event
+from monitoring.anomaly_detector import get_detector
 
 if TYPE_CHECKING:
     from .event_bus import EventBus
@@ -68,6 +69,12 @@ class ObservabilityAgent(BaseAgent):
                 context=context,
             )
             self._logger.write(observation.to_dict())
+
+            # Record event for anomaly detection
+            if outcome in ("warn", "fail"):
+                detector = get_detector()
+                detector.record_event(outcome, event.timestamp)
+
         except Exception as exc:
             print(f"ObservabilityAgent error: {exc}")
 

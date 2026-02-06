@@ -39,9 +39,13 @@ class MockBroker:
 
 class MockCoordinator:
     """Mock coordinator for testing."""
-    def __init__(self, broker, analytics_store):
+    def __init__(self, broker, analytics_store, universe=None):
         self.broker = broker
         self.analytics_store = analytics_store
+        # Get universe from broker if not provided explicitly
+        self.universe = universe or (broker.universe if hasattr(broker, 'universe') else None)
+        if self.universe is None:
+            raise TypeError("MockCoordinator requires explicit universe parameter or broker with universe attribute")
         self.started = False
         self.stopped = False
 
@@ -421,6 +425,41 @@ class TestUniverseTransitionIntegration(unittest.TestCase):
                 Universe.PAPER,
                 broker_factory=paper_broker_factory
             )
+
+
+class TestUniverseMismatchAssertion(unittest.TestCase):
+    """Verify that rebuild_for_universe catches closure-capture universe bugs."""
+
+    def setUp(self):
+        AppState._instance = None
+        self.state = AppState.instance()
+
+    def tearDown(self):
+        AppState._instance = None
+
+    def test_coordinator_with_wrong_universe_raises(self):
+        """A coordinator_factory that hardcodes a stale universe must be caught."""
+        WRONG_UNIVERSE = Universe.SIMULATION
+
+        def broker_factory(universe):
+            return MockBroker(universe)  # correctly uses the passed-in universe
+
+        def bad_coordinator_factory(broker, store):
+            # Simulates the closure-capture bug: ignores broker.universe,
+            # hardcodes a stale captured value instead.
+            return MockCoordinator(broker, store, universe=WRONG_UNIVERSE)
+
+        # Rebuild for PAPER — broker will be PAPER, but coordinator will claim SIMULATION.
+        # The assertion in rebuild_for_universe must catch this.
+        with self.assertRaises(AssertionError) as ctx:
+            self.state.rebuild_for_universe(
+                Universe.PAPER,
+                broker_factory=broker_factory,
+                coordinator_factory=bad_coordinator_factory,
+            )
+
+        self.assertIn("Coordinator universe mismatch", str(ctx.exception))
+        self.assertIn("paper", str(ctx.exception))
 
 
 class TestUniverseTransitionEdgeCases(unittest.TestCase):

@@ -53,8 +53,10 @@ class SignalAgent(BaseAgent):
     async def _handle_market_data(self, event: MarketDataReady):
         """Process market data and generate signals."""
         from universe import Universe
-        if not event.market_open and self.universe != Universe.SIMULATION:
-            return
+        # Only gate the downstream SignalGenerated events (risk → execution path)
+        # when the market is closed.  Signals are still generated and broadcast
+        # via SignalsUpdated so the UI stays up to date.
+        emit_actionable = event.market_open or self.universe == Universe.SIMULATION
 
         signals = []
 
@@ -109,8 +111,8 @@ class SignalAgent(BaseAgent):
 
                 signals.append(signal_event)
 
-                # Emit event for actionable signals
-                if signal.action.value != "hold":
+                # Emit actionable signals only when market is open (or in sim)
+                if signal.action.value != "hold" and emit_actionable:
                     await self.event_bus.publish(signal_event)
 
             except Exception as e:

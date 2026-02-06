@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from ..dependencies import get_state
 from ..events import WebsocketManager
+from ..latency_tracker import get_tracker
 
 router = APIRouter()
 
@@ -70,11 +71,18 @@ async def health(state=Depends(get_state)):
     elif "degraded" in {c["status"] for c in checks.values()}:
         overall = "unhealthy"  # keep simple for tests
 
+    # Add latency metrics
+    tracker = get_tracker()
+    latency_summary = tracker.get_summary()
+    latency_endpoints = tracker.get_all_percentiles()
+
     payload = {
         "status": overall,
         "timestamp": now.isoformat(),
         "uptime_seconds": uptime_seconds,
         "checks": checks,
+        "latency": latency_summary,
+        "latency_by_endpoint": latency_endpoints,
     }
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE if overall == "unhealthy" else status.HTTP_200_OK
     return JSONResponse(content=payload, status_code=status_code)
@@ -85,4 +93,15 @@ async def get_status(state=Depends(get_state)):
     if not state.coordinator:
         return {"running": False}
     agent_status = state.coordinator.status()
-    return {"running": True, "agents": agent_status}
+    # coordinator.status() returns {"running": bool, "agents": {...}}
+    # Return it directly to avoid double-nesting
+    return agent_status
+
+
+@router.get("/logs")
+async def get_activity_logs(limit: int = 50, state=Depends(get_state)):
+    """Get activity logs from AlertAgent"""
+    if not state.coordinator:
+        return {"logs": []}
+    logs = state.coordinator.get_logs(count=limit)
+    return {"logs": logs}

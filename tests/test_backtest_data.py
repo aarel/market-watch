@@ -27,7 +27,7 @@ class TestHistoricalData(unittest.TestCase):
         """Test that initialization creates data directory."""
         self.assertTrue(os.path.exists(self.test_dir))
 
-    @patch('backtest.data.tradeapi')
+    @patch('alpaca_trade_api')
     def test_download_creates_csv(self, mock_tradeapi):
         """Test that download creates CSV files."""
         # Create mock DataFrame to return from get_bars().df

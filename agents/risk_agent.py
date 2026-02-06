@@ -135,6 +135,11 @@ class RiskAgent(BaseAgent):
                     await self._fail(signal, "Correlation exposure limit reached")
                     return
 
+            # Check relative volume
+            if not self._check_rvol(signal.symbol):
+                await self._fail(signal, f"Relative volume below threshold ({config.RVOL_THRESHOLD})")
+                return
+
             position_pct = trade_value / portfolio_value * 100
 
             await self._pass(signal, trade_value, position_pct, f"Buy approved: ${trade_value:.2f} ({position_pct:.1f}% of portfolio)")
@@ -363,3 +368,44 @@ class RiskAgent(BaseAgent):
         if isinstance(returns, pd.DataFrame):
             returns = returns.iloc[:, 0]
         return returns
+
+    def _check_rvol(self, symbol: str) -> bool:
+        """Check if relative volume meets threshold.
+
+        RVOL = current_volume / 30-day_volume_sma
+        Returns True if RVOL >= threshold, False otherwise.
+        """
+        import config
+        import pandas as pd
+
+        try:
+            bars = self.broker.get_bars(symbol, days=config.LOOKBACK_DAYS)
+        except Exception as e:
+            print(f"RiskAgent: Error fetching bars for RVOL check on {symbol}: {e}")
+            return True  # Allow trade if data unavailable
+
+        if bars is None or len(bars) == 0:
+            return True
+
+        try:
+            volumes = bars["volume"]
+        except Exception:
+            return True
+
+        if volumes is None or len(volumes) < 2:
+            return True
+
+        # Calculate 30-day SMA of volume
+        volume_sma = volumes.mean()
+        if volume_sma <= 0:
+            return True
+
+        # Get current (most recent) volume
+        current_volume = volumes.iloc[-1]
+        if pd.isna(current_volume) or current_volume <= 0:
+            return True
+
+        # Calculate RVOL
+        rvol = current_volume / volume_sma
+
+        return rvol >= config.RVOL_THRESHOLD

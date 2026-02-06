@@ -1,12 +1,9 @@
 #!/bin/bash
 # Wrapper script for post-market backtest with logging
 
-cd "/mnt/c/Users/aarel/Documents/coding/market-watch"
-
-# Activate virtual environment if it exists
-if [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
-fi
+PROJECT_DIR="/mnt/c/Users/aarel/Documents/coding/market-watch"
+PYTHON="$PROJECT_DIR/.venv-wsl/bin/python"
+cd "$PROJECT_DIR"
 
 # Run with logging
 LOG_FILE="logs/post_market_$(date +%Y%m%d_%H%M%S).log"
@@ -14,7 +11,7 @@ echo "========================================" >> "$LOG_FILE"
 echo "Post-Market Backtest - $(date)" >> "$LOG_FILE"
 echo "========================================" >> "$LOG_FILE"
 
-"$PYTHON_PATH" scripts/post_market_backtest.py --period 30 >> "$LOG_FILE" 2>&1
+"$PYTHON" scripts/post_market_backtest.py --period 30 >> "$LOG_FILE" 2>&1
 
 EXIT_CODE=$?
 
@@ -25,6 +22,6 @@ else
 fi
 
 # Keep only last 30 days of logs
-find "/mnt/c/Users/aarel/Documents/coding/market-watch/logs" -name "post_market_*.log" -mtime +30 -delete
+find "$PROJECT_DIR/logs" -name "post_market_*.log" -mtime +30 -delete
 
 exit $EXIT_CODE

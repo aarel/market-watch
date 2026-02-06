@@ -8,6 +8,7 @@ import config
 from .lifespan import lifespan as full_lifespan, ws_manager
 from .routers import status, config as cfg_router, analytics, trading, observability
 from .dependencies import get_state
+from .middleware import LatencyMiddleware
 
 USE_NOOP_LIFESPAN = os.getenv("FASTAPI_DISABLE_LIFESPAN", "0") == "1"
 
@@ -34,6 +35,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add latency tracking middleware
+app.add_middleware(LatencyMiddleware)
 
 # WebSocket endpoint (MUST be before static mount)
 @app.websocket("/ws")

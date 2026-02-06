@@ -69,7 +69,7 @@ MARKET_INDEX_SYMBOLS = [
 STRATEGY = os.getenv("STRATEGY", "momentum").lower()
 
 # Momentum strategy parameters
-LOOKBACK_DAYS = 20       # Days to calculate momentum
+LOOKBACK_DAYS = 30       # Days to calculate momentum (RSI needs 25 bars minimum)
 MOMENTUM_THRESHOLD = float(os.getenv("MOMENTUM_THRESHOLD", "0.02"))  # % momentum threshold to trigger buy
 SELL_THRESHOLD = float(os.getenv("SELL_THRESHOLD", "-0.01"))  # % momentum to trigger sell
 
@@ -83,6 +83,7 @@ MAX_SECTOR_EXPOSURE_PCT = float(os.getenv("MAX_SECTOR_EXPOSURE_PCT", "1.00"))
 MAX_CORRELATED_EXPOSURE_PCT = float(os.getenv("MAX_CORRELATED_EXPOSURE_PCT", "1.00"))
 CORRELATION_THRESHOLD = float(os.getenv("CORRELATION_THRESHOLD", "0.8"))
 CORRELATION_LOOKBACK_DAYS = int(os.getenv("CORRELATION_LOOKBACK_DAYS", "30"))
+RVOL_THRESHOLD = float(os.getenv("RVOL_THRESHOLD", "2.0"))  # Relative volume threshold
 SECTOR_MAP_PATH = os.getenv("SECTOR_MAP_PATH", "data/shared/sector_map.json")
 SECTOR_MAP_JSON = os.getenv("SECTOR_MAP_JSON", "")
 
@@ -125,16 +126,6 @@ OBSERVABILITY_LOG_PATH = os.getenv(
     "logs/system/agent_events.jsonl",
 )
 OBSERVABILITY_MAX_LOG_MB = float(os.getenv("OBSERVABILITY_MAX_LOG_MB", "5"))
-OBSERVABILITY_EVAL_ENABLED = os.getenv("OBSERVABILITY_EVAL_ENABLED", "true").lower() == "true"
-OBSERVABILITY_EVAL_INTERVAL_MINUTES = int(os.getenv("OBSERVABILITY_EVAL_INTERVAL_MINUTES", "30"))
-OBSERVABILITY_EVAL_OUTPUT_PATH = os.getenv(
-    "OBSERVABILITY_EVAL_OUTPUT_PATH",
-    "logs/system/latest_eval.json",
-)
-OBSERVABILITY_EVAL_REPORT_PATH = os.getenv(
-    "OBSERVABILITY_EVAL_REPORT_PATH",
-    "logs/system/latest_report.txt",
-)
 
 # UI check agent (system-level logs)
 UI_CHECK_ENABLED = os.getenv("UI_CHECK_ENABLED", "false").lower() == "true"
