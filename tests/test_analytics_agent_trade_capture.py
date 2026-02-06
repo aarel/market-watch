@@ -48,6 +48,7 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
             filled_avg_price=5.5,
             notional=None,
             order_id="abc",
+            status="filled",  # Required for analytics filtering
         )
         await agent._handle_order_executed(evt)
         self.assertEqual(len(store.trades), 1)

@@ -204,23 +204,33 @@ class ExecutionAgent(BaseAgent):
         return f"{prefix}-{safe_symbol}-{int(time.time() * 1000)}"
 
     async def _await_fill(self, order):
-        """Re-fetch order after a short delay to capture fill details.
+        """Poll for order fill status.
 
         Alpaca paper market orders fill asynchronously — submit_order returns
-        pending_new before the fill is recorded.  A single short poll is
-        sufficient for paper market orders.  Falls back to the original order
-        object if the broker doesn't support get_order or the refetch fails.
+        pending_new before the fill is recorded. We poll up to 5 times with
+        exponential backoff (0.5s, 1s, 2s, 4s, 8s = ~15.5s total) to wait for
+        the fill. Falls back to the original order if broker doesn't support
+        get_order or if order remains unfilled.
         """
         if not hasattr(self.broker, 'get_order'):
             return order
-        await asyncio.sleep(0.5)
-        try:
-            refreshed = self.broker.get_order(order.id)
-            if refreshed:
-                return refreshed
-        except Exception:
-            pass
-        return order
+
+        # Poll up to 5 times with exponential backoff
+        for attempt in range(5):
+            await asyncio.sleep(0.5 * (2 ** attempt))  # 0.5s, 1s, 2s, 4s, 8s
+            try:
+                refreshed = self.broker.get_order(order.id)
+                if refreshed:
+                    status = getattr(refreshed, 'status', '').lower()
+                    # Stop polling if filled or terminal state
+                    if status in ('filled', 'partially_filled', 'canceled', 'expired', 'rejected'):
+                        return refreshed
+                    # Continue polling if still pending
+                    order = refreshed  # Update for fallback
+            except Exception:
+                pass  # Continue trying
+
+        return order  # Return last known state
 
     def _order_fields(self, order) -> dict:
         """Extract common fields from an order object for analytics/logging."""

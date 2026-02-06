@@ -47,6 +47,16 @@ class AnalyticsAgent(BaseAgent):
         self.store.record_equity(snapshot)
 
     async def _handle_order_executed(self, event: OrderExecuted):
+        # Only record orders that are actually filled
+        # Pending/new/accepted orders don't have filled_avg_price yet
+        status = (event.status or "").lower()
+        if status not in ("filled", "partially_filled"):
+            return  # Skip unfilled orders
+
+        # Validate filled_avg_price is present
+        if event.filled_avg_price is None or event.filled_avg_price <= 0:
+            return  # Skip orders without valid fill price
+
         trade = {
             "session_id": event.session_id,
             "timestamp": event.timestamp,
