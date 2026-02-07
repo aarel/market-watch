@@ -6,11 +6,17 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import HTMLResponse
 
-from analytics.metrics import compute_equity_metrics, compute_trade_outcomes
+from analytics.metrics import (
+    compute_equity_metrics,
+    compute_trade_outcomes,
+    compute_round_trip_trades,
+    compute_period_returns,
+)
 from dataclasses import asdict
 
 from ..dependencies import get_analytics_store, get_broker
 from ..dependencies import get_state
+import config
 
 router = APIRouter()
 
@@ -50,7 +56,19 @@ async def get_equity(period: str = "30d", store=Depends(get_analytics_store)):
 async def export_equity(period: str = "30d", store=Depends(get_analytics_store)):
     equity = store.load_equity(period=period)
     output = io.StringIO()
-    fieldnames = ["timestamp", "equity", "portfolio_value", "account_value"]
+    fieldnames = [
+        "timestamp",
+        "equity",
+        "portfolio_value",
+        "account_value",
+        "cash",
+        "buying_power",
+        "market_open",
+        "session_id",
+        "universe",
+        "data_lineage_id",
+        "validity_class",
+    ]
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
     for row in equity:
@@ -99,10 +117,26 @@ async def export_trades_csv(period: str = "90d", limit: int = 500, store=Depends
     limit = max(1, min(limit, 1000))
     trades = store.load_trades(period=period, limit=limit)
     output = io.StringIO()
-    if trades:
-        fieldnames = list(trades[0].keys())
-    else:
-        fieldnames = ["timestamp", "symbol", "action", "qty", "notional", "filled_avg_price", "order_id"]
+    fieldnames = [
+        "timestamp",
+        "symbol",
+        "side",
+        "qty",
+        "filled_avg_price",
+        "notional",
+        "order_id",
+        "status",
+        "submitted_at",
+        "filled_at",
+        "source",
+        "time_in_force",
+        "order_type",
+        "session_id",
+        "universe",
+        "data_lineage_id",
+        "validity_class",
+        "name",
+    ]
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
     for row in trades:
@@ -133,6 +167,30 @@ async def get_trade_stats(period: str = "90d", store=Depends(get_analytics_store
     }
 
 
+@router.get("/analytics/trade_pairs")
+async def get_trade_pairs(period: str = "90d", limit: int = 200, store=Depends(get_analytics_store)):
+    limit = max(1, min(limit, 1000))
+    trades = store.load_trades(period=period, limit=limit)
+    pairs = compute_round_trip_trades(trades)
+    return {"period": period, "pairs": pairs}
+
+
+@router.get("/analytics/returns")
+async def get_period_returns(period: str = "90d", granularity: str = "daily", store=Depends(get_analytics_store)):
+    equity = store.load_equity(period=period)
+    returns = compute_period_returns(
+        equity,
+        granularity=granularity,
+        timezone_name=config.MARKET_TIMEZONE,
+    )
+    return {
+        "period": period,
+        "granularity": granularity,
+        "timezone": config.MARKET_TIMEZONE,
+        "returns": returns,
+    }
+
+
 @router.get("/analytics/positions")
 async def get_position_concentration(state=Depends(get_state), broker=Depends(get_broker)):
     if not broker:
@@ -153,9 +211,58 @@ async def get_analytics_report(period: str = "30d", store=Depends(get_analytics_
     summary = compute_equity_metrics(equity)
     trades = store.load_trades(period=period, limit=200)
     stats = compute_trade_outcomes(trades)
+    pairs = compute_round_trip_trades(trades)
+    daily_returns = compute_period_returns(equity, granularity="daily", timezone_name=config.MARKET_TIMEZONE)
+    weekly_returns = compute_period_returns(equity, granularity="weekly", timezone_name=config.MARKET_TIMEZONE)
+    monthly_returns = compute_period_returns(equity, granularity="monthly", timezone_name=config.MARKET_TIMEZONE)
+
+    def _render_return_rows(rows):
+        if not rows:
+            return '<tr><td colspan="4">No return data</td></tr>'
+        lines = []
+        for row in rows[-10:]:
+            lines.append(
+                "<tr>"
+                f"<td>{row['period']}</td>"
+                f"<td>{row['start_equity']:.2f}</td>"
+                f"<td>{row['end_equity']:.2f}</td>"
+                f"<td>{row['return_pct']:.2f}%</td>"
+                "</tr>"
+            )
+        return "\n".join(lines)
+
+    def _render_trade_rows(rows):
+        if not rows:
+            return '<tr><td colspan="6">No completed round-trip trades</td></tr>'
+        lines = []
+        for trade in rows[-50:]:
+            ts = trade.get("timestamp") or ""
+            lines.append(
+                "<tr>"
+                f"<td>{ts}</td>"
+                f"<td>{trade.get('symbol', '')}</td>"
+                f"<td>{trade.get('qty', 0):.4f}</td>"
+                f"<td>{trade.get('buy_price', 0):.2f}</td>"
+                f"<td>{trade.get('sell_price', 0):.2f}</td>"
+                f"<td>{trade.get('pnl', 0):.2f}</td>"
+                "</tr>"
+            )
+        return "\n".join(lines)
 
     html = f"""
-    <html><head><title>Analytics Report - {period}</title></head><body>
+    <html>
+    <head>
+      <title>Analytics Report - {period}</title>
+      <style>
+        body {{ font-family: Arial, sans-serif; margin: 24px; color: #111; }}
+        h1, h2 {{ margin-bottom: 8px; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 12px 0 24px; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        th {{ background: #f4f4f4; }}
+        .section {{ margin-top: 24px; }}
+      </style>
+    </head>
+    <body>
     <h1>Analytics Report ({period.upper()})</h1>
     <h2>Equity Metrics</h2>
     <ul>
@@ -171,7 +278,36 @@ async def get_analytics_report(period: str = "30d", store=Depends(get_analytics_
       <li>Realized P&L: ${stats.realized_pnl:,.2f}</li>
       <li>Avg notional: ${stats.avg_notional:,.2f}</li>
     </ul>
+    <div class="section">
+      <h2>Period Returns (Daily)</h2>
+      <table>
+        <thead><tr><th>Period</th><th>Start Equity</th><th>End Equity</th><th>Return %</th></tr></thead>
+        <tbody>{_render_return_rows(daily_returns)}</tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Period Returns (Weekly)</h2>
+      <table>
+        <thead><tr><th>Period</th><th>Start Equity</th><th>End Equity</th><th>Return %</th></tr></thead>
+        <tbody>{_render_return_rows(weekly_returns)}</tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Period Returns (Monthly)</h2>
+      <table>
+        <thead><tr><th>Period</th><th>Start Equity</th><th>End Equity</th><th>Return %</th></tr></thead>
+        <tbody>{_render_return_rows(monthly_returns)}</tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Round-Trip Trades</h2>
+      <table>
+        <thead><tr><th>Timestamp</th><th>Symbol</th><th>Qty</th><th>Buy</th><th>Sell</th><th>P&L</th></tr></thead>
+        <tbody>{_render_trade_rows(pairs)}</tbody>
+      </table>
+    </div>
     <p>Export to PDF by wrapping this endpoint with a headless browser later.</p>
-    </body></html>
+    </body>
+    </html>
     """
     return HTMLResponse(content=html, status_code=200)

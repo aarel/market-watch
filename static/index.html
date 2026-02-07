@@ -164,6 +164,38 @@
         .analytics-table td {
             font-size: 13px;
         }
+        .returns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 12px;
+        }
+        .returns-card {
+            background: #10151d;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .returns-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 0.03em;
+            margin-bottom: 6px;
+        }
+        .returns-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .returns-table th, .returns-table td {
+            padding: 6px 4px;
+            border-bottom: 1px solid var(--border);
+            text-align: right;
+        }
+        .returns-table th:first-child, .returns-table td:first-child {
+            text-align: left;
+        }
         .trend-positive { color: var(--green); }
         .trend-negative { color: var(--red); }
         @media (max-width: 900px) {
@@ -1055,6 +1087,64 @@
                         </div>
                         <div class="metric-value" id="metric-top-positions">--</div>
                         <div class="metric-sub" id="metric-top-positions-sub">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Period Returns -->
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <h3 style="font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); margin: 0;">Period Returns</h3>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Returns are based on end-of-period equity snapshots using the market timezone.</span>
+                        </span>
+                    </div>
+                    <div class="help-text">Daily, weekly, and monthly returns from the equity curve.</div>
+                </div>
+                <div class="returns-grid">
+                    <div class="returns-card">
+                        <div class="returns-title">Daily</div>
+                        <table class="returns-table">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Return</th>
+                                </tr>
+                            </thead>
+                            <tbody id="returns-daily">
+                                <tr><td colspan="2" style="text-align:center; color: var(--text-dim);">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="returns-card">
+                        <div class="returns-title">Weekly</div>
+                        <table class="returns-table">
+                            <thead>
+                                <tr>
+                                    <th>Week</th>
+                                    <th>Return</th>
+                                </tr>
+                            </thead>
+                            <tbody id="returns-weekly">
+                                <tr><td colspan="2" style="text-align:center; color: var(--text-dim);">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="returns-card">
+                        <div class="returns-title">Monthly</div>
+                        <table class="returns-table">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Return</th>
+                                </tr>
+                            </thead>
+                            <tbody id="returns-monthly">
+                                <tr><td colspan="2" style="text-align:center; color: var(--text-dim);">Loading...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -2785,6 +2875,41 @@
             }).join('');
         }
 
+        function renderPeriodReturns(containerId, returns, limit = 7) {
+            const tbody = document.getElementById(containerId);
+            if (!tbody) return;
+            if (!returns || returns.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color: var(--text-dim);">No return data</td></tr>';
+                return;
+            }
+            const rows = returns.slice(-limit).reverse();
+            tbody.innerHTML = rows.map(row => {
+                const pnlClass = row.return_pct >= 0 ? 'trend-positive' : 'trend-negative';
+                return `
+                    <tr>
+                        <td>${escapeHtml(row.period || '-')}</td>
+                        <td class="${pnlClass}">${formatPercent(row.return_pct, 2)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function buildTradeAnalysisFromPairs(pairs) {
+            if (!pairs || pairs.length === 0) return { best: [], worst: [], roundTrips: 0, allTrades: [] };
+            const byPnl = [...pairs].sort((a, b) => b.pnl - a.pnl);
+            const byDate = [...pairs].sort((a, b) => {
+                const ta = new Date(a.timestamp || 0).getTime();
+                const tb = new Date(b.timestamp || 0).getTime();
+                return tb - ta;
+            });
+            return {
+                best: byPnl.slice(0, 3),
+                worst: byPnl.slice(-3).reverse(),
+                allTrades: byDate,
+                roundTrips: pairs.length,
+            };
+        }
+
         function analyzeTradePerformance(trades) {
             if (!trades || trades.length === 0) return { best: [], worst: [], roundTrips: 0 };
 
@@ -2953,15 +3078,20 @@
             console.log(`Fetching analytics for period: ${period}`);
             try {
         const cacheBust = `&_v=${ASSET_VERSION}`;
-        const [eqRes, summaryRes, tradesRes, statsRes, positionsRes] = await Promise.all([
+        const [eqRes, summaryRes, tradesRes, statsRes, positionsRes, pairsRes, dailyRes, weeklyRes, monthlyRes] = await Promise.all([
             apiFetch(`/api/analytics/equity?period=${encodeURIComponent(period)}&_ts=${Date.now()}${cacheBust}`),
             apiFetch(`/api/analytics/summary?period=${encodeURIComponent(period)}&_ts=${Date.now()}${cacheBust}`),
             apiFetch(`/api/analytics/trades?period=${encodeURIComponent(period)}&limit=200&_ts=${Date.now()}${cacheBust}`),
             apiFetch(`/api/analytics/trade_stats?period=${encodeURIComponent(period)}&_ts=${Date.now()}${cacheBust}`),
             apiFetch(`/api/analytics/positions?_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/trade_pairs?period=${encodeURIComponent(period)}&limit=300&_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/returns?period=${encodeURIComponent(period)}&granularity=daily&_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/returns?period=${encodeURIComponent(period)}&granularity=weekly&_ts=${Date.now()}${cacheBust}`),
+            apiFetch(`/api/analytics/returns?period=${encodeURIComponent(period)}&granularity=monthly&_ts=${Date.now()}${cacheBust}`),
         ]);
                 let summary = null;
                 let tradesCount = 0;
+                let trades = [];
                 if (eqRes.ok) {
                     const eqData = await eqRes.json();
                     analyticsEquity = eqData.equity || [];
@@ -2975,7 +3105,7 @@
                 }
                 if (tradesRes.ok) {
                     const tData = await tradesRes.json();
-                    const trades = tData.trades || [];
+                    trades = tData.trades || [];
                     tradesCount = trades.length;
                     console.log(`Trades for ${period}:`, tradesCount);
                     trades.forEach(trade => {
@@ -2984,17 +3114,46 @@
                         }
                     });
                     renderAnalyticsTrades(trades);
-
-                    // Analyze and render trade performance
+                }
+                let pairs = null;
+                if (pairsRes.ok) {
+                    const pairsData = await pairsRes.json();
+                    pairs = pairsData.pairs || [];
+                }
+                if (pairs && pairs.length > 0) {
+                    const analysis = buildTradeAnalysisFromPairs(pairs);
+                    console.log(`Round-trip trades detected:`, analysis.roundTrips, `(${analysis.best.length} best, ${analysis.worst.length} worst)`);
+                    renderTradePerformance(analysis);
+                } else if (tradesRes.ok && trades.length > 0) {
                     const analysis = analyzeTradePerformance(trades);
                     console.log(`Round-trip trades detected:`, analysis.roundTrips, `(${analysis.best.length} best, ${analysis.worst.length} worst)`);
                     renderTradePerformance(analysis);
+                } else {
+                    renderTradePerformance({ best: [], worst: [], roundTrips: 0, allTrades: [] });
                 }
                 if (statsRes.ok) {
                     const statsData = await statsRes.json();
                     renderTradeStats(statsData);
                 } else {
                     renderTradeStats(null);
+                }
+                if (dailyRes.ok) {
+                    const dData = await dailyRes.json();
+                    renderPeriodReturns('returns-daily', dData.returns || [], 7);
+                } else {
+                    renderPeriodReturns('returns-daily', []);
+                }
+                if (weeklyRes.ok) {
+                    const wData = await weeklyRes.json();
+                    renderPeriodReturns('returns-weekly', wData.returns || [], 8);
+                } else {
+                    renderPeriodReturns('returns-weekly', []);
+                }
+                if (monthlyRes.ok) {
+                    const mData = await monthlyRes.json();
+                    renderPeriodReturns('returns-monthly', mData.returns || [], 12);
+                } else {
+                    renderPeriodReturns('returns-monthly', []);
                 }
                 if (positionsRes.ok) {
                     const posData = await positionsRes.json();

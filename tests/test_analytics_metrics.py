@@ -4,9 +4,14 @@ Enhanced tests for analytics/metrics.py
 Tests performance metric calculations and trade outcome analysis.
 """
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from analytics.metrics import compute_equity_metrics, compute_trade_outcomes
+from analytics.metrics import (
+    compute_equity_metrics,
+    compute_trade_outcomes,
+    compute_round_trip_trades,
+    compute_period_returns,
+)
 
 
 class TestEquityMetrics(unittest.TestCase):
@@ -277,6 +282,45 @@ class TestTradeOutcomes(unittest.TestCase):
         stats = compute_trade_outcomes(trades)
         self.assertEqual(stats.sells, 0)
         self.assertEqual(stats.win_rate_pct, 0.0)
+
+
+class TestRoundTripTrades(unittest.TestCase):
+    def test_compute_round_trip_trades_basic(self):
+        now = datetime.now()
+        trades = [
+            {"timestamp": now, "symbol": "ABC", "side": "buy", "qty": 10, "filled_avg_price": 10},
+            {"timestamp": now + timedelta(hours=1), "symbol": "ABC", "side": "sell", "qty": 5, "filled_avg_price": 12},
+            {"timestamp": now + timedelta(hours=2), "symbol": "ABC", "side": "sell", "qty": 5, "filled_avg_price": 9},
+        ]
+        pairs = compute_round_trip_trades(trades)
+        self.assertEqual(len(pairs), 2)
+        self.assertAlmostEqual(pairs[0]["pnl"], 10.0)
+        self.assertAlmostEqual(pairs[1]["pnl"], -5.0)
+
+
+class TestPeriodReturns(unittest.TestCase):
+    def test_compute_period_returns_daily(self):
+        base = datetime(2026, 1, 1, 15, 0, tzinfo=timezone.utc)
+        points = [
+            {"timestamp": base, "equity": 100},
+            {"timestamp": base + timedelta(hours=3), "equity": 110},
+            {"timestamp": base + timedelta(days=1, hours=3), "equity": 121},
+            {"timestamp": base + timedelta(days=2, hours=3), "equity": 100},
+        ]
+        returns = compute_period_returns(points, granularity="daily", timezone_name="UTC")
+        self.assertEqual(len(returns), 2)
+        self.assertAlmostEqual(returns[0]["return_pct"], 10.0, places=3)
+        self.assertLess(returns[1]["return_pct"], 0)
+
+    def test_compute_period_returns_weekly(self):
+        base = datetime(2026, 1, 1, 15, 0, tzinfo=timezone.utc)
+        points = [
+            {"timestamp": base, "equity": 100},
+            {"timestamp": base + timedelta(days=7), "equity": 110},
+            {"timestamp": base + timedelta(days=14), "equity": 121},
+        ]
+        returns = compute_period_returns(points, granularity="weekly", timezone_name="UTC")
+        self.assertEqual(len(returns), 2)
 
 
 if __name__ == "__main__":

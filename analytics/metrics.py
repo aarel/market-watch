@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, date
+from calendar import monthrange
+from datetime import datetime, date, timezone
 from math import sqrt
 from typing import List, Dict, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @dataclass
@@ -122,16 +124,7 @@ def compute_trade_outcomes(trades: List[Dict]) -> TradeOutcomeStats:
         return TradeOutcomeStats()
 
     # Sort chronologically for correct cost-basis tracking
-    def _ts(trade):
-        ts = trade.get("timestamp") or trade.get("filled_at") or trade.get("submitted_at")
-        if isinstance(ts, datetime):
-            return ts
-        try:
-            return datetime.fromisoformat(str(ts))
-        except Exception:
-            return None
-
-    ordered = sorted(trades, key=lambda t: _ts(t) or datetime.min)
+    ordered = sorted(trades, key=lambda t: _trade_ts(t) or datetime.min)
 
     holdings: Dict[str, Dict[str, float]] = {}
     notional_vals: List[float] = []
@@ -194,3 +187,174 @@ def compute_trade_outcomes(trades: List[Dict]) -> TradeOutcomeStats:
         breakeven_trades=breakevens,
         win_rate_pct=win_rate,
     )
+
+
+def compute_round_trip_trades(trades: List[Dict]) -> List[Dict]:
+    """Compute realized P&L per completed round-trip trade (buy -> sell)."""
+    if not trades:
+        return []
+
+    ordered = sorted(trades, key=lambda t: _trade_ts(t) or datetime.min)
+    positions: Dict[str, Dict[str, float | datetime | None]] = {}
+    completed: List[Dict] = []
+
+    for trade in ordered:
+        side = (trade.get("side") or "").lower()
+        symbol = trade.get("symbol") or ""
+        qty = float(trade.get("qty") or 0)
+        price = float(trade.get("filled_avg_price") or 0)
+
+        if not symbol or qty <= 0 or price <= 0:
+            continue
+
+        if side == "buy":
+            pos = positions.setdefault(symbol, {"qty": 0.0, "avg_cost": 0.0, "last_buy_ts": None})
+            new_qty = float(pos["qty"]) + qty
+            if new_qty <= 0:
+                continue
+            pos["avg_cost"] = (float(pos["avg_cost"]) * float(pos["qty"]) + price * qty) / new_qty
+            pos["qty"] = new_qty
+            pos["last_buy_ts"] = _trade_ts(trade)
+        elif side == "sell":
+            pos = positions.setdefault(symbol, {"qty": 0.0, "avg_cost": 0.0, "last_buy_ts": None})
+            sell_qty = min(qty, float(pos["qty"])) if float(pos["qty"]) > 0 else 0.0
+            if sell_qty <= 0:
+                continue
+            avg_cost = float(pos["avg_cost"]) if float(pos["avg_cost"]) > 0 else 0.0
+            pnl = (price - avg_cost) * sell_qty
+            pnl_pct = ((price - avg_cost) / avg_cost * 100) if avg_cost > 0 else 0.0
+            completed.append({
+                "symbol": symbol,
+                "qty": sell_qty,
+                "buy_price": avg_cost,
+                "sell_price": price,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+                "timestamp": _trade_ts(trade).isoformat() if _trade_ts(trade) else None,
+                "entry_timestamp": pos.get("last_buy_ts").isoformat() if pos.get("last_buy_ts") else None,
+            })
+            pos["qty"] = float(pos["qty"]) - sell_qty
+            pos["avg_cost"] = avg_cost if float(pos["qty"]) > 0 else 0.0
+        else:
+            continue
+
+    return completed
+
+
+def compute_period_returns(
+    equity_points: List[Dict],
+    granularity: str = "daily",
+    timezone_name: str = "America/New_York",
+) -> List[Dict]:
+    """Compute period returns (daily/weekly/monthly) from equity snapshots."""
+    if not equity_points:
+        return []
+
+    tz = _get_timezone(timezone_name)
+    buckets: Dict[str, Dict[str, object]] = {}
+    for pt in equity_points:
+        ts = _parse_timestamp(pt.get("timestamp"))
+        equity = _extract_equity_value(pt)
+        if ts is None or equity is None:
+            continue
+        ts_local = ts.astimezone(tz)
+        label, period_start, period_end = _period_bounds(ts_local, granularity)
+        if not label:
+            continue
+        existing = buckets.get(label)
+        if existing is None or ts_local > existing["timestamp"]:
+            buckets[label] = {
+                "timestamp": ts_local,
+                "equity": equity,
+                "period_start": period_start,
+                "period_end": period_end,
+                "label": label,
+            }
+
+    collapsed = sorted(buckets.values(), key=lambda x: x["timestamp"])
+    if len(collapsed) < 2:
+        return []
+
+    returns: List[Dict] = []
+    for idx in range(1, len(collapsed)):
+        prev = collapsed[idx - 1]
+        cur = collapsed[idx]
+        start_equity = float(prev["equity"])
+        end_equity = float(cur["equity"])
+        if start_equity <= 0:
+            continue
+        return_pct = (end_equity - start_equity) / start_equity * 100.0
+        returns.append({
+            "period": cur["label"],
+            "period_start": cur["period_start"].isoformat(),
+            "period_end": cur["period_end"].isoformat(),
+            "start_equity": start_equity,
+            "end_equity": end_equity,
+            "return_pct": return_pct,
+            "start_timestamp": prev["timestamp"].isoformat(),
+            "end_timestamp": cur["timestamp"].isoformat(),
+        })
+    return returns
+
+
+def _trade_ts(trade: Dict) -> Optional[datetime]:
+    ts = trade.get("timestamp") or trade.get("filled_at") or trade.get("submitted_at")
+    if isinstance(ts, datetime):
+        return ts
+    try:
+        return datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _parse_timestamp(value) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        ts = value
+    else:
+        try:
+            ts = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except Exception:
+            return None
+    if ts.tzinfo is None:
+        return ts.replace(tzinfo=timezone.utc)
+    return ts
+
+
+def _extract_equity_value(point: Dict) -> Optional[float]:
+    for key in ("equity", "portfolio_value", "account_value"):
+        val = point.get(key)
+        if val is not None:
+            try:
+                return float(val)
+            except Exception:
+                return None
+    return None
+
+
+def _get_timezone(name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError:
+        return ZoneInfo("UTC")
+
+
+def _period_bounds(ts_local: datetime, granularity: str) -> tuple[str, date, date]:
+    granularity = (granularity or "").lower()
+    if granularity == "daily":
+        day = ts_local.date()
+        return day.isoformat(), day, day
+    if granularity == "weekly":
+        iso = ts_local.isocalendar()
+        start = date.fromisocalendar(iso.year, iso.week, 1)
+        end = date.fromisocalendar(iso.year, iso.week, 7)
+        label = f"{iso.year}-W{iso.week:02d}"
+        return label, start, end
+    if granularity == "monthly":
+        start = date(ts_local.year, ts_local.month, 1)
+        last_day = monthrange(ts_local.year, ts_local.month)[1]
+        end = date(ts_local.year, ts_local.month, last_day)
+        label = f"{ts_local.year}-{ts_local.month:02d}"
+        return label, start, end
+    return "", ts_local.date(), ts_local.date()
