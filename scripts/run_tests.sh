@@ -53,8 +53,8 @@ echo "  Running Tests"
 echo "=========================================="
 echo ""
 
-# Run tests and capture output
-"${PYTHON_BIN}" -m unittest discover -s tests -p "test_*.py" -v 2>&1 | tee "${LOG_FILE}"
+# Run tests and capture output (pytest runs unittest tests too)
+"${PYTHON_BIN}" -m pytest tests -q 2>&1 | tee "${LOG_FILE}"
 
 # Capture exit code
 TEST_EXIT_CODE=${PIPESTATUS[0]}
@@ -65,11 +65,22 @@ echo "=========================================="
 echo "  Test Summary"
 echo "=========================================="
 
-# Count results from log
-TOTAL_TESTS=$(grep -c "^test_" "${LOG_FILE}" || echo "0")
-PASSED=$(grep -c "ok$" "${LOG_FILE}" || echo "0")
-FAILED=$(grep -c "FAIL$" "${LOG_FILE}" || echo "0")
-ERRORS=$(grep -c "ERROR$" "${LOG_FILE}" || echo "0")
+# Count results from pytest summary
+TOTAL_TESTS=$(grep -Eo "[0-9]+ (passed|failed|skipped|xfailed|xpassed|error|errors)" "${LOG_FILE}" | awk '{sum+=$1} END{print sum+0}')
+PASSED=$(grep -Eo "[0-9]+ passed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
+FAILED=$(grep -Eo "[0-9]+ failed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
+ERRORS=$(grep -Eo "[0-9]+ error(s)?" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
+SKIPPED=$(grep -Eo "[0-9]+ skipped" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
+XFAILED=$(grep -Eo "[0-9]+ xfailed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
+XPASSED=$(grep -Eo "[0-9]+ xpassed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
+
+# Default missing counts to 0
+PASSED=${PASSED:-0}
+FAILED=${FAILED:-0}
+ERRORS=${ERRORS:-0}
+SKIPPED=${SKIPPED:-0}
+XFAILED=${XFAILED:-0}
+XPASSED=${XPASSED:-0}
 
 # Write summary to file
 cat > "${SUMMARY_FILE}" <<EOF
@@ -83,6 +94,9 @@ Total Tests: ${TOTAL_TESTS}
 Passed:      ${PASSED}
 Failed:      ${FAILED}
 Errors:      ${ERRORS}
+Skipped:     ${SKIPPED}
+XFailed:     ${XFAILED}
+XPassed:     ${XPASSED}
 
 Exit Code: ${TEST_EXIT_CODE}
 EOF

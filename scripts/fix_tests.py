@@ -109,7 +109,7 @@ if __name__ == '__main__':
         fix_metrics_imports()
         print()
         print("✓ All fixes applied successfully!")
-        print("Run tests again to verify: python -m unittest discover -s tests -v")
+        print("Run tests again to verify: pytest tests -q")
     except Exception as e:
         print(f"\n✗ Error: {e}")
         import traceback

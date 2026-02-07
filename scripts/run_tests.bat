@@ -29,8 +29,8 @@ echo   Running Tests
 echo ==========================================
 echo.
 
-REM Run tests and capture output
-python -m unittest discover -s tests -p "test_*.py" -v > "%LOG_FILE%" 2>&1
+REM Run tests and capture output (pytest runs unittest tests too)
+python -m pytest tests -q > "%LOG_FILE%" 2>&1
 
 REM Capture exit code
 set TEST_EXIT_CODE=%ERRORLEVEL%
@@ -45,12 +45,9 @@ echo   Test Summary
 echo ==========================================
 echo.
 
-REM Count results from log
-findstr /R "^test_" "%LOG_FILE%" > nul 2>&1
-for /f %%a in ('findstr /R "^test_" "%LOG_FILE%" ^| find /c /v ""') do set TOTAL_TESTS=%%a
-for /f %%a in ('findstr /C:" ok" "%LOG_FILE%" ^| find /c /v ""') do set PASSED=%%a
-for /f %%a in ('findstr /C:"FAIL" "%LOG_FILE%" ^| find /c /v ""') do set FAILED=%%a
-for /f %%a in ('findstr /C:"ERROR" "%LOG_FILE%" ^| find /c /v ""') do set ERRORS=%%a
+REM Capture pytest summary line (last matching line)
+set SUMMARY_LINE=
+for /f "usebackq delims=" %%a in (`"type "%LOG_FILE%" ^| findstr /R /C:\"passed\" /C:\"failed\" /C:\"error\" /C:\"skipped\" /C:\"xfailed\" /C:\"xpassed\""` ) do set SUMMARY_LINE=%%a
 
 REM Write summary to file
 echo Market-Watch Test Suite Summary > "%SUMMARY_FILE%"
@@ -59,10 +56,11 @@ echo Log file: %LOG_FILE% >> "%SUMMARY_FILE%"
 echo. >> "%SUMMARY_FILE%"
 echo Results: >> "%SUMMARY_FILE%"
 echo -------- >> "%SUMMARY_FILE%"
-echo Total Tests: %TOTAL_TESTS% >> "%SUMMARY_FILE%"
-echo Passed:      %PASSED% >> "%SUMMARY_FILE%"
-echo Failed:      %FAILED% >> "%SUMMARY_FILE%"
-echo Errors:      %ERRORS% >> "%SUMMARY_FILE%"
+if not "%SUMMARY_LINE%"=="" (
+    echo %SUMMARY_LINE% >> "%SUMMARY_FILE%"
+) else (
+    echo (No pytest summary line found) >> "%SUMMARY_FILE%"
+)
 echo. >> "%SUMMARY_FILE%"
 echo Exit Code: %TEST_EXIT_CODE% >> "%SUMMARY_FILE%"
 

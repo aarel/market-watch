@@ -191,7 +191,7 @@ This allows external monitoring tools and load balancers to check health without
 
 Run health endpoint tests:
 ```bash
-python -m unittest tests.test_health_endpoint -v
+pytest tests/test_health_endpoint.py -q
 ```
 
 ## Troubleshooting
