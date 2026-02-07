@@ -37,9 +37,9 @@ class RuntimeConfig(BaseModel):
     top_gainers_min_volume: int = config.TOP_GAINERS_MIN_VOLUME
 
     # Alert configuration
-    alerts_enabled: bool = False
-    alert_email_enabled: bool = False
-    alert_webhook_enabled: bool = False
+    alerts_enabled: bool = config.ALERTS_ENABLED
+    alert_email_enabled: bool = config.ALERT_EMAIL_ENABLED
+    alert_webhook_enabled: bool = config.ALERT_WEBHOOK_ENABLED
 
     model_config = {"frozen": False}  # Allow field updates
 
@@ -117,12 +117,16 @@ class ConfigManager:
             max_drawdown_pct=config.MAX_DRAWDOWN_PCT,
             max_sector_exposure_pct=config.MAX_SECTOR_EXPOSURE_PCT,
             max_correlated_exposure_pct=config.MAX_CORRELATED_EXPOSURE_PCT,
+            rvol_threshold=config.RVOL_THRESHOLD,
             trade_interval=config.TRADE_INTERVAL_MINUTES,
             auto_trade=config.AUTO_TRADE,
             top_gainers_count=config.TOP_GAINERS_COUNT,
             top_gainers_universe=config.TOP_GAINERS_UNIVERSE,
             top_gainers_min_price=config.TOP_GAINERS_MIN_PRICE,
             top_gainers_min_volume=config.TOP_GAINERS_MIN_VOLUME,
+            alerts_enabled=config.ALERTS_ENABLED,
+            alert_email_enabled=config.ALERT_EMAIL_ENABLED,
+            alert_webhook_enabled=config.ALERT_WEBHOOK_ENABLED,
         )
 
     def snapshot(self) -> dict:
@@ -188,9 +192,13 @@ class ConfigManager:
         config.MAX_DRAWDOWN_PCT = cfg.max_drawdown_pct
         config.MAX_SECTOR_EXPOSURE_PCT = cfg.max_sector_exposure_pct
         config.MAX_CORRELATED_EXPOSURE_PCT = cfg.max_correlated_exposure_pct
+        config.RVOL_THRESHOLD = cfg.rvol_threshold
         config.TRADE_INTERVAL_MINUTES = cfg.trade_interval
         config.AUTO_TRADE = cfg.auto_trade
         config.TOP_GAINERS_COUNT = cfg.top_gainers_count
         config.TOP_GAINERS_UNIVERSE = cfg.top_gainers_universe
         config.TOP_GAINERS_MIN_PRICE = cfg.top_gainers_min_price
         config.TOP_GAINERS_MIN_VOLUME = cfg.top_gainers_min_volume
+        config.ALERTS_ENABLED = cfg.alerts_enabled
+        config.ALERT_EMAIL_ENABLED = cfg.alert_email_enabled
+        config.ALERT_WEBHOOK_ENABLED = cfg.alert_webhook_enabled

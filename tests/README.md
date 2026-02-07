@@ -6,13 +6,13 @@
 
 | Goal | Command | What it does | Output |
 | --- | --- | --- | --- |
-| Full suite (preferred) | `bash scripts/run_tests.sh` | Activates venv (`venv`/`.venv`), runs all `unittest` files, timestamps log | `test_results/test_run_YYYYMMDD_HHMMSS.log` + `test_results/latest_summary.txt` |
+| Full suite (preferred) | `bash scripts/run_tests.sh` | Activates venv (`venv`/`.venv`), runs full suite with `pytest`, timestamps log | `test_results/test_run_YYYYMMDD_HHMMSS.log` + `test_results/latest_summary.txt` |
 | Full suite (Windows) | `scripts\\run_tests.bat` | Same as above for Windows shells | Same as above |
-| Full suite (manual) | `python -m unittest discover -s tests -p "test_*.py" -v` | Runs everything without logging helper | Console only |
-| Single module | `python -m unittest tests.test_strategy_momentum -v` | Runs one file | Console only |
-| Specific test case | `python -m unittest tests.test_strategy_momentum.TestMomentumStrategy.test_buy_signal_strong_momentum -v` | Runs one test method | Console only |
+| Full suite (manual) | `pytest tests -q` | Runs everything without logging helper | Console only |
+| Single module | `pytest tests/test_strategy_momentum.py -q` | Runs one file | Console only |
+| Specific test case | `pytest tests/test_strategy_momentum.py::TestMomentumStrategy::test_buy_signal_strong_momentum -q` | Runs one test method | Console only |
 
-Log files include a line per test (name + ok/FAIL/ERROR) and are safe to share with CI.
+Log files include the pytest summary line and are safe to share with CI.
 
 ## Overview
 
@@ -59,62 +59,62 @@ The summary file records total/passed/failed/error counts plus the log path for 
 
 ```bash
 # Run entire test suite
-python -m unittest discover -s tests -p "test_*.py" -v
+pytest tests -q
 
 # Or use shorter form
-python -m unittest discover tests -v
+pytest -q
 ```
 
 ### Run Specific Test Files
 
 ```bash
 # Single test file
-python -m unittest tests.test_strategy_momentum -v
+pytest tests/test_strategy_momentum.py -q
 
 # Multiple specific files
-python -m unittest tests.test_backtest_data tests.test_backtest_metrics -v
+pytest tests/test_backtest_data.py tests/test_backtest_metrics.py -q
 ```
 
 ### Run Tests by Phase
 
 **Phase 1 - Backtesting:**
 ```bash
-python -m unittest \
-  tests.test_backtest_data \
-  tests.test_backtest_metrics \
-  tests.test_backtest_engine \
-  tests.test_backtest_results \
-  -v
+pytest \
+  tests/test_backtest_data.py \
+  tests/test_backtest_metrics.py \
+  tests/test_backtest_engine.py \
+  tests/test_backtest_results.py \
+  -q
 ```
 
 **Phase 2 - Strategies:**
 ```bash
-python -m unittest \
-  tests.test_strategy_momentum \
-  tests.test_strategy_mean_reversion \
-  tests.test_strategy_breakout \
-  tests.test_strategy_rsi \
-  -v
+pytest \
+  tests/test_strategy_momentum.py \
+  tests/test_strategy_mean_reversion.py \
+  tests/test_strategy_breakout.py \
+  tests/test_strategy_rsi.py \
+  -q
 ```
 
 **Core Functionality:**
 ```bash
-python -m unittest \
-  tests.test_screener \
-  tests.test_security \
-  tests.test_signals_updated \
-  tests.test_trade_interval \
-  -v
+pytest \
+  tests/test_screener.py \
+  tests/test_security.py \
+  tests/test_signals_updated.py \
+  tests/test_trade_interval.py \
+  -q
 ```
 
 ### Run Specific Test Cases
 
 ```bash
 # Run a specific test class
-python -m unittest tests.test_strategy_momentum.TestMomentumStrategy -v
+pytest tests/test_strategy_momentum.py::TestMomentumStrategy -q
 
 # Run a specific test method
-python -m unittest tests.test_strategy_momentum.TestMomentumStrategy.test_buy_signal_strong_momentum -v
+pytest tests/test_strategy_momentum.py::TestMomentumStrategy::test_buy_signal_strong_momentum -q
 ```
 
 ## Test Coverage
@@ -369,70 +369,59 @@ def tearDown(self):
 ```python
 """Tests for module_name.py - Brief description."""
 
-import unittest
 from module_name import FunctionToTest
 
 
-class TestFunctionName(unittest.TestCase):
-    """Test description."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.test_data = {...}
-
-    def test_expected_behavior(self):
-        """Test what happens in normal case."""
-        result = FunctionToTest(self.test_data)
-        self.assertEqual(result, expected_value)
-
-    def test_edge_case(self):
-        """Test edge case behavior."""
-        result = FunctionToTest(edge_case_input)
-        self.assertIsNone(result)
+def test_expected_behavior():
+    """Test what happens in normal case."""
+    result = FunctionToTest({"key": "value"})
+    assert result == "expected"
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_edge_case():
+    """Test edge case behavior."""
+    result = FunctionToTest(None)
+    assert result is None
 ```
 
-## Common Assertions
+## Common Assertions (pytest)
 
 ```python
 # Equality
-self.assertEqual(a, b)
-self.assertNotEqual(a, b)
+assert a == b
+assert a != b
 
 # Truth
-self.assertTrue(x)
-self.assertFalse(x)
+assert x
+assert not x
 
 # None
-self.assertIsNone(x)
-self.assertIsNotNone(x)
+assert x is None
+assert x is not None
 
 # Numeric comparisons
-self.assertGreater(a, b)
-self.assertLess(a, b)
-self.assertAlmostEqual(a, b, places=2)  # For floats
+assert a > b
+assert a < b
+assert round(a, 2) == 1.23  # For floats
 
 # Membership
-self.assertIn(item, container)
-self.assertNotIn(item, container)
+assert item in container
+assert item not in container
 
 # Type checking
-self.assertIsInstance(obj, MyClass)
+assert isinstance(obj, MyClass)
 ```
 
 ## Debugging Failed Tests
 
 ### View detailed output:
 ```bash
-python -m unittest tests.test_name -v
+pytest tests/test_name.py -q
 ```
 
 ### Run single failing test:
 ```bash
-python -m unittest tests.test_file.TestClass.test_method
+pytest tests/test_file.py::TestClass::test_method -q
 ```
 
 ### Add debug prints:

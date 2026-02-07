@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..dependencies import get_config_manager
+from alerts.runtime import configure_alerts
 
 
 class ConfigUpdate(BaseModel):
@@ -19,6 +20,7 @@ class ConfigUpdate(BaseModel):
     max_drawdown_pct: float | None = None
     max_sector_exposure_pct: float | None = None
     max_correlated_exposure_pct: float | None = None
+    rvol_threshold: float | None = None
     trade_interval: int | None = None
     auto_trade: bool | None = None
     top_gainers_count: int | None = None
@@ -26,6 +28,9 @@ class ConfigUpdate(BaseModel):
     top_gainers_min_price: float | None = None
     top_gainers_min_volume: int | None = None
     simulation_mode: bool | None = None
+    alerts_enabled: bool | None = None
+    alert_email_enabled: bool | None = None
+    alert_webhook_enabled: bool | None = None
 
 
 router = APIRouter()
@@ -40,4 +45,5 @@ async def get_config(cfg=Depends(get_config_manager)):
 async def update_config(updates: ConfigUpdate, cfg=Depends(get_config_manager)):
     cfg.apply_updates(updates.dict(exclude_none=True))
     cfg.save()
+    configure_alerts(cfg.snapshot())
     return {"status": "ok", "config": cfg.snapshot()}

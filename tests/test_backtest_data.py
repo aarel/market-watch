@@ -1,7 +1,7 @@
 """Tests for backtest/data.py - Historical data management."""
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import pandas as pd
 from datetime import datetime, timedelta
 import os
@@ -9,6 +9,8 @@ import tempfile
 import shutil
 
 from backtest.data import HistoricalData
+import backtest.data as data_module
+import config as config_module
 
 
 class TestHistoricalData(unittest.TestCase):
@@ -27,8 +29,7 @@ class TestHistoricalData(unittest.TestCase):
         """Test that initialization creates data directory."""
         self.assertTrue(os.path.exists(self.test_dir))
 
-    @patch('alpaca_trade_api')
-    def test_download_creates_csv(self, mock_tradeapi):
+    def test_download_creates_csv(self):
         """Test that download creates CSV files."""
         # Create mock DataFrame to return from get_bars().df
         dates = pd.date_range(start='2023-01-01', end='2023-01-10', freq='D')
@@ -47,14 +48,21 @@ class TestHistoricalData(unittest.TestCase):
 
         mock_api = Mock()
         mock_api.get_bars.return_value = mock_bars_result
+        mock_tradeapi = Mock()
         mock_tradeapi.REST.return_value = mock_api
+        mock_tradeapi.TimeFrame = Mock()
+        mock_tradeapi.TimeFrame.Day = "day"
 
-        # Download data
-        self.data_manager.download(
-            symbols=['AAPL'],
-            start='2023-01-01',
-            end='2023-01-10'
-        )
+        with patch.object(data_module, "ALPACA_AVAILABLE", True), \
+             patch.object(data_module, "tradeapi", mock_tradeapi, create=True), \
+             patch.object(config_module, "ALPACA_API_KEY", "test_key"), \
+             patch.object(config_module, "ALPACA_SECRET_KEY", "test_secret"):
+            # Download data
+            self.data_manager.download(
+                symbols=['AAPL'],
+                start='2023-01-01',
+                end='2023-01-10'
+            )
 
         # Verify CSV was created
         csv_path = os.path.join(self.test_dir, 'AAPL_daily.csv')

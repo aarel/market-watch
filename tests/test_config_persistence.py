@@ -19,12 +19,16 @@ FIELD_MAP = {
     "max_open_positions": "MAX_OPEN_POSITIONS",
     "daily_loss_limit_pct": "DAILY_LOSS_LIMIT_PCT",
     "max_drawdown_pct": "MAX_DRAWDOWN_PCT",
+    "rvol_threshold": "RVOL_THRESHOLD",
     "trade_interval": "TRADE_INTERVAL_MINUTES",
     "auto_trade": "AUTO_TRADE",
     "top_gainers_count": "TOP_GAINERS_COUNT",
     "top_gainers_universe": "TOP_GAINERS_UNIVERSE",
     "top_gainers_min_price": "TOP_GAINERS_MIN_PRICE",
     "top_gainers_min_volume": "TOP_GAINERS_MIN_VOLUME",
+    "alerts_enabled": "ALERTS_ENABLED",
+    "alert_email_enabled": "ALERT_EMAIL_ENABLED",
+    "alert_webhook_enabled": "ALERT_WEBHOOK_ENABLED",
 }
 
 
@@ -59,9 +63,13 @@ class TestConfigPersistence(unittest.TestCase):
         config.MAX_OPEN_POSITIONS = 3
         config.DAILY_LOSS_LIMIT_PCT = 0.07
         config.MAX_DRAWDOWN_PCT = 0.2
+        config.RVOL_THRESHOLD = 1.3
         config.AUTO_TRADE = False
         config.TOP_GAINERS_MIN_PRICE = 12.5
         config.TOP_GAINERS_MIN_VOLUME = 2_000_000
+        config.ALERTS_ENABLED = True
+        config.ALERT_EMAIL_ENABLED = True
+        config.ALERT_WEBHOOK_ENABLED = False
 
         self.config_manager.save()
         # mutate to ensure load repopulates
@@ -70,9 +78,13 @@ class TestConfigPersistence(unittest.TestCase):
         config.MAX_OPEN_POSITIONS = 10
         config.DAILY_LOSS_LIMIT_PCT = 0.03
         config.MAX_DRAWDOWN_PCT = 0.1
+        config.RVOL_THRESHOLD = 2.5
         config.AUTO_TRADE = True
         config.TOP_GAINERS_MIN_PRICE = 5
         config.TOP_GAINERS_MIN_VOLUME = 1_000_000
+        config.ALERTS_ENABLED = False
+        config.ALERT_EMAIL_ENABLED = False
+        config.ALERT_WEBHOOK_ENABLED = True
 
         self.config_manager.load()
 
@@ -81,9 +93,13 @@ class TestConfigPersistence(unittest.TestCase):
         self.assertEqual(config.MAX_OPEN_POSITIONS, 3)
         self.assertAlmostEqual(config.DAILY_LOSS_LIMIT_PCT, 0.07)
         self.assertAlmostEqual(config.MAX_DRAWDOWN_PCT, 0.2)
+        self.assertAlmostEqual(config.RVOL_THRESHOLD, 1.3)
         self.assertFalse(config.AUTO_TRADE)
         self.assertEqual(config.TOP_GAINERS_MIN_PRICE, 12.5)
         self.assertEqual(config.TOP_GAINERS_MIN_VOLUME, 2_000_000)
+        self.assertTrue(config.ALERTS_ENABLED)
+        self.assertTrue(config.ALERT_EMAIL_ENABLED)
+        self.assertFalse(config.ALERT_WEBHOOK_ENABLED)
 
     def test_load_missing_file_no_change(self):
         config.MAX_OPEN_POSITIONS = 11

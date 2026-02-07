@@ -8,6 +8,7 @@ from .risk_agent import RiskAgent
 from .execution_agent import ExecutionAgent
 from .monitor_agent import MonitorAgent
 from .alert_agent import AlertAgent
+from .external_alert_agent import ExternalAlertAgent
 from .observability_agent import ObservabilityAgent
 from .test_agent import TestAgent
 from .replay_recorder_agent import ReplayRecorderAgent
@@ -91,6 +92,7 @@ class Coordinator:
         self.execution_agent = ExecutionAgent(self.event_bus, broker, self.risk_agent)
         self.monitor_agent = MonitorAgent(self.event_bus, broker, check_interval_seconds=120)
         self.alert_agent = AlertAgent(self.event_bus)
+        self.external_alert_agent = ExternalAlertAgent(self.event_bus)
         self.observability_agent = None
         self.analytics_agent = None
         self.test_agent = None
@@ -171,6 +173,7 @@ class Coordinator:
         await self.execution_agent.start()
         await self.monitor_agent.start()
         await self.alert_agent.start()
+        await self.external_alert_agent.start()
         if self.observability_agent:
             await self.observability_agent.start()
         if self.analytics_agent:
@@ -243,6 +246,7 @@ class Coordinator:
                 "execution": self.execution_agent.status(),
                 "monitor": self.monitor_agent.status(),
                 "alert": self.alert_agent.status(),
+                "external_alerts": self.external_alert_agent.status(),
                 "observability": self.observability_agent.status() if self.observability_agent else {"enabled": False},
                 "analytics": self.analytics_agent.status() if self.analytics_agent else {"enabled": False},
                 "test": self.test_agent.status() if self.test_agent else {"enabled": False},

@@ -127,6 +127,27 @@ OBSERVABILITY_LOG_PATH = os.getenv(
 )
 OBSERVABILITY_MAX_LOG_MB = float(os.getenv("OBSERVABILITY_MAX_LOG_MB", "5"))
 
+# Alerts
+ALERTS_ENABLED = os.getenv("ALERTS_ENABLED", "false").lower() == "true"
+ALERT_EMAIL_ENABLED = os.getenv("ALERT_EMAIL_ENABLED", "false").lower() == "true"
+ALERT_WEBHOOK_ENABLED = os.getenv("ALERT_WEBHOOK_ENABLED", "false").lower() == "true"
+
+# Email alert channel
+ALERT_EMAIL_SMTP_HOST = os.getenv("ALERT_EMAIL_SMTP_HOST", "")
+ALERT_EMAIL_SMTP_PORT = int(os.getenv("ALERT_EMAIL_SMTP_PORT", "587"))
+ALERT_EMAIL_SMTP_USER = os.getenv("ALERT_EMAIL_SMTP_USER", "")
+ALERT_EMAIL_SMTP_PASSWORD = os.getenv("ALERT_EMAIL_SMTP_PASSWORD", "")
+ALERT_EMAIL_FROM = os.getenv("ALERT_EMAIL_FROM", "")
+ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "")
+ALERT_EMAIL_USE_TLS = os.getenv("ALERT_EMAIL_USE_TLS", "true").lower() == "true"
+ALERT_EMAIL_RETRY_ATTEMPTS = int(os.getenv("ALERT_EMAIL_RETRY_ATTEMPTS", "3"))
+
+# Webhook alert channel
+ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL", "")
+ALERT_WEBHOOK_TYPE = os.getenv("ALERT_WEBHOOK_TYPE", "generic")
+ALERT_WEBHOOK_RETRY_ATTEMPTS = int(os.getenv("ALERT_WEBHOOK_RETRY_ATTEMPTS", "3"))
+ALERT_WEBHOOK_TIMEOUT_SECONDS = int(os.getenv("ALERT_WEBHOOK_TIMEOUT_SECONDS", "10"))
+
 # UI check agent (system-level logs)
 UI_CHECK_ENABLED = os.getenv("UI_CHECK_ENABLED", "false").lower() == "true"
 UI_CHECK_INTERVAL_MINUTES = int(os.getenv("UI_CHECK_INTERVAL_MINUTES", "30"))

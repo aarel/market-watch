@@ -7,7 +7,7 @@ Uses rolling window to maintain recent measurements without unbounded memory gro
 import time
 from collections import defaultdict, deque
 from typing import Dict, List, Tuple
-from threading import Lock
+from threading import RLock
 import statistics
 
 
@@ -23,7 +23,7 @@ class LatencyTracker:
         """
         self.window_size = window_size
         self._measurements: Dict[str, deque] = defaultdict(lambda: deque(maxlen=window_size))
-        self._lock = Lock()
+        self._lock = RLock()
 
     def record(self, endpoint: str, duration_ms: float):
         """
