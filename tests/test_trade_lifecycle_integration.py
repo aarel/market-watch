@@ -250,11 +250,11 @@ class TestTradeLifecycleIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertIn('equity', equity_snapshot)
         self.assertIn('cash', equity_snapshot)
 
-    @unittest.skip("TODO: Fix signal generation issue - signals not being generated with mock data")
     async def test_risk_check_failure_blocks_execution(self):
         """Test that failed risk check prevents execution and analytics capture."""
-        # Set risk agent to reject all trades (max_open_positions = 0)
-        self.risk_agent._max_open_positions = 0
+        import config
+        # Force risk rejection by hitting max open positions limit
+        self.broker._positions = [object() for _ in range(config.MAX_OPEN_POSITIONS)]
 
         # Create market data with signal
         market_data_event = MarketDataReady(
@@ -295,8 +295,7 @@ class TestTradeLifecycleIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Check if signal was generated
         signal_events = [e for e in self.published_events if isinstance(e, SignalGenerated)]
-        if len(signal_events) == 0:
-            self.skipTest("Signal not generated (likely due to insufficient bars), cannot test risk rejection")
+        self.assertGreater(len(signal_events), 0, "Signal should be generated for risk rejection test")
 
         # Verify risk check failed
         risk_failed_events = [e for e in self.published_events if isinstance(e, RiskCheckFailed)]

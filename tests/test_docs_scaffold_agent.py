@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from datetime import datetime, timezone
 
 from agents.dev.docs_scaffold_agent import DocScaffoldPlanner
 
@@ -50,6 +51,36 @@ class TestDocScaffoldPlanner(unittest.TestCase):
         content = index_path.read_text(encoding="utf-8")
         self.assertIn("development_docs Index", content)
         self.assertIn("roadmap/ROADMAP.md", content)
+
+    def test_date_bucket_plan(self):
+        planner = DocScaffoldPlanner(repo_root=self.repo_root)
+        audit_file = self.docs_root / "DRA_audit_note.md"
+        audit_file.write_text("audit", encoding="utf-8")
+        timestamp = datetime(2026, 2, 6, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        os.utime(audit_file, (timestamp, timestamp))
+
+        plans = planner.build_plan(date_bucket_categories=["audits"])
+        by_name = {p.src.name: p.dest for p in plans}
+        self.assertEqual(
+            by_name["DRA_audit_note.md"],
+            self.docs_root / "audits" / "2026-02-06" / "DRA_audit_note.md",
+        )
+
+    def test_date_bucket_rebucket(self):
+        planner = DocScaffoldPlanner(repo_root=self.repo_root)
+        audit_dir = self.docs_root / "audits" / "2026-02-05"
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        audit_file = audit_dir / "DRA_old.md"
+        audit_file.write_text("audit", encoding="utf-8")
+        timestamp = datetime(2026, 2, 6, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        os.utime(audit_file, (timestamp, timestamp))
+
+        plans = planner.build_plan(date_bucket_categories=["audits"])
+        by_name = {p.src.name: p.dest for p in plans}
+        self.assertEqual(
+            by_name["DRA_old.md"],
+            self.docs_root / "audits" / "2026-02-06" / "DRA_old.md",
+        )
 
 
 if __name__ == "__main__":
