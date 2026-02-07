@@ -24,12 +24,13 @@ def main() -> int:
     parser.add_argument("--scope", default="", help="Comma-separated paths/globs for evidence")
     parser.add_argument("--output-dir", default="development_docs/audits", help="Output directory")
     parser.add_argument("--include-dev-docs", action="store_true", help="Include development_docs in indexing")
+    parser.add_argument("--verbose", action="store_true", help="Verbose progress output")
     args = parser.parse_args()
 
     agent = DRAAuditAgent(_NullBus(), include_dev_docs=args.include_dev_docs)
     scope = [s.strip() for s in args.scope.split(",") if s.strip()]
     output_dir = Path(args.output_dir)
-    output = agent.draft_audit(args.target, scope, output_dir)
+    output = agent.draft_audit(args.target, scope, output_dir, verbose=args.verbose)
     print(f"Draft audit written: {output.path}")
     return 0
 

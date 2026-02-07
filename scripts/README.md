@@ -205,6 +205,33 @@ python scripts/post_market_backtest.py --no-export
 
 ## Integration with Other Tools
 
+## Dev Tools TUI
+
+Run the development tools menu (audits, test audit, docs scaffold):
+
+```bash
+./scripts/dev_tui
+```
+
+Optional headless usage (for CI or quick runs):
+
+```bash
+./scripts/dev_tui --check
+./scripts/dev_tui --run "Run Clean Code Audit (draft)" --target "RepoSweep"
+```
+
+Project scaffolder (repo hygiene):
+
+```bash
+./scripts/dev_tui --run "Project Scaffold (repo hygiene)" --apply --docs-archive --tests-cleanup --test-results
+```
+
+Run tests with per-test progress output:
+
+```bash
+./run_tests --verbose
+```
+
 ### Export to Google Sheets / Excel
 
 The CSV files can be imported directly:

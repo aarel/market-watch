@@ -53,8 +53,53 @@ echo "  Running Tests"
 echo "=========================================="
 echo ""
 
+# Build pytest args (allow overrides)
+PYTEST_ARGS=()
+HAS_VERBOSITY=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --verbose)
+            PYTEST_ARGS+=("-vv")
+            HAS_VERBOSITY=1
+            shift
+            ;;
+        --quiet)
+            PYTEST_ARGS+=("-q")
+            HAS_VERBOSITY=1
+            shift
+            ;;
+        --)
+            shift
+            while [ $# -gt 0 ]; do
+                PYTEST_ARGS+=("$1")
+                shift
+            done
+            ;;
+        *)
+            PYTEST_ARGS+=("$1")
+            if [[ "$1" == "-q" || "$1" == "-v" || "$1" == "-vv" ]]; then
+                HAS_VERBOSITY=1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [ $HAS_VERBOSITY -eq 0 ]; then
+    PYTEST_ARGS+=("-q")
+fi
+
+echo "==========================================" | tee "${LOG_FILE}"
+echo "Test Run: $(date)" | tee -a "${LOG_FILE}"
+echo "Log file: ${LOG_FILE}" | tee -a "${LOG_FILE}"
+echo "Summary file: ${SUMMARY_FILE}" | tee -a "${LOG_FILE}"
+echo "Command: ${PYTHON_BIN} -m pytest tests ${PYTEST_ARGS[*]}" | tee -a "${LOG_FILE}"
+echo "Tip: use --verbose for per-test output or --quiet for dots only." | tee -a "${LOG_FILE}"
+echo "==========================================" | tee -a "${LOG_FILE}"
+echo "" | tee -a "${LOG_FILE}"
+
 # Run tests and capture output (pytest runs unittest tests too)
-"${PYTHON_BIN}" -m pytest tests -q 2>&1 | tee "${LOG_FILE}"
+"${PYTHON_BIN}" -m pytest tests "${PYTEST_ARGS[@]}" 2>&1 | tee -a "${LOG_FILE}"
 
 # Capture exit code
 TEST_EXIT_CODE=${PIPESTATUS[0]}

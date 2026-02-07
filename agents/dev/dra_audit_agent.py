@@ -52,15 +52,30 @@ class DRAAuditAgent(BaseAgent):
     async def stop(self):
         await super().stop()
 
-    def draft_audit(self, target: str, scope: Iterable[str], output_dir: Path) -> DraftAudit:
+    def draft_audit(
+        self,
+        target: str,
+        scope: Iterable[str],
+        output_dir: Path,
+        verbose: bool = False,
+    ) -> DraftAudit:
+        def emit(message: str) -> None:
+            if verbose:
+                print(message, flush=True)
+
+        emit("Starting DRA audit draft...")
         output_dir.mkdir(parents=True, exist_ok=True)
         now = datetime.now(timezone.utc)
         stamp = now.strftime("%Y-%m-%d")
         safe_target = _sanitize_target(target)
         out_path = output_dir / f"DRA_Audit_{safe_target}_Draft_{stamp}.md"
 
+        emit("Updating project index...")
         diff = self.update_index()
+        emit(f"Index updated. Added={len(diff.added)} Removed={len(diff.removed)} Modified={len(diff.modified)}")
+        emit("Resolving scope files...")
         scope_files = _resolve_scope_files(self.repo_root, scope)
+        emit(f"Scope files resolved: {len(scope_files)}")
 
         content = _dra_template(
             target=target,
@@ -69,6 +84,7 @@ class DRAAuditAgent(BaseAgent):
             diff=diff,
         )
         out_path.write_text(content, encoding="utf-8")
+        emit(f"Audit draft created: {out_path}")
         return DraftAudit(path=out_path, diff=diff)
 
     def update_index(self) -> IndexDiff:

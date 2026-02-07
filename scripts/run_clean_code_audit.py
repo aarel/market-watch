@@ -25,6 +25,7 @@ def main() -> int:
     parser.add_argument("--output-dir", default="development_docs/clean_code_audits", help="Output directory")
     parser.add_argument("--template", default="", help="Path to clean code audit template")
     parser.add_argument("--include-dev-docs", action="store_true", help="Include development_docs in indexing")
+    parser.add_argument("--verbose", action="store_true", help="Verbose progress output")
     parser.add_argument("--index-only", action="store_true", help="Only update project index + change log")
     args = parser.parse_args()
 
@@ -32,13 +33,16 @@ def main() -> int:
     if args.index_only:
         diff = agent.update_index()
         print(f"Index updated. Added={len(diff.added)} Removed={len(diff.removed)} Modified={len(diff.modified)}")
+        if args.verbose:
+            print(f"State dir: {agent.state_dir}")
+            print("Index file: project_index.json")
         return 0
     if not args.target:
         raise SystemExit("error: --target is required unless --index-only is set")
     scope = [s.strip() for s in args.scope.split(",") if s.strip()]
     template_path = Path(args.template) if args.template else None
     output_dir = Path(args.output_dir)
-    output_path = agent.draft_audit(args.target, scope, output_dir, template_path)
+    output_path = agent.draft_audit(args.target, scope, output_dir, template_path, verbose=args.verbose)
     print(f"Draft audit written: {output_path}")
     return 0
 

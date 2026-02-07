@@ -146,16 +146,27 @@ class CleanCodeAuditAgent(BaseAgent):
         scope: Iterable[str],
         output_dir: Path,
         template_path: Optional[Path] = None,
+        verbose: bool = False,
     ) -> Path:
+        def emit(message: str) -> None:
+            if verbose:
+                print(message, flush=True)
+
+        emit("Starting clean-code audit draft...")
         output_dir.mkdir(parents=True, exist_ok=True)
         template = self._load_template(template_path)
+        emit(f"Template: {'custom' if template_path else 'auto'}")
         now = datetime.now(timezone.utc)
         stamp = now.strftime("%Y-%m-%d")
         safe_target = _sanitize_target(target)
         out_path = output_dir / f"DRA_CleanCode_{safe_target}_Draft_{stamp}.md"
 
+        emit("Updating project index...")
         diff = self.update_index()
+        emit(f"Index updated. Added={len(diff.added)} Removed={len(diff.removed)} Modified={len(diff.modified)}")
+        emit("Resolving scope files...")
         scope_files = _resolve_scope_files(self.repo_root, scope)
+        emit(f"Scope files resolved: {len(scope_files)}")
 
         evidence = _format_evidence(
             target=target,
@@ -166,6 +177,7 @@ class CleanCodeAuditAgent(BaseAgent):
 
         content = template.rstrip() + "\n\n---\n\n" + evidence
         out_path.write_text(content, encoding="utf-8")
+        emit(f"Audit draft created: {out_path}")
         return out_path
 
     def _load_index(self) -> dict[str, FileRecord]:

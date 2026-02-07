@@ -29,8 +29,45 @@ echo   Running Tests
 echo ==========================================
 echo.
 
+REM Build pytest args (allow overrides)
+set PYTEST_ARGS=
+set HAS_VERBOSITY=0
+
+:parse_args
+if "%~1"=="" goto args_done
+if "%~1"=="--verbose" (
+    set PYTEST_ARGS=%PYTEST_ARGS% -vv
+    set HAS_VERBOSITY=1
+    shift
+    goto parse_args
+)
+if "%~1"=="--quiet" (
+    set PYTEST_ARGS=%PYTEST_ARGS% -q
+    set HAS_VERBOSITY=1
+    shift
+    goto parse_args
+)
+set PYTEST_ARGS=%PYTEST_ARGS% %1
+if "%~1"=="-q" set HAS_VERBOSITY=1
+if "%~1"=="-v" set HAS_VERBOSITY=1
+if "%~1"=="-vv" set HAS_VERBOSITY=1
+shift
+goto parse_args
+
+:args_done
+if "%HAS_VERBOSITY%"=="0" set PYTEST_ARGS=%PYTEST_ARGS% -q
+
+echo ========================================== > "%LOG_FILE%"
+echo Test Run: %DATE% %TIME% >> "%LOG_FILE%"
+echo Log file: %LOG_FILE% >> "%LOG_FILE%"
+echo Summary file: %SUMMARY_FILE% >> "%LOG_FILE%"
+echo Command: python -m pytest tests %PYTEST_ARGS% >> "%LOG_FILE%"
+echo Tip: use --verbose for per-test output or --quiet for dots only. >> "%LOG_FILE%"
+echo ========================================== >> "%LOG_FILE%"
+echo. >> "%LOG_FILE%"
+
 REM Run tests and capture output (pytest runs unittest tests too)
-python -m pytest tests -q > "%LOG_FILE%" 2>&1
+python -m pytest tests %PYTEST_ARGS% >> "%LOG_FILE%" 2>&1
 
 REM Capture exit code
 set TEST_EXIT_CODE=%ERRORLEVEL%

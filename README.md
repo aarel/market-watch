@@ -33,6 +33,11 @@ python -m backtest --download --symbols AAPL,GOOGL,MSFT --start 2021-01-01
 python -m backtest --symbols AAPL,GOOGL,MSFT --start 2022-01-01 --benchmark SPY
 ```
 
+### 5. Dev Tools (Optional)
+```bash
+./scripts/dev_tui
+```
+
 ## Web UI Features
 
 - **Account overview** - portfolio value, buying power, cash
@@ -145,6 +150,14 @@ python -m monitoring --log logs/observability/agent_events.jsonl
 - Export equity via `GET /api/analytics/equity/export?period=...` (CSV).
 - Frontend auto-refreshes analytics; placeholders show when no data yet (let the bot run a few cycles).
 - To populate analytics in simulation mode: set `TRADING_MODE=simulation`, `ANALYTICS_ENABLED=true`, start the server, and let it run 10–30 minutes; snapshots will appear in `logs/simulation/` and the dashboard metrics will fill in.
+
+## Testing
+
+Run the full test suite with logging:
+
+```bash
+./run_tests
+```
 
 ## Going Live
 

@@ -8,9 +8,11 @@
 | --- | --- | --- | --- |
 | Full suite (preferred) | `bash scripts/run_tests.sh` | Activates venv (`venv`/`.venv`), runs full suite with `pytest`, timestamps log | `test_results/test_run_YYYYMMDD_HHMMSS.log` + `test_results/latest_summary.txt` |
 | Full suite (Windows) | `scripts\\run_tests.bat` | Same as above for Windows shells | Same as above |
-| Full suite (manual) | `pytest tests -q` | Runs everything without logging helper | Console only |
-| Single module | `pytest tests/test_strategy_momentum.py -q` | Runs one file | Console only |
-| Specific test case | `pytest tests/test_strategy_momentum.py::TestMomentumStrategy::test_buy_signal_strong_momentum -q` | Runs one test method | Console only |
+| Full suite (shortcut) | `./run_tests` | Wrapper that runs the logging test script | Same as above |
+| Full suite (verbose) | `./run_tests --verbose` | Logs per-test output for progress tracking | Same as above |
+| Full suite (manual) | `python -m pytest tests -q` | Runs everything without logging helper | Console only |
+| Single module | `python -m pytest tests/test_strategy_momentum.py -q` | Runs one file | Console only |
+| Specific test case | `python -m pytest tests/test_strategy_momentum.py::TestMomentumStrategy::test_buy_signal_strong_momentum -q` | Runs one test method | Console only |
 
 Log files include the pytest summary line and are safe to share with CI.
 
@@ -59,27 +61,27 @@ The summary file records total/passed/failed/error counts plus the log path for 
 
 ```bash
 # Run entire test suite
-pytest tests -q
+python -m pytest tests -q
 
 # Or use shorter form
-pytest -q
+python -m pytest -q
 ```
 
 ### Run Specific Test Files
 
 ```bash
 # Single test file
-pytest tests/test_strategy_momentum.py -q
+python -m pytest tests/test_strategy_momentum.py -q
 
 # Multiple specific files
-pytest tests/test_backtest_data.py tests/test_backtest_metrics.py -q
+python -m pytest tests/test_backtest_data.py tests/test_backtest_metrics.py -q
 ```
 
 ### Run Tests by Phase
 
 **Phase 1 - Backtesting:**
 ```bash
-pytest \
+python -m pytest \
   tests/test_backtest_data.py \
   tests/test_backtest_metrics.py \
   tests/test_backtest_engine.py \
@@ -89,7 +91,7 @@ pytest \
 
 **Phase 2 - Strategies:**
 ```bash
-pytest \
+python -m pytest \
   tests/test_strategy_momentum.py \
   tests/test_strategy_mean_reversion.py \
   tests/test_strategy_breakout.py \
@@ -99,7 +101,7 @@ pytest \
 
 **Core Functionality:**
 ```bash
-pytest \
+python -m pytest \
   tests/test_screener.py \
   tests/test_security.py \
   tests/test_signals_updated.py \
@@ -111,10 +113,10 @@ pytest \
 
 ```bash
 # Run a specific test class
-pytest tests/test_strategy_momentum.py::TestMomentumStrategy -q
+python -m pytest tests/test_strategy_momentum.py::TestMomentumStrategy -q
 
 # Run a specific test method
-pytest tests/test_strategy_momentum.py::TestMomentumStrategy::test_buy_signal_strong_momentum -q
+python -m pytest tests/test_strategy_momentum.py::TestMomentumStrategy::test_buy_signal_strong_momentum -q
 ```
 
 ## Test Coverage
@@ -416,12 +418,12 @@ assert isinstance(obj, MyClass)
 
 ### View detailed output:
 ```bash
-pytest tests/test_name.py -q
+python -m pytest tests/test_name.py -q
 ```
 
 ### Run single failing test:
 ```bash
-pytest tests/test_file.py::TestClass::test_method -q
+python -m pytest tests/test_file.py::TestClass::test_method -q
 ```
 
 ### Add debug prints:
