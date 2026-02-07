@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import threading
 from pathlib import Path
 import sys
 
@@ -30,8 +31,27 @@ def main() -> int:
     agent = DRAAuditAgent(_NullBus(), include_dev_docs=args.include_dev_docs)
     scope = [s.strip() for s in args.scope.split(",") if s.strip()]
     output_dir = Path(args.output_dir)
-    output = agent.draft_audit(args.target, scope, output_dir, verbose=args.verbose)
-    print(f"Draft audit written: {output.path}")
+    stop_event: threading.Event | None = None
+    dotter: threading.Thread | None = None
+
+    if args.verbose and sys.stdout.isatty():
+        stop_event = threading.Event()
+
+        def _dotter():
+            while not stop_event.wait(1.0):
+                print(".", flush=True)
+
+        dotter = threading.Thread(target=_dotter, daemon=True)
+        dotter.start()
+
+    try:
+        output = agent.draft_audit(args.target, scope, output_dir, verbose=args.verbose)
+        print(f"Draft audit written: {output.path}")
+    finally:
+        if stop_event:
+            stop_event.set()
+        if dotter:
+            dotter.join(timeout=1.0)
     return 0
 
 

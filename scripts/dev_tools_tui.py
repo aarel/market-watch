@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import argparse
 import curses
+import selectors
 import shlex
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional
@@ -29,7 +31,7 @@ ACTION_HELP: dict[str, List[str]] = {
     "Run DRA Audit (draft)": [
         "Drafts a DRA audit with evidence pack for the target scope.",
         "Use for phase verification or implementation completeness checks.",
-        "Target is free text (e.g., PhaseA_Hardening, PhaseB, PhaseC, PhaseD_Analytics).",
+        "Choose a preset (Agents, Project, Logs, Tests, etc.) or Custom.",
     ],
     "Run Test Audit": [
         "Runs pytest with optional coverage, writes report to test_results.",
@@ -60,6 +62,52 @@ ACTION_HELP: dict[str, List[str]] = {
         "Start/stop/status for the dev server (background).",
         "Uses scripts/serve.py with the safety keyword.",
     ],
+}
+
+DRA_PRESETS: dict[str, dict[str, object]] = {
+    "Agents": {
+        "target": "Agents",
+        "scope": "agents",
+        "include_dev_docs": False,
+    },
+    "Project": {
+        "target": "Project_Wide",
+        "scope": (
+            "agents,alerts,analytics,backtest,monitoring,risk,server,strategies,static,"
+            "tests,docs,scripts,config.py,broker.py,server.py,start_app.sh,universe.py,screener.py"
+        ),
+        "include_dev_docs": False,
+    },
+    "Logs": {
+        "target": "Logs",
+        "scope": "logs,docs/OBSERVABILITY.md",
+        "include_dev_docs": False,
+    },
+    "Tests": {
+        "target": "Tests",
+        "scope": "tests,tests/README.md,scripts/run_tests.sh,scripts/run_tests.bat",
+        "include_dev_docs": False,
+    },
+    "Server": {
+        "target": "Server",
+        "scope": "server,server.py",
+        "include_dev_docs": False,
+    },
+    "UI": {
+        "target": "UI",
+        "scope": "static,docs,server/routers/analytics.py",
+        "include_dev_docs": False,
+    },
+    "Analytics": {
+        "target": "Analytics",
+        "scope": "analytics,server/routers/analytics.py,static/index.html",
+        "include_dev_docs": False,
+    },
+    "Trading": {
+        "target": "Trading",
+        "scope": "agents,strategies,risk,broker.py,server/routers/trading.py",
+        "include_dev_docs": False,
+    },
 }
 
 @dataclass
@@ -237,16 +285,24 @@ def popup_inputs(stdscr, title: str, fields: List[tuple[str, str]]) -> List[str]
     return results
 
 
-def _render_stream_window(stdscr, title: str, lines: List[str]) -> None:
+def _render_stream_window(stdscr, title: str, lines: List[str], status_line: str | None = None) -> None:
     try:
         stdscr.clear()
         height, width = stdscr.getmaxyx()
         stdscr.addnstr(0, 0, title, width - 1, curses.A_BOLD)
-        stdscr.addnstr(1, 0, "Press Ctrl+E in menu to toggle verbose output.", width - 1, curses.A_DIM)
-        start_line = max(0, len(lines) - (height - 4))
-        view = lines[start_line:]
+        help_line = "Press Ctrl+E in menu to toggle verbose output."
+        if status_line:
+            help_line = f"{help_line} | {status_line}"
+        stdscr.addnstr(1, 0, help_line, width - 1, curses.A_DIM)
+        output_top = 3
+        output_bottom = height - 1 if status_line else height
+        available = max(0, output_bottom - output_top)
+        start_line = max(0, len(lines) - available)
+        view = lines[start_line:start_line + available]
         for idx, line in enumerate(view):
-            stdscr.addnstr(3 + idx, 0, line, max(0, width - 1))
+            stdscr.addnstr(output_top + idx, 0, line, max(0, width - 1))
+        if status_line:
+            stdscr.addnstr(height - 1, 0, status_line, width - 1, curses.A_DIM)
         stdscr.refresh()
     except curses.error:
         pass
@@ -294,10 +350,11 @@ def run_command_streaming(stdscr, cmd: List[str], details: Optional[List[str]] =
         return
     output_lines: List[str] = []
     title = "Running command (streaming output)..."
+    status_line = "Working"
     if details and VERBOSE:
         output_lines.extend(details)
         output_lines.append("")
-    _render_stream_window(stdscr, title, output_lines)
+    _render_stream_window(stdscr, title, output_lines, status_line)
     try:
         proc = subprocess.Popen(
             cmd,
@@ -310,11 +367,31 @@ def run_command_streaming(stdscr, cmd: List[str], details: Optional[List[str]] =
     except Exception as exc:
         popup_message(stdscr, "Command Failed", [str(exc)])
         return
+    dot_count = 0
+    last_tick = time.time()
+    selector = selectors.DefaultSelector()
+    if proc.stdout:
+        selector.register(proc.stdout, selectors.EVENT_READ)
+
+    while True:
+        events = selector.select(timeout=0.2)
+        for key, _mask in events:
+            line = key.fileobj.readline()
+            if line:
+                output_lines.append(line.rstrip())
+                _render_stream_window(stdscr, title, output_lines, status_line)
+        now = time.time()
+        if now - last_tick >= 1.0:
+            dot_count = (dot_count + 1) % 4
+            status_line = "Working" + ("." * dot_count)
+            _render_stream_window(stdscr, title, output_lines, status_line)
+            last_tick = now
+        if proc.poll() is not None and not events:
+            break
 
     if proc.stdout:
         for line in proc.stdout:
             output_lines.append(line.rstrip())
-            _render_stream_window(stdscr, title, output_lines)
     rc = proc.wait()
     tail = output_lines[-8:] if output_lines else []
     log_line = _extract_prefix_line(output_lines, "Log file:")
@@ -401,16 +478,31 @@ def handle_clean_code_index(stdscr) -> None:
 
 
 def handle_dra_audit(stdscr) -> None:
-    target, scope, output_dir, include_docs = popup_inputs(
+    preset, = popup_inputs(
         stdscr,
-        "DRA Audit",
+        "DRA Audit Preset",
         [
-            ("Target label (free text)", "PhaseD_Analytics"),
-            ("Scope (comma paths/globs)", "analytics,server,static"),
-            ("Output dir", "development_docs/audits"),
-            ("Include development_docs? (y/n)", "n"),
+            ("Preset (Agents/Project/Logs/Tests/Server/UI/Analytics/Trading/Custom)", "Agents"),
         ],
     )
+    preset_key = preset.strip()
+    if preset_key in DRA_PRESETS:
+        config = DRA_PRESETS[preset_key]
+        target = str(config["target"])
+        scope = str(config["scope"])
+        output_dir = "development_docs/audits"
+        include_docs = "y" if config.get("include_dev_docs") else "n"
+    else:
+        target, scope, output_dir, include_docs = popup_inputs(
+            stdscr,
+            "DRA Audit (Custom)",
+            [
+                ("Target label (free text)", "PhaseD_Analytics"),
+                ("Scope (comma paths/globs)", "analytics,server,static"),
+                ("Output dir", "development_docs/audits"),
+                ("Include development_docs? (y/n)", "n"),
+            ],
+        )
     cmd = [
         PYTHON_BIN,
         "scripts/run_dra_audit.py",
@@ -427,6 +519,7 @@ def handle_dra_audit(stdscr) -> None:
         cmd.append("--verbose")
     details = [
         "Draft DRA audit with evidence pack.",
+        f"Preset: {preset_key if preset_key in DRA_PRESETS else 'Custom'}",
         f"Target: {target}",
         f"Scope: {scope or 'n/a'}",
         f"Output: {output_dir}",
