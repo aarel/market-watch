@@ -32,3 +32,6 @@ logs/observability/
 INTEGRATION_TEST_SUMMARY.md
 TIMEZONE_FIX_SUMMARY.md
 UNIVERSE_GUARDRAILS_ANALYSIS.md
+
+# Development docs (local working notes)
+development_docs/
