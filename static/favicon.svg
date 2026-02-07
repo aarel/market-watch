@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- White square background -->
+  <rect x="0" y="0" width="32" height="32" fill="white"/>
+
+  <!-- Graph lines (simplified, predominantly green) -->
+  <polyline points="4,20 10,12 16,18 22,10 28,16" stroke="#00CC00" stroke-width="3" fill="none"/>
+  <!-- You could add a red segment like this if desired, e.g., for a dip:
+  <polyline points="10,12 16,18" stroke="#CC0000" stroke-width="3" fill="none"/>
+  -->
+</svg>

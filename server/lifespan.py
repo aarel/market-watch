@@ -12,6 +12,7 @@ from fake_broker import FakeBroker
 from agents import Coordinator
 from analytics.store import AnalyticsStore
 from universe import Universe
+from alerts.runtime import configure_alerts
 from .state import AppState
 from .events import WebsocketManager
 from .dependencies import get_state
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI):
     # Initialize universe-scoped config manager and load state
     state.set_universe(universe)  # This also creates universe-scoped ConfigManager
     state.config_manager.load()
+    configure_alerts(state.config_manager.snapshot())
 
     # Rebuild universe-bound components via factories
     def broker_factory(u: Universe):

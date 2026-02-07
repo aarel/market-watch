@@ -19,6 +19,7 @@ from .risk_agent import RiskAgent
 from .execution_agent import ExecutionAgent
 from .monitor_agent import MonitorAgent
 from .alert_agent import AlertAgent
+from .external_alert_agent import ExternalAlertAgent
 from .observability_agent import ObservabilityAgent
 from .analytics_agent import AnalyticsAgent
 from .test_agent import TestAgent
@@ -44,6 +45,7 @@ __all__ = [
     "ExecutionAgent",
     "MonitorAgent",
     "AlertAgent",
+    "ExternalAlertAgent",
     "ObservabilityAgent",
     "AnalyticsAgent",
     "TestAgent",

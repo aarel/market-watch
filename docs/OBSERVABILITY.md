@@ -70,6 +70,10 @@ On each `/observability/logs` request, a CSV file is written to:
 
 This provides a persistent daily snapshot of warn/fail events.
 
+## Anomaly Alerts
+
+When alerting is enabled, detected anomaly spikes trigger external alerts via the AlertManager (email/webhook). This wiring is handled inside `ObservabilityAgent` and uses the same alert configuration as Phase C.
+
 ## Configuration
 
 **Environment Variables:**

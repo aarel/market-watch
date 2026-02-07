@@ -5,7 +5,7 @@ Monitors warn/fail event rates and detects unusual spikes that indicate
 system degradation or issues requiring attention.
 """
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List, Tuple
 from threading import RLock
 
@@ -54,7 +54,8 @@ class AnomalyDetector:
             timestamp: Event timestamp (default: now)
         """
         if timestamp is None:
-            timestamp = datetime.now()
+            timestamp = datetime.now(timezone.utc)
+        timestamp = self._normalize_timestamp(timestamp)
 
         with self._lock:
             if outcome == "warn":
@@ -67,7 +68,7 @@ class AnomalyDetector:
 
     def _clean_old_events(self):
         """Remove events outside the time window."""
-        cutoff = datetime.now() - timedelta(minutes=self.window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=self.window_minutes)
 
         while self._warn_events and self._warn_events[0] < cutoff:
             self._warn_events.popleft()
@@ -97,6 +98,13 @@ class AnomalyDetector:
             return 0.0
 
         return len(events) / time_span
+
+    @staticmethod
+    def _normalize_timestamp(timestamp: datetime) -> datetime:
+        """Normalize timestamps to timezone-aware UTC."""
+        if timestamp.tzinfo is None:
+            return timestamp.replace(tzinfo=timezone.utc)
+        return timestamp.astimezone(timezone.utc)
 
     def update_baseline(self):
         """

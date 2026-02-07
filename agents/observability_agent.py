@@ -1,6 +1,7 @@
 """Observability Agent - structured logging and context annotation."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from .base import BaseAgent
@@ -21,6 +22,8 @@ from universe import Universe
 from monitoring.models import Observation
 from monitoring.reason_codes import classify_event
 from monitoring.anomaly_detector import get_detector
+from alerts.manager import get_manager
+from alerts.models import AlertTrigger, AlertSeverity
 
 if TYPE_CHECKING:
     from .event_bus import EventBus
@@ -37,6 +40,9 @@ class ObservabilityAgent(BaseAgent):
         else:
             self._logger = JSONLLogger(log_path, max_log_mb)
         self._context_tracker = MarketContextTracker()
+        self._baseline_initialized = False
+        self._last_anomaly_alert_at: datetime | None = None
+        self._anomaly_alert_cooldown_seconds = 600
 
     async def start(self):
         """Start listening to all events."""
@@ -74,6 +80,8 @@ class ObservabilityAgent(BaseAgent):
             if outcome in ("warn", "fail"):
                 detector = get_detector()
                 detector.record_event(outcome, event.timestamp)
+                self._maybe_initialize_baseline(detector)
+                await self._maybe_alert_on_anomaly(detector, event.timestamp)
 
         except Exception as exc:
             print(f"ObservabilityAgent error: {exc}")
@@ -145,6 +153,49 @@ class ObservabilityAgent(BaseAgent):
             outputs["position_value"] = event.position_value
 
         return inputs, outputs
+
+    def _maybe_initialize_baseline(self, detector) -> None:
+        if self._baseline_initialized:
+            return
+        detector.update_baseline()
+        status = detector.get_status()
+        if status["warn_events"]["baseline_rate"] is not None or status["fail_events"]["baseline_rate"] is not None:
+            self._baseline_initialized = True
+
+    async def _maybe_alert_on_anomaly(self, detector, timestamp: datetime) -> None:
+        anomaly = detector.detect_anomaly()
+        if not anomaly:
+            return
+
+        now = datetime.now()
+        if self._last_anomaly_alert_at:
+            elapsed = (now - self._last_anomaly_alert_at).total_seconds()
+            if elapsed < self._anomaly_alert_cooldown_seconds:
+                return
+
+        severity = AlertSeverity.HIGH if anomaly.get("severity") == "high" else AlertSeverity.MEDIUM
+        title = "Observability anomaly detected"
+        message = anomaly.get("message", "Anomaly detected in warn/fail event rates.")
+        context = {
+            "type": anomaly.get("type"),
+            "current_rate": anomaly.get("current_rate"),
+            "baseline_rate": anomaly.get("baseline_rate"),
+            "multiplier": anomaly.get("multiplier"),
+            "event_count": anomaly.get("event_count"),
+        }
+
+        try:
+            manager = get_manager()
+            await manager.trigger_alert(
+                trigger_type=AlertTrigger.ANOMALY_DETECTED,
+                severity=severity,
+                title=title,
+                message=message,
+                context=context,
+            )
+            self._last_anomaly_alert_at = now
+        except Exception as exc:
+            print(f"ObservabilityAgent anomaly alert error: {exc}")
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float:
