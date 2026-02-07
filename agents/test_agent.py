@@ -47,7 +47,8 @@ class TestAgent(BaseAgent):
         cmd = ["bash", "scripts/run_tests.sh"]
         started = datetime.now()
         try:
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 cmd,
                 capture_output=True,
                 text=True,

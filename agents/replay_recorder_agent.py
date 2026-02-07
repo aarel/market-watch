@@ -3,6 +3,7 @@ import asyncio
 import csv
 import os
 from datetime import datetime, timedelta, date, timezone
+from pathlib import Path
 from typing import Optional, Dict
 
 import config

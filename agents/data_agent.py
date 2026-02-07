@@ -71,14 +71,14 @@ class DataAgent(BaseAgent):
         from screener_universe import get_universe
 
         # Check market status
-        market_open = self.broker.is_market_open()
+        market_open = await asyncio.to_thread(self.broker.is_market_open)
 
         top_gainers = self._cache.get("top_gainers", [])
         market_indices = self._cache.get("market_indices", [])
         if symbols is None and config.WATCHLIST_MODE == "top_gainers":
             try:
                 universe = get_universe(config.TOP_GAINERS_UNIVERSE)
-                snapshots = self.broker.get_snapshots(universe)
+                snapshots = await asyncio.to_thread(self.broker.get_snapshots, universe)
                 top_gainers = compute_top_gainers(
                     snapshots,
                     min_price=config.TOP_GAINERS_MIN_PRICE,
@@ -102,7 +102,7 @@ class DataAgent(BaseAgent):
         # Market index proxies for UI ticker
         if config.MARKET_INDEX_SYMBOLS:
             try:
-                index_snaps = self.broker.get_snapshots(config.MARKET_INDEX_SYMBOLS)
+                index_snaps = await asyncio.to_thread(self.broker.get_snapshots, config.MARKET_INDEX_SYMBOLS)
                 market_indices = []
                 for symbol in config.MARKET_INDEX_SYMBOLS:
                     snapshot = index_snaps.get(symbol)
@@ -121,7 +121,7 @@ class DataAgent(BaseAgent):
                 print(f"DataAgent: Error computing market indices: {e}")
 
         # Fetch account info
-        account = self.broker.get_account()
+        account = await asyncio.to_thread(self.broker.get_account)
         account_data = {
             "portfolio_value": float(account.portfolio_value),
             "buying_power": float(account.buying_power),
@@ -133,7 +133,8 @@ class DataAgent(BaseAgent):
         positions = []
         held_symbols = set()
         try:
-            for pos in self.broker.get_positions():
+            positions_raw = await asyncio.to_thread(self.broker.get_positions)
+            for pos in positions_raw:
                 positions.append({
                     "symbol": pos.symbol,
                     "qty": float(pos.qty),
@@ -156,11 +157,11 @@ class DataAgent(BaseAgent):
         for symbol in symbols:
             try:
                 if symbol not in prices:
-                    price = self.broker.get_current_price(symbol)
+                    price = await asyncio.to_thread(self.broker.get_current_price, symbol)
                     if price:
                         prices[symbol] = price
 
-                symbol_bars = self.broker.get_bars(symbol, days=config.LOOKBACK_DAYS)
+                symbol_bars = await asyncio.to_thread(self.broker.get_bars, symbol, days=config.LOOKBACK_DAYS)
                 if symbol_bars is not None and len(symbol_bars) > 0:
                     bars[symbol] = symbol_bars.to_dict()
             except Exception as e:

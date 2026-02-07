@@ -43,17 +43,17 @@ class UICheckAgent(BaseAgent):
         await asyncio.sleep(5)
         while self.running:
             try:
-                self._check_once()
+                await self._check_once()
             except Exception as exc:
                 await self.event_bus.publish(LogEvent(universe=self.universe, session_id=self.session_id, source=self.name, level="warning", message=f"UI check error: {exc}"))
             await asyncio.sleep(self.interval_minutes * 60)
 
-    def _check_once(self):
+    async def _check_once(self):
         started = datetime.now(timezone.utc)
         status = "ok"
         detail = {}
         try:
-            resp = requests.get(self.url, timeout=10)
+            resp = await asyncio.to_thread(requests.get, self.url, timeout=10)
             detail["status_code"] = resp.status_code
             html = resp.text
             # simple selector presence checks
@@ -75,4 +75,4 @@ class UICheckAgent(BaseAgent):
         self._log_writer.write(entry)
 
         level = "info" if status == "ok" else "warning"
-        self.event_bus.publish(LogEvent(universe=self.universe, session_id=self.session_id, source=self.name, level=level, message=f"UI check {status}"))
+        await self.event_bus.publish(LogEvent(universe=self.universe, session_id=self.session_id, source=self.name, level=level, message=f"UI check {status}"))
