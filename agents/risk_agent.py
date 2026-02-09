@@ -5,6 +5,13 @@ from typing import TYPE_CHECKING
 
 from risk.position_sizer import PositionSizer
 from risk.circuit_breaker import CircuitBreaker
+from risk.exposure_checkers import (
+    SectorMapLoader,
+    ReturnCalculator,
+    SectorExposureChecker,
+    CorrelationExposureChecker,
+    RVOLChecker,
+)
 
 from .base import BaseAgent
 from .events import SignalGenerated, RiskCheckPassed, RiskCheckFailed
@@ -23,6 +30,11 @@ class RiskAgent(BaseAgent):
         broker: "AlpacaBroker",
         position_sizer: PositionSizer | None = None,
         circuit_breaker: CircuitBreaker | None = None,
+        sector_map_loader: SectorMapLoader | None = None,
+        return_calculator: ReturnCalculator | None = None,
+        sector_exposure_checker: SectorExposureChecker | None = None,
+        correlation_exposure_checker: CorrelationExposureChecker | None = None,
+        rvol_checker: RVOLChecker | None = None,
     ):
         super().__init__("RiskAgent", event_bus)
         self.broker = broker
@@ -42,12 +54,18 @@ class RiskAgent(BaseAgent):
                 market_timezone=config.MARKET_TIMEZONE,
             )
         self.circuit_breaker = circuit_breaker
+
+        # Initialize exposure checkers (modular risk validation components)
+        self.sector_map_loader = sector_map_loader or SectorMapLoader()
+        self.return_calculator = return_calculator or ReturnCalculator(broker)
+        self.sector_exposure_checker = sector_exposure_checker or SectorExposureChecker(self.sector_map_loader)
+        self.correlation_exposure_checker = correlation_exposure_checker or CorrelationExposureChecker(self.return_calculator)
+        self.rvol_checker = rvol_checker or RVOLChecker(broker)
+
         self.daily_trades = 0
         self.last_trade_date = None
         self._checks_passed = 0
         self._checks_failed = 0
-        self._sector_map_cache = None
-        self._sector_map_key = None
 
     async def start(self):
         """Start listening for signals."""
@@ -127,16 +145,34 @@ class RiskAgent(BaseAgent):
                 return
 
             if positions is not None:
-                if not self._check_sector_exposure(signal.symbol, trade_value, positions, portfolio_value):
+                # Check sector exposure using modular checker
+                if not self.sector_exposure_checker.check(
+                    signal.symbol,
+                    trade_value,
+                    positions,
+                    portfolio_value,
+                    config.MAX_SECTOR_EXPOSURE_PCT,
+                    config.SECTOR_MAP_JSON,
+                    config.SECTOR_MAP_PATH,
+                ):
                     await self._fail(signal, "Sector exposure limit reached")
                     return
 
-                if not self._check_correlation_exposure(signal.symbol, trade_value, positions, portfolio_value):
+                # Check correlation exposure using modular checker
+                if not self.correlation_exposure_checker.check(
+                    signal.symbol,
+                    trade_value,
+                    positions,
+                    portfolio_value,
+                    config.MAX_CORRELATED_EXPOSURE_PCT,
+                    config.CORRELATION_THRESHOLD,
+                    config.CORRELATION_LOOKBACK_DAYS,
+                ):
                     await self._fail(signal, "Correlation exposure limit reached")
                     return
 
-            # Check relative volume
-            if not self._check_rvol(signal.symbol):
+            # Check relative volume using modular checker
+            if not self.rvol_checker.check(signal.symbol, config.RVOL_THRESHOLD, config.LOOKBACK_DAYS):
                 await self._fail(signal, f"Relative volume below threshold ({config.RVOL_THRESHOLD})")
                 return
 
@@ -220,192 +256,3 @@ class RiskAgent(BaseAgent):
     def _check_open_positions_limit(self, positions) -> bool:
         import config
         return len(positions) < config.MAX_OPEN_POSITIONS
-
-    def _check_sector_exposure(
-        self,
-        symbol: str,
-        trade_value: float,
-        positions,
-        portfolio_value: float,
-    ) -> bool:
-        import config
-        if portfolio_value <= 0:
-            return True
-
-        sector_map = self._load_sector_map()
-        if not sector_map:
-            return True
-
-        symbol_upper = symbol.upper()
-        sector = sector_map.get(symbol_upper)
-        if not sector:
-            return True
-
-        sector_value = 0.0
-        for position in positions:
-            pos_symbol = getattr(position, "symbol", None)
-            if not pos_symbol:
-                continue
-            pos_sector = sector_map.get(str(pos_symbol).upper())
-            if pos_sector != sector:
-                continue
-            sector_value += self._position_market_value(position)
-
-        proposed_value = sector_value + max(trade_value, 0.0)
-        exposure_pct = proposed_value / portfolio_value
-        return exposure_pct <= config.MAX_SECTOR_EXPOSURE_PCT
-
-    def _check_correlation_exposure(
-        self,
-        symbol: str,
-        trade_value: float,
-        positions,
-        portfolio_value: float,
-    ) -> bool:
-        import config
-        if portfolio_value <= 0:
-            return True
-        if not positions:
-            return True
-
-        target_returns = self._get_returns(symbol, config.CORRELATION_LOOKBACK_DAYS)
-        if target_returns is None or target_returns.empty:
-            return True
-
-        correlated_value = 0.0
-        target_existing_value = 0.0
-        symbol_upper = symbol.upper()
-
-        for position in positions:
-            pos_symbol = getattr(position, "symbol", None)
-            if not pos_symbol:
-                continue
-            pos_symbol = str(pos_symbol).upper()
-            pos_value = self._position_market_value(position)
-
-            if pos_symbol == symbol_upper:
-                target_existing_value += pos_value
-                continue
-
-            pos_returns = self._get_returns(pos_symbol, config.CORRELATION_LOOKBACK_DAYS)
-            if pos_returns is None or pos_returns.empty:
-                continue
-
-            aligned = target_returns.align(pos_returns, join="inner")
-            if len(aligned[0]) < 3 or len(aligned[1]) < 3:
-                continue
-
-            corr = aligned[0].corr(aligned[1])
-            if corr is None:
-                continue
-            if corr >= config.CORRELATION_THRESHOLD:
-                correlated_value += pos_value
-
-        proposed_value = correlated_value + target_existing_value + max(trade_value, 0.0)
-        exposure_pct = proposed_value / portfolio_value
-        return exposure_pct <= config.MAX_CORRELATED_EXPOSURE_PCT
-
-    def _load_sector_map(self) -> dict:
-        import config
-        import json
-        key = (config.SECTOR_MAP_JSON, config.SECTOR_MAP_PATH)
-        if self._sector_map_cache is not None and self._sector_map_key == key:
-            return self._sector_map_cache
-
-        raw_map = {}
-        if config.SECTOR_MAP_JSON:
-            try:
-                raw_map = json.loads(config.SECTOR_MAP_JSON)
-            except Exception as e:
-                print(f"RiskAgent: Error parsing SECTOR_MAP_JSON: {e}")
-        elif config.SECTOR_MAP_PATH:
-            try:
-                with open(config.SECTOR_MAP_PATH, "r", encoding="utf-8") as handle:
-                    raw_map = json.load(handle)
-            except FileNotFoundError:
-                print(f"RiskAgent: Sector map file not found: {config.SECTOR_MAP_PATH}")
-            except Exception as e:
-                print(f"RiskAgent: Error reading sector map: {e}")
-
-        normalized = {}
-        if isinstance(raw_map, dict):
-            for key_sym, value in raw_map.items():
-                if not key_sym or not value:
-                    continue
-                normalized[str(key_sym).upper()] = str(value).strip()
-        else:
-            print("RiskAgent: Sector map must be a JSON object of symbol->sector")
-
-        self._sector_map_cache = normalized
-        self._sector_map_key = key
-        return normalized
-
-    def _position_market_value(self, position) -> float:
-        value = getattr(position, "market_value", 0.0)
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return 0.0
-
-    def _get_returns(self, symbol: str, lookback_days: int):
-        import pandas as pd
-        try:
-            bars = self.broker.get_bars(symbol, days=lookback_days)
-        except Exception as e:
-            print(f"RiskAgent: Error fetching bars for {symbol}: {e}")
-            return None
-        if bars is None or len(bars) == 0:
-            return None
-        try:
-            closes = bars["close"]
-        except Exception:
-            return None
-        if closes is None or len(closes) < 3:
-            return None
-        returns = closes.pct_change().dropna()
-        if returns is None or len(returns) < 2:
-            return None
-        if isinstance(returns, pd.DataFrame):
-            returns = returns.iloc[:, 0]
-        return returns
-
-    def _check_rvol(self, symbol: str) -> bool:
-        """Check if relative volume meets threshold.
-
-        RVOL = current_volume / 30-day_volume_sma
-        Returns True if RVOL >= threshold, False otherwise.
-        """
-        import config
-        import pandas as pd
-
-        try:
-            bars = self.broker.get_bars(symbol, days=config.LOOKBACK_DAYS)
-        except Exception as e:
-            print(f"RiskAgent: Error fetching bars for RVOL check on {symbol}: {e}")
-            return True  # Allow trade if data unavailable
-
-        if bars is None or len(bars) == 0:
-            return True
-
-        try:
-            volumes = bars["volume"]
-        except Exception:
-            return True
-
-        if volumes is None or len(volumes) < 2:
-            return True
-
-        # Calculate 30-day SMA of volume
-        volume_sma = volumes.mean()
-        if volume_sma <= 0:
-            return True
-
-        # Get current (most recent) volume
-        current_volume = volumes.iloc[-1]
-        if pd.isna(current_volume) or current_volume <= 0:
-            return True
-
-        # Calculate RVOL
-        rvol = current_volume / volume_sma
-
-        return rvol >= config.RVOL_THRESHOLD

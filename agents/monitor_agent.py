@@ -33,8 +33,9 @@ class MonitorAgent(BaseAgent):
         """Main loop that checks positions periodically."""
         while self.running:
             try:
-                # Only check if market is open
-                if self.broker.is_market_open():
+                # Only check if market is open (async to avoid blocking event loop)
+                market_open = await asyncio.to_thread(self.broker.is_market_open)
+                if market_open:
                     await self.check_positions()
             except Exception as e:
                 print(f"MonitorAgent error: {e}")
@@ -47,12 +48,14 @@ class MonitorAgent(BaseAgent):
         from datetime import datetime
 
         self._last_check = datetime.now()
-        positions = self.broker.get_positions()
+        # Fetch positions asynchronously to avoid blocking event loop
+        positions = await asyncio.to_thread(self.broker.get_positions)
 
         for position in positions:
             symbol = position.symbol
             entry_price = float(position.avg_entry_price)
-            current_price = self.broker.get_current_price(symbol)
+            # Fetch current price asynchronously to avoid blocking event loop
+            current_price = await asyncio.to_thread(self.broker.get_current_price, symbol)
 
             if current_price is None:
                 continue
