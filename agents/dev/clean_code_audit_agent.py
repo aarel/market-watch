@@ -11,6 +11,21 @@ from typing import Iterable, Optional
 from agents.base import BaseAgent
 from agents.events import LogEvent
 
+DEFAULT_EXCLUDE_DIRS = {
+    ".git",
+    ".venv",
+    ".venv-wsl",
+    "venv",
+    "__pycache__",
+    "logs",
+    "test_results",
+    "data",
+    "img",
+    "market-watch-data.zip",
+}
+DEFAULT_EXCLUDE_FILES: set[str] = set()
+DEFAULT_EXCLUDE_SUFFIXES = {".pyc"}
+
 
 @dataclass
 class FileRecord:
@@ -38,19 +53,8 @@ class ProjectIndex:
         exclude_files: Optional[Iterable[str]] = None,
     ):
         self.repo_root = repo_root
-        self.exclude_dirs = set(exclude_dirs or {
-            ".git",
-            ".venv",
-            ".venv-wsl",
-            "venv",
-            "__pycache__",
-            "logs",
-            "test_results",
-            "data",
-            "img",
-            "market-watch-data.zip",
-        })
-        self.exclude_files = set(exclude_files or set())
+        self.exclude_dirs = set(DEFAULT_EXCLUDE_DIRS if exclude_dirs is None else exclude_dirs)
+        self.exclude_files = set(DEFAULT_EXCLUDE_FILES if exclude_files is None else exclude_files)
 
     def scan(self, include_dev_docs: bool = False) -> dict[str, FileRecord]:
         records: dict[str, FileRecord] = {}
@@ -98,6 +102,8 @@ class ProjectIndex:
         if path.name in self.exclude_files:
             return True
         if not include_dev_docs and "development_docs" in path.parts:
+            return True
+        if path.suffix in DEFAULT_EXCLUDE_SUFFIXES:
             return True
         for part in path.parts:
             if part in self.exclude_dirs:
@@ -165,7 +171,13 @@ class CleanCodeAuditAgent(BaseAgent):
         diff = self.update_index()
         emit(f"Index updated. Added={len(diff.added)} Removed={len(diff.removed)} Modified={len(diff.modified)}")
         emit("Resolving scope files...")
-        scope_files = _resolve_scope_files(self.repo_root, scope)
+        scope_files = _resolve_scope_files(
+            self.repo_root,
+            scope,
+            include_dev_docs=self.include_dev_docs,
+            exclude_dirs=self.indexer.exclude_dirs,
+            exclude_files=self.indexer.exclude_files,
+        )
         emit(f"Scope files resolved: {len(scope_files)}")
 
         evidence = _format_evidence(
@@ -298,27 +310,54 @@ def _format_evidence(target: str, scope: Iterable[str], scope_files: list[str], 
     return "\n".join(lines)
 
 
-def _resolve_scope_files(repo_root: Path, scope: Iterable[str]) -> list[str]:
+def _resolve_scope_files(
+    repo_root: Path,
+    scope: Iterable[str],
+    include_dev_docs: bool = False,
+    exclude_dirs: Optional[Iterable[str]] = None,
+    exclude_files: Optional[Iterable[str]] = None,
+) -> list[str]:
     files: set[str] = set()
+    exclude_dir_set = set(DEFAULT_EXCLUDE_DIRS if exclude_dirs is None else exclude_dirs)
+    exclude_file_set = set(DEFAULT_EXCLUDE_FILES if exclude_files is None else exclude_files)
+
+    def _should_include(path: Path) -> bool:
+        if path.suffix in DEFAULT_EXCLUDE_SUFFIXES:
+            return False
+        if path.name in exclude_file_set:
+            return False
+        rel = path.relative_to(repo_root)
+        parts = rel.parts
+        if not include_dev_docs and "development_docs" in parts:
+            return False
+        for part in parts:
+            if part in exclude_dir_set:
+                return False
+        return True
+
     for entry in scope:
         if not entry:
             continue
         candidate = repo_root / entry
         if candidate.exists():
             if candidate.is_file():
-                files.add(candidate.relative_to(repo_root).as_posix())
+                if _should_include(candidate):
+                    files.add(candidate.relative_to(repo_root).as_posix())
             else:
                 for path in candidate.rglob("*"):
                     if path.is_file():
-                        files.add(path.relative_to(repo_root).as_posix())
+                        if _should_include(path):
+                            files.add(path.relative_to(repo_root).as_posix())
             continue
         for path in repo_root.glob(entry):
             if path.is_file():
-                files.add(path.relative_to(repo_root).as_posix())
+                if _should_include(path):
+                    files.add(path.relative_to(repo_root).as_posix())
             elif path.is_dir():
                 for sub in path.rglob("*"):
                     if sub.is_file():
-                        files.add(sub.relative_to(repo_root).as_posix())
+                        if _should_include(sub):
+                            files.add(sub.relative_to(repo_root).as_posix())
     return sorted(files)
 
 

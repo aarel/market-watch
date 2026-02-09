@@ -9,6 +9,7 @@ Tests the complete flow:
 5. AnalyticsAgent captures trade
 6. All events flow through EventBus correctly
 """
+import pytest
 import unittest
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, MagicMock
@@ -28,6 +29,9 @@ from agents.events import (
 )
 from universe import Universe, UniverseContext
 from strategies.momentum import MomentumStrategy
+
+
+pytestmark = [pytest.mark.integration, pytest.mark.whitebox]
 
 
 class InMemoryAnalyticsStore:

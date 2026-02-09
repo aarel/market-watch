@@ -1,0 +1,156 @@
+{
+  "dra": {
+    "Agents": {
+      "target": "Agents",
+      "scope": "agents",
+      "include_dev_docs": false,
+      "description": "Agent orchestration, event flow, and agent boundaries."
+    },
+    "TradingPipeline": {
+      "target": "TradingPipeline",
+      "scope": "agents,strategies,risk,broker.py,server/routers/trading.py",
+      "include_dev_docs": false,
+      "description": "Signals → risk → execution → state."
+    },
+    "RiskControls": {
+      "target": "RiskControls",
+      "scope": "risk,agents/*risk*,server/routers/trading.py",
+      "include_dev_docs": false,
+      "description": "Constraints, circuit breakers, limits, and overrides."
+    },
+    "Execution": {
+      "target": "Execution",
+      "scope": "broker.py,agents/*execution*,server/routers/trading.py",
+      "include_dev_docs": false,
+      "description": "Order lifecycle and broker integration."
+    },
+    "DataIngestion": {
+      "target": "DataIngestion",
+      "scope": "data,agents/*data*,analytics/store.py",
+      "include_dev_docs": false,
+      "description": "Data sourcing, persistence, and integrity."
+    },
+    "Analytics": {
+      "target": "Analytics",
+      "scope": "analytics,server/routers/analytics.py,static/index.html",
+      "include_dev_docs": false,
+      "description": "Metrics correctness and UI exposure."
+    },
+    "Observability": {
+      "target": "Observability",
+      "scope": "monitoring,logs,docs/OBSERVABILITY.md,agents/observability_agent.py",
+      "include_dev_docs": false,
+      "description": "Telemetry integrity and alertability."
+    },
+    "ExternalAlerts": {
+      "target": "ExternalAlerts",
+      "scope": "alerts,server/routers/alerts.py,monitoring/anomaly_detector.py",
+      "include_dev_docs": false,
+      "description": "Alert generation and routing."
+    },
+    "UI": {
+      "target": "UI",
+      "scope": "static,server/routers/analytics.py,docs",
+      "include_dev_docs": false,
+      "description": "User-facing reporting coherence."
+    },
+    "ConfigRuntime": {
+      "target": "ConfigRuntime",
+      "scope": "config.py,server/config_manager.py,.env.example",
+      "include_dev_docs": false,
+      "description": "Configuration correctness and guardrails."
+    },
+    "Testing": {
+      "target": "Testing",
+      "scope": "tests,tests/README.md,scripts/run_tests.sh,scripts/run_tests.bat",
+      "include_dev_docs": false,
+      "description": "Test validity, coverage, and enforcement."
+    },
+    "ProjectWide": {
+      "target": "ProjectWide",
+      "scope": "agents,alerts,analytics,backtest,monitoring,risk,server,strategies,static,tests,docs,scripts,config.py,broker.py,server.py,start_app.sh,universe.py,screener.py",
+      "include_dev_docs": false,
+      "description": "Whole system framing without repo metadata."
+    }
+  },
+  "clean_code": {
+    "Architecture": {
+      "target": "Architecture",
+      "scope": "agents,alerts,analytics,monitoring,risk,server,strategies",
+      "include_dev_docs": false,
+      "description": "Module boundaries, coupling, layering."
+    },
+    "APIBoundaries": {
+      "target": "APIBoundaries",
+      "scope": "server,server/routers,server/middleware.py",
+      "include_dev_docs": false,
+      "description": "API surface cohesion and separation."
+    },
+    "AgentCohesion": {
+      "target": "AgentCohesion",
+      "scope": "agents",
+      "include_dev_docs": false,
+      "description": "Single responsibility and shared utilities."
+    },
+    "StateManagement": {
+      "target": "StateManagement",
+      "scope": "server/state.py,server/lifespan.py,agents/*state*",
+      "include_dev_docs": false,
+      "description": "State flow and lifecycle safety."
+    },
+    "ErrorHandling": {
+      "target": "ErrorHandling",
+      "scope": "server,agents,monitoring",
+      "include_dev_docs": false,
+      "description": "Exception discipline and failure modes."
+    },
+    "PerformanceHotspots": {
+      "target": "PerformanceHotspots",
+      "scope": "analytics,backtest,monitoring",
+      "include_dev_docs": false,
+      "description": "Loops, data access, and scale risks."
+    },
+    "ConfigSafety": {
+      "target": "ConfigSafety",
+      "scope": "config.py,server/config_manager.py,.env.example",
+      "include_dev_docs": false,
+      "description": "Env validation, defaults, and fail-safes."
+    },
+    "TestDesign": {
+      "target": "TestDesign",
+      "scope": "tests,tests/README.md",
+      "include_dev_docs": false,
+      "description": "Assert quality and coverage intent."
+    }
+  },
+  "tests": {
+    "All": {
+      "marker": "",
+      "description": "Full test suite"
+    },
+    "Smoke": {
+      "marker": "smoke",
+      "description": "Fast, minimal checks"
+    },
+    "Integration": {
+      "marker": "integration",
+      "description": "Multi-component behavior"
+    },
+    "Stress": {
+      "marker": "stress",
+      "description": "Light stress/volume checks"
+    },
+    "Blackbox": {
+      "marker": "blackbox",
+      "description": "External-facing behavior"
+    },
+    "Whitebox": {
+      "marker": "whitebox",
+      "description": "Internal state inspection"
+    },
+    "SmokeBlackbox": {
+      "marker": "smoke and blackbox",
+      "description": "Fast external-facing checks"
+    }
+  }
+}

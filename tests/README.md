@@ -14,6 +14,33 @@
 | Single module | `python -m pytest tests/test_strategy_momentum.py -q` | Runs one file | Console only |
 | Specific test case | `python -m pytest tests/test_strategy_momentum.py::TestMomentumStrategy::test_buy_signal_strong_momentum -q` | Runs one test method | Console only |
 
+## Test Categories (Markers)
+
+We use pytest markers to classify tests:
+- `smoke`: fast, minimal checks for basic system health
+- `integration`: multi-component behavior and interactions
+- `stress`: light stress/volume checks (not performance benchmarks)
+- `blackbox`: external-facing behavior without internal inspection
+- `whitebox`: internal behavior with direct state inspection
+
+Examples:
+
+```bash
+# Smoke tests only
+python -m pytest -m smoke -q
+./run_tests -m smoke
+
+# Integration tests only
+python -m pytest -m integration -q
+
+# Light stress checks only
+python -m pytest -m stress -q
+
+# Combine markers
+python -m pytest -m "smoke and blackbox" -q
+./run_tests -m "smoke and blackbox"
+```
+
 Log files include the pytest summary line and are safe to share with CI.
 
 ## Overview

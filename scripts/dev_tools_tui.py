@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import argparse
 import curses
+import json
+import os
+import re
 import selectors
 import shlex
 import subprocess
@@ -15,6 +18,7 @@ from typing import Callable, List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON_BIN = sys.executable
+PRESET_FILE = REPO_ROOT / "audit_presets.json"
 
 MENU_ACTIONS: List[tuple[str, Callable[["curses._CursesWindow"], None]]] = []
 VERBOSE = True
@@ -64,51 +68,61 @@ ACTION_HELP: dict[str, List[str]] = {
     ],
 }
 
-DRA_PRESETS: dict[str, dict[str, object]] = {
-    "Agents": {
-        "target": "Agents",
-        "scope": "agents",
-        "include_dev_docs": False,
-    },
-    "Project": {
-        "target": "Project_Wide",
+DEFAULT_DRA_PRESETS: dict[str, dict[str, object]] = {
+    "Agents": {"target": "Agents", "scope": "agents", "include_dev_docs": False},
+    "ProjectWide": {
+        "target": "ProjectWide",
         "scope": (
             "agents,alerts,analytics,backtest,monitoring,risk,server,strategies,static,"
             "tests,docs,scripts,config.py,broker.py,server.py,start_app.sh,universe.py,screener.py"
         ),
         "include_dev_docs": False,
     },
-    "Logs": {
-        "target": "Logs",
-        "scope": "logs,docs/OBSERVABILITY.md",
+}
+
+DEFAULT_CLEAN_CODE_PRESETS: dict[str, dict[str, object]] = {
+    "Architecture": {
+        "target": "Architecture",
+        "scope": "agents,alerts,analytics,monitoring,risk,server,strategies",
         "include_dev_docs": False,
     },
-    "Tests": {
-        "target": "Tests",
-        "scope": "tests,tests/README.md,scripts/run_tests.sh,scripts/run_tests.bat",
-        "include_dev_docs": False,
-    },
-    "Server": {
-        "target": "Server",
-        "scope": "server,server.py",
-        "include_dev_docs": False,
-    },
-    "UI": {
-        "target": "UI",
-        "scope": "static,docs,server/routers/analytics.py",
-        "include_dev_docs": False,
-    },
-    "Analytics": {
-        "target": "Analytics",
-        "scope": "analytics,server/routers/analytics.py,static/index.html",
-        "include_dev_docs": False,
-    },
-    "Trading": {
-        "target": "Trading",
-        "scope": "agents,strategies,risk,broker.py,server/routers/trading.py",
+    "TestDesign": {
+        "target": "TestDesign",
+        "scope": "tests,tests/README.md",
         "include_dev_docs": False,
     },
 }
+
+
+def load_audit_presets(path: Path = PRESET_FILE) -> dict[str, dict[str, dict[str, object]]]:
+    if not path.exists():
+        return {"dra": DEFAULT_DRA_PRESETS, "clean_code": DEFAULT_CLEAN_CODE_PRESETS}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"dra": DEFAULT_DRA_PRESETS, "clean_code": DEFAULT_CLEAN_CODE_PRESETS}
+
+    dra = raw.get("dra") if isinstance(raw, dict) else None
+    clean = raw.get("clean_code") if isinstance(raw, dict) else None
+    tests = raw.get("tests") if isinstance(raw, dict) else None
+    if not isinstance(dra, dict) or not isinstance(clean, dict) or not isinstance(tests, dict):
+        return {"dra": DEFAULT_DRA_PRESETS, "clean_code": DEFAULT_CLEAN_CODE_PRESETS, "tests": {}}
+    return {"dra": dra, "clean_code": clean, "tests": tests}
+
+
+def _select_preset(
+    presets: dict[str, dict[str, object]],
+    selection: str,
+) -> tuple[str | None, dict[str, object] | None]:
+    if not selection:
+        return None, None
+    if selection.strip().lower() == "custom":
+        return None, None
+    mapping = {key.lower(): key for key in presets.keys()}
+    key = mapping.get(selection.strip().lower())
+    if not key:
+        return None, None
+    return key, presets[key]
 
 @dataclass
 class MenuItem:
@@ -308,6 +322,34 @@ def _render_stream_window(stdscr, title: str, lines: List[str], status_line: str
         pass
 
 
+_PYTEST_STATUS_RE = re.compile(
+    r"^(?P<nodeid>\S+::\S+.*?)\s+(?P<status>PASSED|FAILED|SKIPPED|XFAIL|XPASS|ERROR)"
+)
+
+
+def _parse_pytest_status_line(line: str) -> Optional[str]:
+    match = _PYTEST_STATUS_RE.match(line.strip())
+    if not match:
+        return None
+    return match.group("nodeid")
+
+
+def _collect_test_count(marker_expr: str) -> int:
+    cmd = [PYTHON_BIN, "-m", "pytest", "tests", "--collect-only", "-q"]
+    if marker_expr:
+        cmd.extend(["-m", marker_expr])
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPO_ROOT)
+    try:
+        proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, env=env)
+    except Exception:
+        return 0
+    if proc.returncode != 0:
+        return 0
+    lines = [line for line in proc.stdout.splitlines() if "::" in line]
+    return len(lines)
+
+
 def run_command(stdscr, cmd: List[str], details: Optional[List[str]] = None) -> None:
     preview = " ".join(shlex.quote(part) for part in cmd)
     if not popup_confirm(stdscr, "Run Command", f"Run: {preview}"):
@@ -344,7 +386,12 @@ def run_command(stdscr, cmd: List[str], details: Optional[List[str]] = None) -> 
         popup_message(stdscr, "Command Failed", [str(exc)])
 
 
-def run_command_streaming(stdscr, cmd: List[str], details: Optional[List[str]] = None) -> None:
+def run_command_streaming(
+    stdscr,
+    cmd: List[str],
+    details: Optional[List[str]] = None,
+    progress_total: int = 0,
+) -> None:
     preview = " ".join(shlex.quote(part) for part in cmd)
     if not popup_confirm(stdscr, "Run Command", f"Run: {preview}"):
         return
@@ -373,21 +420,54 @@ def run_command_streaming(stdscr, cmd: List[str], details: Optional[List[str]] =
     if proc.stdout:
         selector.register(proc.stdout, selectors.EVENT_READ)
 
-    while True:
-        events = selector.select(timeout=0.2)
-        for key, _mask in events:
-            line = key.fileobj.readline()
-            if line:
-                output_lines.append(line.rstrip())
+    completed = 0
+    current_test = ""
+    try:
+        stream_open = True
+        while True:
+            events = selector.select(timeout=0.2)
+            for key, _mask in events:
+                line = key.fileobj.readline()
+                if line:
+                    output_lines.append(line.rstrip())
+                    if progress_total:
+                        parsed = _parse_pytest_status_line(line)
+                        if parsed:
+                            completed += 1
+                            current_test = parsed
+                    _render_stream_window(stdscr, title, output_lines, status_line)
+                else:
+                    try:
+                        selector.unregister(key.fileobj)
+                    except Exception:
+                        pass
+                    stream_open = False
+            now = time.time()
+            if now - last_tick >= 1.0:
+                if progress_total:
+                    percent = int((completed / progress_total) * 100) if progress_total else 0
+                    status_line = f"{current_test or 'Running tests'} ... {percent}% ({completed}/{progress_total})"
+                else:
+                    dot_count = (dot_count + 1) % 4
+                    status_line = "Working" + ("." * dot_count)
                 _render_stream_window(stdscr, title, output_lines, status_line)
-        now = time.time()
-        if now - last_tick >= 1.0:
-            dot_count = (dot_count + 1) % 4
-            status_line = "Working" + ("." * dot_count)
-            _render_stream_window(stdscr, title, output_lines, status_line)
-            last_tick = now
-        if proc.poll() is not None and not events:
-            break
+                last_tick = now
+            if proc.poll() is not None and (not events or not stream_open):
+                break
+    except KeyboardInterrupt:
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+        try:
+            proc.wait(timeout=2)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        popup_message(stdscr, "Command Cancelled", ["Interrupted by user."])
+        return
 
     if proc.stdout:
         for line in proc.stdout:
@@ -419,17 +499,34 @@ def _extract_prefix_line(lines: List[str], prefix: str) -> Optional[str]:
 
 
 def handle_clean_code_audit(stdscr) -> None:
-    target, scope, output_dir, template_path, include_docs = popup_inputs(
+    presets = load_audit_presets().get("clean_code", {})
+    preset_names = "/".join(list(presets.keys()) + ["Custom"]) if presets else "Custom"
+    preset, = popup_inputs(
         stdscr,
-        "Clean Code Audit",
+        "Clean Code Preset",
         [
-            ("Target", "ProjectStructure"),
-            ("Scope (comma paths/globs)", "agents,analytics,server,static"),
-            ("Output dir", "development_docs/clean_code_audits"),
-            ("Template path", ""),
-            ("Include development_docs? (y/n)", "n"),
+            (f"Preset ({preset_names})", "Architecture" if presets else "Custom"),
         ],
     )
+    preset_key, config = _select_preset(presets, preset)
+    if config:
+        target = str(config.get("target", "Architecture"))
+        scope = str(config.get("scope", "agents,analytics,server,static"))
+        output_dir = "development_docs/clean_code_audits"
+        include_docs = "y" if config.get("include_dev_docs") else "n"
+        template_path = ""
+    else:
+        target, scope, output_dir, template_path, include_docs = popup_inputs(
+            stdscr,
+            "Clean Code Audit (Custom)",
+            [
+                ("Target", "ProjectStructure"),
+                ("Scope (comma paths/globs)", "agents,analytics,server,static"),
+                ("Output dir", "development_docs/clean_code_audits"),
+                ("Template path", ""),
+                ("Include development_docs? (y/n)", "n"),
+            ],
+        )
     cmd = [
         PYTHON_BIN,
         "scripts/run_clean_code_audit.py",
@@ -448,6 +545,7 @@ def handle_clean_code_audit(stdscr) -> None:
         cmd.append("--verbose")
     details = [
         "Draft clean-code audit with evidence pack.",
+        f"Preset: {preset_key if config else 'Custom'}",
         f"Target: {target}",
         f"Scope: {scope or 'n/a'}",
         f"Output: {output_dir}",
@@ -478,18 +576,19 @@ def handle_clean_code_index(stdscr) -> None:
 
 
 def handle_dra_audit(stdscr) -> None:
+    presets = load_audit_presets().get("dra", {})
+    preset_names = "/".join(list(presets.keys()) + ["Custom"]) if presets else "Custom"
     preset, = popup_inputs(
         stdscr,
         "DRA Audit Preset",
         [
-            ("Preset (Agents/Project/Logs/Tests/Server/UI/Analytics/Trading/Custom)", "Agents"),
+            (f"Preset ({preset_names})", "Agents" if presets else "Custom"),
         ],
     )
-    preset_key = preset.strip()
-    if preset_key in DRA_PRESETS:
-        config = DRA_PRESETS[preset_key]
-        target = str(config["target"])
-        scope = str(config["scope"])
+    preset_key, config = _select_preset(presets, preset)
+    if config:
+        target = str(config.get("target", "Agents"))
+        scope = str(config.get("scope", "agents"))
         output_dir = "development_docs/audits"
         include_docs = "y" if config.get("include_dev_docs") else "n"
     else:
@@ -519,7 +618,7 @@ def handle_dra_audit(stdscr) -> None:
         cmd.append("--verbose")
     details = [
         "Draft DRA audit with evidence pack.",
-        f"Preset: {preset_key if preset_key in DRA_PRESETS else 'Custom'}",
+        f"Preset: {preset_key if config else 'Custom'}",
         f"Target: {target}",
         f"Scope: {scope or 'n/a'}",
         f"Output: {output_dir}",
@@ -545,6 +644,8 @@ def handle_test_audit(stdscr) -> None:
         cmd.append("--no-coverage")
     if repo_root:
         cmd.extend(["--repo", repo_root])
+    if VERBOSE:
+        cmd.append("--verbose")
     details = [
         "Run pytest with optional coverage.",
         f"Run tests: {'yes' if not run_tests.lower().startswith('n') else 'no'}",
@@ -552,20 +653,51 @@ def handle_test_audit(stdscr) -> None:
         f"Repo root: {repo_root or str(REPO_ROOT)}",
         "Outputs: test_results/test_audit_*",
     ]
-    run_command(stdscr, cmd, details)
+    run_command_streaming(stdscr, cmd, details)
 
 
 def handle_run_tests(stdscr) -> None:
+    presets = load_audit_presets().get("tests", {})
+    preset_names = "/".join(list(presets.keys()) + ["Custom"]) if presets else "Custom"
+    preset, = popup_inputs(
+        stdscr,
+        "Test Suite Preset",
+        [
+            (f"Preset ({preset_names})", "All" if presets else "Custom"),
+        ],
+    )
+    marker_expr = ""
+    preset_key = None
+    if preset.strip().lower() != "custom" and presets:
+        mapping = {key.lower(): key for key in presets.keys()}
+        preset_key = mapping.get(preset.strip().lower())
+        if preset_key:
+            marker_expr = str(presets[preset_key].get("marker", "")).strip()
+    if preset_key is None:
+        marker_expr, = popup_inputs(
+            stdscr,
+            "Custom Test Marker",
+            [
+                ("Marker expression (blank = all)", ""),
+            ],
+        )
+        marker_expr = (marker_expr or "").strip()
+
+    total = _collect_test_count(marker_expr)
     cmd = ["./run_tests"]
+    if marker_expr:
+        cmd.extend(["-m", marker_expr])
     if VERBOSE:
         cmd.append("--verbose")
     details = [
-        "Run full test suite with logging.",
+        "Run test suite with logging.",
+        f"Preset: {preset_key or 'Custom'}",
+        f"Marker: {marker_expr or 'all'}",
         "Uses scripts/run_tests.sh if available.",
         "Outputs: test_results/test_run_* and latest_summary.txt",
         "Verbose mode shows per-test progress in the log.",
     ]
-    run_command_streaming(stdscr, cmd, details)
+    run_command_streaming(stdscr, cmd, details, progress_total=total)
 
 
 def handle_docs_scaffold(stdscr) -> None:
@@ -827,6 +959,17 @@ def handle_test_audit_headless(args: argparse.Namespace) -> int:
 
 def handle_run_tests_headless(_args: argparse.Namespace) -> int:
     cmd = ["./run_tests"]
+    marker_expr = ""
+    if getattr(_args, "test_preset", ""):
+        presets = load_audit_presets().get("tests", {})
+        mapping = {key.lower(): key for key in presets.keys()}
+        preset_key = mapping.get(str(_args.test_preset).strip().lower())
+        if preset_key:
+            marker_expr = str(presets[preset_key].get("marker", "")).strip()
+    if getattr(_args, "marker", ""):
+        marker_expr = str(_args.marker).strip()
+    if marker_expr:
+        cmd.extend(["-m", marker_expr])
     if getattr(_args, "verbose", False):
         cmd.append("--verbose")
     if getattr(_args, "quiet", False):
@@ -944,6 +1087,8 @@ if __name__ == "__main__":
     parser.add_argument("--no-tests", action="store_true")
     parser.add_argument("--no-coverage", action="store_true")
     parser.add_argument("--repo", default="")
+    parser.add_argument("--marker", default="")
+    parser.add_argument("--test-preset", default="")
     parser.add_argument("--tail", type=int, default=0)
     parser.add_argument("--list-files", action="store_true")
     parser.add_argument("--limit", type=int, default=0)

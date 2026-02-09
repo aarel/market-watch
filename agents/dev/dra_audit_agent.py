@@ -24,6 +24,7 @@ from agents.dev.clean_code_audit_agent import (
 class DraftAudit:
     path: Path
     diff: IndexDiff
+    baseline_loaded: bool
 
 
 class DRAAuditAgent(BaseAgent):
@@ -71,10 +72,16 @@ class DRAAuditAgent(BaseAgent):
         out_path = output_dir / f"DRA_Audit_{safe_target}_Draft_{stamp}.md"
 
         emit("Updating project index...")
-        diff = self.update_index()
+        diff, baseline_loaded = self.update_index()
         emit(f"Index updated. Added={len(diff.added)} Removed={len(diff.removed)} Modified={len(diff.modified)}")
         emit("Resolving scope files...")
-        scope_files = _resolve_scope_files(self.repo_root, scope)
+        scope_files = _resolve_scope_files(
+            self.repo_root,
+            scope,
+            include_dev_docs=self.include_dev_docs,
+            exclude_dirs=self.indexer.exclude_dirs,
+            exclude_files=self.indexer.exclude_files,
+        )
         emit(f"Scope files resolved: {len(scope_files)}")
 
         content = _dra_template(
@@ -82,19 +89,21 @@ class DRAAuditAgent(BaseAgent):
             scope=scope,
             scope_files=scope_files,
             diff=diff,
+            baseline_loaded=baseline_loaded,
         )
         out_path.write_text(content, encoding="utf-8")
         emit(f"Audit draft created: {out_path}")
-        return DraftAudit(path=out_path, diff=diff)
+        return DraftAudit(path=out_path, diff=diff, baseline_loaded=baseline_loaded)
 
-    def update_index(self) -> IndexDiff:
+    def update_index(self) -> tuple[IndexDiff, bool]:
         previous = self._load_index()
+        baseline_loaded = bool(previous)
         current = self.indexer.scan(include_dev_docs=self.include_dev_docs)
         diff = self.indexer.diff(previous, current)
         self._save_index(current)
         self._write_structure_report(current, diff)
         self._write_change_log(diff)
-        return diff
+        return diff, baseline_loaded
 
     def _load_index(self) -> dict[str, FileRecord]:
         if not self.index_path.exists():
@@ -164,6 +173,7 @@ def _dra_template(
     scope: Iterable[str],
     scope_files: list[str],
     diff: IndexDiff,
+    baseline_loaded: bool,
 ) -> str:
     def _join(items: list[str]) -> str:
         if not items:
@@ -194,7 +204,7 @@ def _dra_template(
         "",
         "## Evidence Pack",
         f"Scope file count: {len(scope_files)}",
-        "Recent changes (no baseline loaded):",
+        "Recent changes since last index:" if baseline_loaded else "Recent changes (no baseline loaded):",
         f"Added: {_join(diff.added)}",
         f"Removed: {_join(diff.removed)}",
         f"Modified: {_join(diff.modified)}",

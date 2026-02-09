@@ -35,6 +35,8 @@ class TestProvenanceGuardrail(unittest.TestCase):
             "session_id": "s1",
             "data_lineage_id": "d1"
         })  # should succeed and set defaults
+        loaded = store.load_equity()
+        self.assertEqual(loaded[0]["validity_class"], Universe.SIMULATION.default_validity_class)
 
 
 if __name__ == "__main__":

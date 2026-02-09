@@ -8,6 +8,7 @@ Tests the full universe transition flow including:
 - Component teardown
 - Fresh context creation
 """
+import pytest
 import unittest
 import tempfile
 import shutil
@@ -19,6 +20,9 @@ from universe import Universe, UniverseContext
 from analytics.store import AnalyticsStore
 from fake_broker import FakeBroker
 from server.state import AppState
+
+
+pytestmark = [pytest.mark.integration, pytest.mark.whitebox]
 
 
 class MockBroker:

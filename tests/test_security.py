@@ -46,7 +46,8 @@ class TestApiAccess(unittest.TestCase):
         )
         with patch.object(server.config, "API_TOKEN", "secret"), \
             patch.object(server.config, "ALLOWED_ORIGINS", ["http://localhost:8000"]):
-            server.require_api_access(request)
+            result = server.require_api_access(request)
+            self.assertIsNone(result)
 
     def test_blocks_non_loopback_without_token(self):
         request = _make_request(client_host="10.0.0.5")
@@ -68,7 +69,8 @@ class TestApiAccess(unittest.TestCase):
         request = _make_request(origin="http://localhost:8000")
         with patch.object(server.config, "API_TOKEN", ""), \
             patch.object(server.config, "ALLOWED_ORIGINS", ["http://localhost:8000"]):
-            server.require_api_access(request)
+            result = server.require_api_access(request)
+            self.assertIsNone(result)
 
 
 if __name__ == "__main__":
