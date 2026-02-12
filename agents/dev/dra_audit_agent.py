@@ -2,21 +2,19 @@
 from __future__ import annotations
 
 import json
-import os
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable, Optional
 
 from agents.base import BaseAgent
-from agents.events import LogEvent
 from agents.dev.clean_code_audit_agent import (
-    ProjectIndex,
+    FileRecord,
     IndexDiff,
+    ProjectIndex,
     _resolve_scope_files,
     _sanitize_target,
     _structure_summary,
-    FileRecord,
 )
 
 
@@ -66,7 +64,7 @@ class DRAAuditAgent(BaseAgent):
 
         emit("Starting DRA audit draft...")
         output_dir.mkdir(parents=True, exist_ok=True)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stamp = now.strftime("%Y-%m-%d")
         safe_target = _sanitize_target(target)
         out_path = output_dir / f"DRA_Audit_{safe_target}_Draft_{stamp}.md"
@@ -122,7 +120,7 @@ class DRAAuditAgent(BaseAgent):
 
     def _save_index(self, records: dict[str, FileRecord]) -> None:
         payload = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "files": [
                 {
                     "path": rec.path,
@@ -141,7 +139,7 @@ class DRAAuditAgent(BaseAgent):
         lines = [
             "# Project Structure Snapshot",
             "",
-            f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+            f"Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}",
             "",
             f"Total files: {summary['total_files']}",
             f"Total size (bytes): {summary['total_size']}",
@@ -158,9 +156,9 @@ class DRAAuditAgent(BaseAgent):
         self.state_dir.joinpath("project_structure.md").write_text("\n".join(lines), encoding="utf-8")
 
     def _write_change_log(self, diff: IndexDiff) -> None:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         payload = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "added": diff.added,
             "removed": diff.removed,
             "modified": diff.modified,
@@ -186,7 +184,7 @@ def _dra_template(
         "**Status:** Draft (needs review)",
         "",
         "## Header",
-        f"- Audit Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+        f"- Audit Date: {datetime.now(UTC).strftime('%Y-%m-%d')}",
         f"- Target: {target}",
         f"- Scope: {', '.join(scope) if scope else 'n/a'}",
         "",

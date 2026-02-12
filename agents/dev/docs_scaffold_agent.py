@@ -1,14 +1,14 @@
 """DocScaffoldAgent - organizes development_docs without deleting content."""
 from __future__ import annotations
 
-import json
-import re
 import asyncio
+import json
 import os
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable, Optional
 
 from agents.base import BaseAgent
 from agents.events import LogEvent
@@ -129,7 +129,7 @@ class DocScaffoldPlanner:
         lines = [
             "# development_docs Index",
             "",
-            f"Updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+            f"Updated: {datetime.now(UTC).strftime('%Y-%m-%d')}",
             "",
         ]
         categories = sorted({p.name for p in self.docs_root.iterdir() if p.is_dir() and not p.name.startswith("_")})
@@ -146,7 +146,7 @@ class DocScaffoldPlanner:
         return index_path
 
     def write_plan(self, plans: Iterable[MovePlan]) -> Path:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         path = self.output_dir / f"plan_{stamp}.json"
         payload = [
             {"src": str(p.src), "dest": str(p.dest), "reason": p.reason}
@@ -194,7 +194,7 @@ class DocScaffoldPlanner:
 
     def _date_label(self, path: Path) -> str:
         timestamp = self._best_timestamp(path)
-        return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+        return datetime.fromtimestamp(timestamp, tz=UTC).strftime("%Y-%m-%d")
 
     def _best_timestamp(self, path: Path) -> float:
         stat = path.stat()
@@ -220,7 +220,7 @@ class DocScaffoldAgent(BaseAgent):
         apply: bool = False,
         include_directories: bool = False,
         write_index: bool = False,
-        date_bucket_categories: Optional[Iterable[str]] = None,
+        date_bucket_categories: Iterable[str] | None = None,
     ):
         super().__init__("DocScaffoldAgent", event_bus)
         self.interval_minutes = max(5, interval_minutes)
@@ -229,7 +229,7 @@ class DocScaffoldAgent(BaseAgent):
         self.write_index_flag = write_index
         self.date_bucket_categories = {c.strip() for c in (date_bucket_categories or []) if c.strip()}
         self.planner = DocScaffoldPlanner(repo_root=repo_root)
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
 
     async def start(self):
         await super().start()

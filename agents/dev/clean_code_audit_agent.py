@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable, Optional
 
 from agents.base import BaseAgent
-from agents.events import LogEvent
 
 DEFAULT_EXCLUDE_DIRS = {
     ".git",
@@ -49,8 +48,8 @@ class ProjectIndex:
     def __init__(
         self,
         repo_root: Path,
-        exclude_dirs: Optional[Iterable[str]] = None,
-        exclude_files: Optional[Iterable[str]] = None,
+        exclude_dirs: Iterable[str] | None = None,
+        exclude_files: Iterable[str] | None = None,
     ):
         self.repo_root = repo_root
         self.exclude_dirs = set(DEFAULT_EXCLUDE_DIRS if exclude_dirs is None else exclude_dirs)
@@ -151,7 +150,7 @@ class CleanCodeAuditAgent(BaseAgent):
         target: str,
         scope: Iterable[str],
         output_dir: Path,
-        template_path: Optional[Path] = None,
+        template_path: Path | None = None,
         verbose: bool = False,
     ) -> Path:
         def emit(message: str) -> None:
@@ -162,7 +161,7 @@ class CleanCodeAuditAgent(BaseAgent):
         output_dir.mkdir(parents=True, exist_ok=True)
         template = self._load_template(template_path)
         emit(f"Template: {'custom' if template_path else 'auto'}")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stamp = now.strftime("%Y-%m-%d")
         safe_target = _sanitize_target(target)
         out_path = output_dir / f"DRA_CleanCode_{safe_target}_Draft_{stamp}.md"
@@ -209,7 +208,7 @@ class CleanCodeAuditAgent(BaseAgent):
 
     def _save_index(self, records: dict[str, FileRecord]) -> None:
         payload = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "files": [
                 {
                     "path": rec.path,
@@ -228,7 +227,7 @@ class CleanCodeAuditAgent(BaseAgent):
         lines = [
             "# Project Structure Snapshot",
             "",
-            f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+            f"Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}",
             "",
             f"Total files: {summary['total_files']}",
             f"Total size (bytes): {summary['total_size']}",
@@ -245,16 +244,16 @@ class CleanCodeAuditAgent(BaseAgent):
         self.state_dir.joinpath("project_structure.md").write_text("\n".join(lines), encoding="utf-8")
 
     def _write_change_log(self, diff: IndexDiff) -> None:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         payload = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "added": diff.added,
             "removed": diff.removed,
             "modified": diff.modified,
         }
         self.state_dir.joinpath(f"changes_{stamp}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    def _load_template(self, template_path: Optional[Path]) -> str:
+    def _load_template(self, template_path: Path | None) -> str:
         if template_path and template_path.exists():
             return template_path.read_text(encoding="utf-8")
 
@@ -314,8 +313,8 @@ def _resolve_scope_files(
     repo_root: Path,
     scope: Iterable[str],
     include_dev_docs: bool = False,
-    exclude_dirs: Optional[Iterable[str]] = None,
-    exclude_files: Optional[Iterable[str]] = None,
+    exclude_dirs: Iterable[str] | None = None,
+    exclude_files: Iterable[str] | None = None,
 ) -> list[str]:
     files: set[str] = set()
     exclude_dir_set = set(DEFAULT_EXCLUDE_DIRS if exclude_dirs is None else exclude_dirs)

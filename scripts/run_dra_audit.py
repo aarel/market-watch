@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import threading
 from pathlib import Path
-import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
