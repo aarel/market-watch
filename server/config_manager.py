@@ -1,12 +1,19 @@
 """Configuration manager to load, validate, and persist runtime config."""
+import asyncio
 import json
+import logging
 import os
-from typing import List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 import config
 from universe import Universe, get_data_path
+
+if TYPE_CHECKING:
+    from agents.event_bus import EventBus
+
+logger = logging.getLogger(__name__)
 
 
 class RuntimeConfig(BaseModel):
@@ -16,7 +23,7 @@ class RuntimeConfig(BaseModel):
     Pydantic handles proper string-to-bool conversion ("true"/"false" strings).
     """
     strategy: str = config.STRATEGY
-    watchlist: List[str] = Field(default_factory=lambda: config.WATCHLIST.copy())
+    watchlist: list[str] = Field(default_factory=lambda: config.WATCHLIST.copy())
     watchlist_mode: str = config.WATCHLIST_MODE
     momentum_threshold: float = config.MOMENTUM_THRESHOLD
     sell_threshold: float = config.SELL_THRESHOLD
@@ -59,13 +66,12 @@ class RuntimeConfig(BaseModel):
             lower = v.lower().strip()
             if lower in ('true', '1', 'yes', 'on'):
                 return True
-            elif lower in ('false', '0', 'no', 'off'):
+            if lower in ('false', '0', 'no', 'off'):
                 return False
-            else:
-                raise ValueError(
-                    f"Invalid boolean string: '{v}'. "
-                    f"Accepted values: true/false, yes/no, on/off, 1/0"
-                )
+            raise ValueError(
+                f"Invalid boolean string: '{v}'. "
+                f"Accepted values: true/false, yes/no, on/off, 1/0"
+            )
         raise TypeError(f"Cannot convert {type(v).__name__} to bool")
 
 
@@ -73,12 +79,18 @@ PERSISTED_CONFIG_KEYS = set(RuntimeConfig.model_fields.keys())
 
 
 class ConfigManager:
-    def __init__(self, path: str = None, universe: Optional[Universe] = None):
+    def __init__(
+        self,
+        path: str = None,
+        universe: Universe | None = None,
+        event_bus: Optional["EventBus"] = None
+    ):
         """Initialize ConfigManager with universe or explicit path.
 
         Args:
             path: Explicit path override (for testing only)
             universe: Universe for scoped config (generates path: data/{universe}/config_state.json)
+            event_bus: Optional event bus for broadcasting config changes
 
         Raises:
             TypeError: If both path and universe are None (universe is required in production)
@@ -98,6 +110,7 @@ class ConfigManager:
             )
 
         self.universe = universe
+        self.event_bus = event_bus
         self.state = RuntimeConfig()
         self.load()
 
@@ -136,7 +149,7 @@ class ConfigManager:
         if not self.path or not os.path.exists(self.path):
             return
         try:
-            with open(self.path, "r", encoding="utf-8") as f:
+            with open(self.path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
             return
@@ -156,12 +169,20 @@ class ConfigManager:
 
         This prevents the bool("false") bug by using Pydantic's strict type validation.
         Invalid updates will raise ValidationError with clear error messages.
+
+        Emits ConfigUpdated event if event_bus is available.
         """
         # Filter to only allowed keys
         filtered_updates = {k: v for k, v in updates.items() if k in PERSISTED_CONFIG_KEYS}
 
+        if not filtered_updates:
+            return  # No valid updates
+
         # Get current state as dict
         current_state = self.state.model_dump()
+
+        # Track what changed
+        changed_keys = [k for k in filtered_updates if filtered_updates[k] != current_state.get(k)]
 
         # Merge updates
         current_state.update(filtered_updates)
@@ -175,6 +196,10 @@ class ConfigManager:
 
         # Reflect back into config module for legacy consumers
         self._apply_to_config()
+
+        # Emit ConfigUpdated event if event bus available and changes occurred
+        if self.event_bus and changed_keys:
+            self._emit_config_updated(changed_keys)
 
     def _apply_to_config(self):
         # Minimal legacy sync
@@ -202,3 +227,37 @@ class ConfigManager:
         config.ALERTS_ENABLED = cfg.alerts_enabled
         config.ALERT_EMAIL_ENABLED = cfg.alert_email_enabled
         config.ALERT_WEBHOOK_ENABLED = cfg.alert_webhook_enabled
+
+    def _emit_config_updated(self, changed_keys: list[str]):
+        """Emit ConfigUpdated event to notify agents of config changes.
+
+        Args:
+            changed_keys: List of configuration keys that changed
+        """
+        if not self.event_bus or not self.universe:
+            return
+
+        try:
+            from agents.events import ConfigUpdated
+            from universe import UniverseContext
+
+            # Get session_id from event bus's context
+            context = getattr(self.event_bus, '_context', None)
+            if not context:
+                # Fallback: create temporary context
+                context = UniverseContext(self.universe)
+
+            event = ConfigUpdated(
+                universe=self.universe,
+                session_id=context.session_id,
+                source="ConfigManager",
+                changed_keys=changed_keys,
+                config_snapshot=self.snapshot(),
+            )
+
+            # Schedule async publish in event loop
+            asyncio.create_task(self.event_bus.publish(event))
+            logger.info(f"Config updated: {', '.join(changed_keys)}")
+
+        except Exception as e:
+            logger.error(f"Failed to emit ConfigUpdated event: {e}")

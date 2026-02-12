@@ -1,9 +1,10 @@
 """Global app state container."""
+from collections.abc import Callable
 from datetime import datetime
-from typing import Optional, Callable
+
+from universe import Universe, UniverseContext
 
 from .config_manager import ConfigManager
-from universe import Universe, UniverseContext
 
 
 class AppState:
@@ -51,10 +52,10 @@ class AppState:
     def rebuild_for_universe(
         self,
         universe: Universe,
-        broker_factory: Optional[Callable[[Universe], object]] = None,
-        coordinator_factory: Optional[Callable[[object, object], object]] = None,
-        analytics_factory: Optional[Callable[[Universe], object]] = None,
-        teardown: Optional[Callable[[object, object, object], None]] = None,
+        broker_factory: Callable[[Universe], object] | None = None,
+        coordinator_factory: Callable[[object, object], object] | None = None,
+        analytics_factory: Callable[[Universe], object] | None = None,
+        teardown: Callable[[object, object, object], None] | None = None,
     ):
         """
         Perform a destructive universe transition and rebuild broker,

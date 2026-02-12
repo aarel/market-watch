@@ -1216,30 +1216,40 @@
                         Portfolio Value
                         <span class="tooltip">
                             <i class="info-icon">?</i>
-                            <span class="tooltip-text">Total value of your account: cash + value of all stock positions. This number goes up/down as stock prices change.</span>
+                            <span class="tooltip-text"><strong>Total account value if you closed everything right now.</strong><br><br>Portfolio = Cash + Positions<br><br>This is what you'd have in your pocket if you sold all stocks and withdrew.</span>
                         </span>
                     </span>
                     <span class="stat-value" id="portfolio-value">$0.00</span>
+                </div>
+                <div class="stat" style="padding-left: 20px;">
+                    <span class="stat-label">
+                        ├─ Cash
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Uninvested cash sitting in your account.</strong><br><br>This money is NOT in stocks. When you sell positions, cash increases. When you buy, cash decreases.</span>
+                        </span>
+                    </span>
+                    <span class="stat-value" id="cash">$0.00</span>
+                </div>
+                <div class="stat" style="padding-left: 20px;">
+                    <span class="stat-label">
+                        └─ Positions
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Total market value of all your stock positions.</strong><br><br>This is how much your stocks are worth right now. Goes up/down as stock prices change.</span>
+                        </span>
+                    </span>
+                    <span class="stat-value" id="positions-value">$0.00</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">
                         Buying Power
                         <span class="tooltip">
                             <i class="info-icon">?</i>
-                            <span class="tooltip-text">How much you can spend on new trades. With margin accounts, this can be 2x your cash (leverage). Be careful with margin!</span>
+                            <span class="tooltip-text"><strong>Maximum you can spend on new trades.</strong><br><br>With margin (leverage), buying power can be 2-4x your cash. Alpaca provides margin but be careful - you can lose more than you invest!</span>
                         </span>
                     </span>
                     <span class="stat-value" id="buying-power">$0.00</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-label">
-                        Cash
-                        <span class="tooltip">
-                            <i class="info-icon">?</i>
-                            <span class="tooltip-text">Actual cash in your account not invested in stocks. When you sell a position, this increases.</span>
-                        </span>
-                    </span>
-                    <span class="stat-value" id="cash">$0.00</span>
                 </div>
                 <div class="stat">
                     <span class="stat-label">
@@ -2130,13 +2140,19 @@
         function updateStatus(data) {
             // Account
             if (data.account) {
-                document.getElementById('portfolio-value').textContent = formatMoney(data.account.portfolio_value);
+                const portfolioValue = data.account.portfolio_value || 0;
+                const cash = data.account.cash || 0;
+                const positionsValue = portfolioValue - cash;
+
+                document.getElementById('portfolio-value').textContent = formatMoney(portfolioValue);
+                document.getElementById('cash').textContent = formatMoney(cash);
+                document.getElementById('positions-value').textContent = formatMoney(positionsValue);
                 document.getElementById('buying-power').textContent = formatMoney(data.account.buying_power);
-                document.getElementById('cash').textContent = formatMoney(data.account.cash);
             } else {
                 document.getElementById('portfolio-value').textContent = '--';
-                document.getElementById('buying-power').textContent = '--';
                 document.getElementById('cash').textContent = '--';
+                document.getElementById('positions-value').textContent = '--';
+                document.getElementById('buying-power').textContent = '--';
             }
             const maxDailyTrades = data.bot?.max_daily_trades ?? '-';
             const dailyTrades = data.bot?.daily_trades ?? 0;
@@ -3450,10 +3466,18 @@
                 const res = await apiFetch('/api/status');
                 if (!res.ok) return;
                 const data = await res.json();
-                // /api/status only returns {running, agents}
-                // Account/positions/etc come from WebSocket
+                // /api/status now returns {running, agents, bot}
+                // Update agents display
                 if (data.agents) {
                     updateAgents(data);
+                }
+                // Update daily_trades display from bot object
+                if (data.bot) {
+                    const maxDailyTrades = data.bot.max_daily_trades ?? '-';
+                    const dailyTrades = data.bot.daily_trades ?? 0;
+                    document.getElementById('daily-trades').textContent = maxDailyTrades === '-'
+                        ? `${dailyTrades}`
+                        : `${dailyTrades} / ${maxDailyTrades}`;
                 }
             } catch (err) {
                 console.error('Failed to fetch status:', err);
@@ -3901,6 +3925,12 @@
                 }
 
                 updateRiskPanel();
+
+                // Re-validate all warning fields after config loads
+                // This fixes the issue where warnings show incorrectly on page load
+                for (const fieldId of Object.keys(CONFIG_WARNINGS)) {
+                    validateFieldWarnings(fieldId);
+                }
             } catch (err) {
                 console.error('Failed to fetch config:', err);
             }

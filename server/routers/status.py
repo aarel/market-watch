@@ -1,12 +1,11 @@
-from datetime import datetime, timezone
 import os
-import psutil
+from datetime import UTC, datetime
 
+import psutil
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
 from ..dependencies import get_state
-from ..events import WebsocketManager
 from ..latency_tracker import get_tracker
 
 router = APIRouter()
@@ -14,10 +13,10 @@ router = APIRouter()
 
 @router.get("/health")
 async def health(state=Depends(get_state)):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     start_time = state.start_time
     if start_time.tzinfo is None:
-        start_time = start_time.replace(tzinfo=timezone.utc)
+        start_time = start_time.replace(tzinfo=UTC)
     uptime_seconds = (now - start_time).total_seconds()
 
     # Application check
@@ -90,12 +89,24 @@ async def health(state=Depends(get_state)):
 
 @router.get("/status")
 async def get_status(state=Depends(get_state)):
+    import config
     if not state.coordinator:
         return {"running": False}
     agent_status = state.coordinator.status()
-    # coordinator.status() returns {"running": bool, "agents": {...}}
-    # Return it directly to avoid double-nesting
-    return agent_status
+
+    # Add "bot" object with daily_trades (matching WebSocket structure)
+    # This ensures UI displays daily_trades correctly even when using REST polling
+    return {
+        "running": agent_status.get("running", False),
+        "agents": agent_status.get("agents", {}),
+        "bot": {
+            "running": agent_status.get("running", False),
+            "auto_trade": config.AUTO_TRADE,
+            "daily_trades": agent_status.get("agents", {}).get("risk", {}).get("daily_trades", 0),
+            "max_daily_trades": config.MAX_DAILY_TRADES,
+            "trading_mode": config.TRADING_MODE,
+        }
+    }
 
 
 @router.get("/logs")

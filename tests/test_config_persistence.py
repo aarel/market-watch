@@ -6,7 +6,6 @@ import unittest
 import config
 from server.config_manager import ConfigManager
 
-
 FIELD_MAP = {
     "strategy": "STRATEGY",
     "watchlist": "WATCHLIST",

@@ -1,5 +1,6 @@
 """Configuration management for the trading bot."""
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -83,7 +84,7 @@ MAX_SECTOR_EXPOSURE_PCT = float(os.getenv("MAX_SECTOR_EXPOSURE_PCT", "1.00"))
 MAX_CORRELATED_EXPOSURE_PCT = float(os.getenv("MAX_CORRELATED_EXPOSURE_PCT", "1.00"))
 CORRELATION_THRESHOLD = float(os.getenv("CORRELATION_THRESHOLD", "0.8"))
 CORRELATION_LOOKBACK_DAYS = int(os.getenv("CORRELATION_LOOKBACK_DAYS", "30"))
-RVOL_THRESHOLD = float(os.getenv("RVOL_THRESHOLD", "2.0"))  # Relative volume threshold
+RVOL_THRESHOLD = float(os.getenv("RVOL_THRESHOLD", "0.0"))  # Relative volume threshold
 SECTOR_MAP_PATH = os.getenv("SECTOR_MAP_PATH", "data/shared/sector_map.json")
 SECTOR_MAP_JSON = os.getenv("SECTOR_MAP_JSON", "")
 

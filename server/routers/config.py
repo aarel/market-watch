@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
-
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from ..dependencies import get_config_manager
 from alerts.runtime import configure_alerts
+
+from ..dependencies import get_config_manager
 
 
 class ConfigUpdate(BaseModel):
