@@ -1,23 +1,26 @@
 """Coordinator - orchestrates all agents."""
-from typing import TYPE_CHECKING, Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from .event_bus import EventBus
-from .data_agent import DataAgent
-from .signal_agent import SignalAgent
-from .risk_agent import RiskAgent
-from .execution_agent import ExecutionAgent
-from .monitor_agent import MonitorAgent
-from .alert_agent import AlertAgent
-from .external_alert_agent import ExternalAlertAgent
-from .observability_agent import ObservabilityAgent
-from .test_agent import TestAgent
-from .replay_recorder_agent import ReplayRecorderAgent
-from .ui_check_agent import UICheckAgent
-from .session_logger_agent import SessionLoggerAgent
-from .events import StopLossTriggered, RiskCheckPassed, LogEvent
+import config
+from broker_query_service import BrokerQueryService
 from strategies import get_strategy
 from universe import Universe, UniverseContext
-import config
+
+from .alert_agent import AlertAgent
+from .data_agent import DataAgent
+from .event_bus import EventBus
+from .events import LogEvent, RiskCheckPassed, StopLossTriggered
+from .execution_agent import ExecutionAgent
+from .external_alert_agent import ExternalAlertAgent
+from .monitor_agent import MonitorAgent
+from .observability_agent import ObservabilityAgent
+from .replay_recorder_agent import ReplayRecorderAgent
+from .risk_agent import RiskAgent
+from .session_logger_agent import SessionLoggerAgent
+from .signal_agent import SignalAgent
+from .test_agent import TestAgent
+from .ui_check_agent import UICheckAgent
 
 if TYPE_CHECKING:
     from broker import AlpacaBroker
@@ -42,6 +45,9 @@ class Coordinator:
             )
 
         self.broker = broker
+
+        # Create broker query service for optimized API calls with caching
+        self.broker_service = BrokerQueryService(broker)
 
         # Create universe context (required for EventBus)
         self.context = UniverseContext(universe)
@@ -81,16 +87,16 @@ class Coordinator:
             from strategies import MomentumStrategy
             strategy = MomentumStrategy()
 
-        # Initialize all agents
+        # Initialize all agents with broker_service for cached API calls
         self.data_agent = DataAgent(
             self.event_bus,
-            broker,
+            self.broker_service,  # Use service for cached calls
             interval_minutes=config.TRADE_INTERVAL_MINUTES,
         )
-        self.signal_agent = SignalAgent(self.event_bus, broker, strategy=strategy)
-        self.risk_agent = RiskAgent(self.event_bus, broker)
-        self.execution_agent = ExecutionAgent(self.event_bus, broker, self.risk_agent)
-        self.monitor_agent = MonitorAgent(self.event_bus, broker, check_interval_seconds=120)
+        self.signal_agent = SignalAgent(self.event_bus, self.broker_service, strategy=strategy)
+        self.risk_agent = RiskAgent(self.event_bus, self.broker_service)
+        self.execution_agent = ExecutionAgent(self.event_bus, self.broker_service, self.risk_agent)
+        self.monitor_agent = MonitorAgent(self.event_bus, self.broker_service, check_interval_seconds=120)
         self.alert_agent = AlertAgent(self.event_bus)
         self.external_alert_agent = ExternalAlertAgent(self.event_bus)
         self.observability_agent = None

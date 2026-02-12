@@ -1,5 +1,8 @@
 """Monitor Agent - watches positions for stop-loss and alerts."""
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import TYPE_CHECKING
 
 from .base import BaseAgent
@@ -7,15 +10,26 @@ from .events import StopLossTriggered
 
 if TYPE_CHECKING:
     from broker import AlpacaBroker
+
     from .event_bus import EventBus
 
 
 class MonitorAgent(BaseAgent):
-    """Monitors positions for stop-loss triggers."""
+    """Monitors positions for stop-loss triggers.
+
+    Uses BrokerQueryService for cached position and price queries.
+    """
 
     def __init__(self, event_bus: "EventBus", broker: "AlpacaBroker", check_interval_seconds: int = 120):
+        """Initialize MonitorAgent.
+
+        Args:
+            event_bus: Event bus for agent communication
+            broker: Broker or BrokerQueryService (uses cached calls in production)
+            check_interval_seconds: How often to check positions for stop-loss
+        """
         super().__init__("MonitorAgent", event_bus)
-        self.broker = broker
+        self.broker = broker  # BrokerQueryService in production (cached calls)
         self.check_interval = check_interval_seconds
         self._stop_losses_triggered = 0
         self._last_check = None
@@ -38,14 +52,15 @@ class MonitorAgent(BaseAgent):
                 if market_open:
                     await self.check_positions()
             except Exception as e:
-                print(f"MonitorAgent error: {e}")
+                logger.error(f"Error: {e}")
 
             await asyncio.sleep(self.check_interval)
 
     async def check_positions(self):
         """Check all positions for stop-loss conditions."""
-        import config
         from datetime import datetime
+
+        import config
 
         self._last_check = datetime.now()
         # Fetch positions asynchronously to avoid blocking event loop

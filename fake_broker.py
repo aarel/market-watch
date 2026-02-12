@@ -7,11 +7,11 @@ connecting to a real brokerage or requiring a live market.
 """
 import random
 import uuid
-from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
+
 import pandas as pd
-import numpy as np
 
 import config
 from universe import Universe
@@ -58,7 +58,7 @@ class FakeBroker:
         self._assets = {}     # symbol -> SimpleNamespace(name, ...)
         self._asset_name_cache = {}
         self._replay_mode = config.SIM_REPLAY_ENABLED
-        self._replay_date = config.SIM_REPLAY_DATE or datetime.now(timezone.utc).date().strftime("%Y%m%d")
+        self._replay_date = config.SIM_REPLAY_DATE or datetime.now(UTC).date().strftime("%Y%m%d")
         self._replay_frames = {}  # symbol -> DataFrame
         self._replay_idx = {}     # symbol -> int
 
@@ -200,10 +200,10 @@ class FakeBroker:
         for symbol in symbols:
             if symbol not in self._prices:
                  self._prices[symbol] = round(random.uniform(50, 500), 2)
-            
+
             price = self._prices[symbol]
             prev_close = price * (1 + random.uniform(-0.05, 0.05))
-            
+
             snapshots[symbol] = SimpleNamespace(
                 latest_trade=SimpleNamespace(price=price),
                 daily_bar=SimpleNamespace(c=price, v=random.randint(1_000_000, 10_000_000)),
@@ -229,7 +229,7 @@ class FakeBroker:
 
         if notional:
             qty = float(notional) / price
-        
+
         qty = float(qty)
         order_value = qty * price
 
@@ -246,7 +246,7 @@ class FakeBroker:
                     status="rejected",
                     rejected_reason="insufficient_buying_power",
                 )
-            
+
             self._account["cash"] -= order_value
             self._account["buying_power"] -= order_value
 
@@ -271,10 +271,10 @@ class FakeBroker:
             if not existing_pos or float(existing_pos.qty) < qty:
                 print("SIMULATION: NOT ENOUGH SHARES TO SELL")
                 return None
-            
+
             self._account["cash"] += order_value
             self._account["buying_power"] += order_value
-            
+
             if abs(float(existing_pos.qty) - qty) < 1e-6: # If selling all shares
                 del self._positions[symbol]
             else:
@@ -309,7 +309,7 @@ class FakeBroker:
             from zoneinfo import ZoneInfo
             now = datetime.now(ZoneInfo("America/New_York"))
         except Exception:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
         is_weekday = now.weekday() < 5
         minutes = now.hour * 60 + now.minute
         open_minutes = 9 * 60 + 30
@@ -323,7 +323,7 @@ class FakeBroker:
     def get_next_market_close(self):
         """Returns a fake time."""
         return datetime.now() + timedelta(hours=1)
-    
+
     def get_asset(self, symbol):
         """Gets a simulated asset."""
         return self._assets.get(symbol)

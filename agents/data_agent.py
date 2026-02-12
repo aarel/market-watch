@@ -1,5 +1,8 @@
 """Data Agent - fetches market data on schedule."""
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -8,6 +11,7 @@ from .events import MarketDataReady
 
 if TYPE_CHECKING:
     from broker import AlpacaBroker
+
     from .event_bus import EventBus
 
 
@@ -36,11 +40,21 @@ def _snapshot_prev_close(snapshot):
 
 
 class DataAgent(BaseAgent):
-    """Fetches market data and emits MarketDataReady events."""
+    """Fetches market data and emits MarketDataReady events.
+
+    Uses BrokerQueryService for optimized API calls with caching.
+    """
 
     def __init__(self, event_bus: "EventBus", broker: "AlpacaBroker", interval_minutes: int = 10):
+        """Initialize DataAgent.
+
+        Args:
+            event_bus: Event bus for agent communication
+            broker: Broker or BrokerQueryService (accepts both for compatibility)
+            interval_minutes: Data fetch interval in minutes
+        """
         super().__init__("DataAgent", event_bus)
-        self.broker = broker
+        self.broker = broker  # BrokerQueryService in production (cached calls)
         self.interval_minutes = interval_minutes
         self._cache = {}
         self._last_fetch = None
@@ -48,11 +62,24 @@ class DataAgent(BaseAgent):
     async def start(self):
         """Start the data fetching loop."""
         await super().start()
+        # Subscribe to config changes
+        from .events import ConfigUpdated
+        self.event_bus.subscribe(ConfigUpdated, self._handle_config_updated)
         self._task = asyncio.create_task(self._run_loop())
 
     async def stop(self):
         """Stop the data fetching loop."""
+        from .events import ConfigUpdated
+        self.event_bus.unsubscribe(ConfigUpdated, self._handle_config_updated)
         await super().stop()
+
+    async def _handle_config_updated(self, event):
+        """Handle config updates (trade interval changes)."""
+        if "trade_interval" in event.changed_keys:
+            new_interval = event.config_snapshot.get("trade_interval", self.interval_minutes)
+            if new_interval != self.interval_minutes:
+                logger.info(f"Trade interval updated: {self.interval_minutes}m → {new_interval}m")
+                self.interval_minutes = new_interval
 
     async def _run_loop(self):
         """Main loop that fetches data periodically."""
@@ -60,7 +87,7 @@ class DataAgent(BaseAgent):
             try:
                 await self.fetch_data()
             except Exception as e:
-                print(f"DataAgent error: {e}")
+                logger.error(f"Error: {e}")
 
             await asyncio.sleep(self.interval_minutes * 60)
 
@@ -86,7 +113,7 @@ class DataAgent(BaseAgent):
                     limit=config.TOP_GAINERS_COUNT,
                 )
             except Exception as e:
-                print(f"DataAgent: Error computing top gainers: {e}")
+                logger.error(f"Error computing top gainers: {e}")
             if top_gainers:
                 symbols = [entry["symbol"] for entry in top_gainers]
                 config.WATCHLIST = symbols
@@ -118,7 +145,7 @@ class DataAgent(BaseAgent):
                         "change_pct": change_pct,
                     })
             except Exception as e:
-                print(f"DataAgent: Error computing market indices: {e}")
+                logger.error(f"Error computing market indices: {e}")
 
         # Fetch account info
         account = await asyncio.to_thread(self.broker.get_account)
@@ -145,7 +172,7 @@ class DataAgent(BaseAgent):
                 })
                 held_symbols.add(pos.symbol)
         except Exception as e:
-            print(f"DataAgent: Error fetching positions: {e}")
+            logger.error(f"Error fetching positions: {e}")
 
         # Always monitor held symbols even if they drop out of top gainers
         symbols = list(set(symbols) | held_symbols)
@@ -165,7 +192,7 @@ class DataAgent(BaseAgent):
                 if symbol_bars is not None and len(symbol_bars) > 0:
                     bars[symbol] = symbol_bars.to_dict()
             except Exception as e:
-                print(f"DataAgent: Error fetching {symbol}: {e}")
+                logger.error(f"Error fetching {symbol}: {e}")
 
         # Cache the data
         self._cache = {

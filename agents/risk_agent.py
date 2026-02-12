@@ -1,33 +1,40 @@
 """Risk Agent - validates trades before execution."""
+import logging
 from datetime import datetime
-from zoneinfo import ZoneInfo
-from typing import TYPE_CHECKING
 
-from risk.position_sizer import PositionSizer
+logger = logging.getLogger(__name__)
+from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
+
 from risk.circuit_breaker import CircuitBreaker
 from risk.exposure_checkers import (
-    SectorMapLoader,
-    ReturnCalculator,
-    SectorExposureChecker,
     CorrelationExposureChecker,
+    ReturnCalculator,
     RVOLChecker,
+    SectorExposureChecker,
+    SectorMapLoader,
 )
+from risk.position_sizer import PositionSizer
 
 from .base import BaseAgent
-from .events import SignalGenerated, RiskCheckPassed, RiskCheckFailed
+from .events import RiskCheckFailed, RiskCheckPassed, SignalGenerated
 
 if TYPE_CHECKING:
     from broker import AlpacaBroker
+
     from .event_bus import EventBus
 
 
 class RiskAgent(BaseAgent):
-    """Validates signals against risk rules before execution."""
+    """Validates signals against risk rules before execution.
+
+    Uses BrokerQueryService for cached portfolio/position queries.
+    """
 
     def __init__(
         self,
         event_bus: "EventBus",
-        broker: "AlpacaBroker",
+        broker: "AlpacaBroker",  # Actually receives BrokerQueryService in production
         position_sizer: PositionSizer | None = None,
         circuit_breaker: CircuitBreaker | None = None,
         sector_map_loader: SectorMapLoader | None = None,
@@ -37,7 +44,7 @@ class RiskAgent(BaseAgent):
         rvol_checker: RVOLChecker | None = None,
     ):
         super().__init__("RiskAgent", event_bus)
-        self.broker = broker
+        self.broker = broker  # BrokerQueryService in production (cached calls)
         if position_sizer is None:
             import config
             position_sizer = PositionSizer(
@@ -103,9 +110,9 @@ class RiskAgent(BaseAgent):
             await self._fail(signal, f"Daily trade limit reached ({config.MAX_DAILY_TRADES})")
             return
 
-        # Get account info
-        portfolio_value = self.broker.get_portfolio_value()
-        buying_power = self.broker.get_buying_power()
+        # Get account info (async to avoid blocking event loop)
+        portfolio_value = await self.broker.get_portfolio_value_async()
+        buying_power = await self.broker.get_buying_power_async()
         if portfolio_value <= 0:
             await self._fail(signal, "Invalid portfolio value")
             return
@@ -181,9 +188,9 @@ class RiskAgent(BaseAgent):
             await self._pass(signal, trade_value, position_pct, f"Buy approved: ${trade_value:.2f} ({position_pct:.1f}% of portfolio)")
 
         elif signal.action == "sell":
-            # Check if we have a position
+            # Check if we have a position (async to avoid blocking event loop)
             try:
-                position = self.broker.get_position(signal.symbol)
+                position = await self.broker.get_position_async(signal.symbol)
             except Exception as e:
                 await self._fail(signal, f"Position lookup failed: {e}")
                 return
@@ -250,7 +257,7 @@ class RiskAgent(BaseAgent):
         try:
             return self.broker.get_positions()
         except Exception as e:
-            print(f"RiskAgent: Error fetching positions for checks: {e}")
+            logger.error(f"Error fetching positions for checks: {e}")
             return None
 
     def _check_open_positions_limit(self, positions) -> bool:

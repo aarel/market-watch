@@ -4,19 +4,30 @@ import time
 from typing import TYPE_CHECKING
 
 from .base import BaseAgent
-from .events import RiskCheckPassed, OrderExecuted, OrderFailed
+from .events import OrderExecuted, OrderFailed, RiskCheckPassed
 
 if TYPE_CHECKING:
     from broker import AlpacaBroker
+
     from .event_bus import EventBus
 
 
 class ExecutionAgent(BaseAgent):
-    """Executes trades that pass risk validation."""
+    """Executes trades that pass risk validation.
+
+    Uses BrokerQueryService for cached position lookups and order submission.
+    """
 
     def __init__(self, event_bus: "EventBus", broker: "AlpacaBroker", risk_agent=None):
+        """Initialize ExecutionAgent.
+
+        Args:
+            event_bus: Event bus for agent communication
+            broker: Broker or BrokerQueryService (uses cached calls in production)
+            risk_agent: RiskAgent for stop-loss monitoring
+        """
         super().__init__("ExecutionAgent", event_bus)
-        self.broker = broker
+        self.broker = broker  # BrokerQueryService in production (cached calls)
         self.risk_agent = risk_agent
         self._orders_executed = 0
         self._orders_failed = 0
@@ -43,16 +54,16 @@ class ExecutionAgent(BaseAgent):
             client_order_id = self._build_client_order_id("auto", event.symbol)
             if event.action == "buy":
                 notional = self._round_notional(event.trade_value)
-                order = self.broker.submit_order(
+                order = await self.broker.submit_order_async(
                     symbol=event.symbol,
                     notional=notional,
                     side="buy",
                     client_order_id=client_order_id,
                 )
             elif event.action == "sell":
-                position = self.broker.get_position(event.symbol)
+                position = await self.broker.get_position_async(event.symbol)
                 if position:
-                    order = self.broker.submit_order(
+                    order = await self.broker.submit_order_async(
                         symbol=event.symbol,
                         qty=position.qty,
                         side="sell",
@@ -83,7 +94,7 @@ class ExecutionAgent(BaseAgent):
                 if mode == "qty":
                     if not qty or qty <= 0:
                         return {"success": False, "error": "Shares required for buy"}
-                    order = self.broker.submit_order(
+                    order = await self.broker.submit_order_async(
                         symbol=symbol,
                         qty=qty,
                         side="buy",
@@ -94,14 +105,14 @@ class ExecutionAgent(BaseAgent):
                     if not amount or amount <= 0:
                         return {"success": False, "error": "Amount required for buy"}
                     notional = self._round_notional(amount)
-                    order = self.broker.submit_order(
+                    order = await self.broker.submit_order_async(
                         symbol=symbol,
                         notional=notional,
                         side="buy",
                         client_order_id=client_order_id,
                     )
             elif action == "sell":
-                position = self.broker.get_position(symbol)
+                position = await self.broker.get_position_async(symbol)
                 if not position:
                     return {"success": False, "error": f"No position in {symbol}"}
                 sell_qty = None
@@ -115,7 +126,7 @@ class ExecutionAgent(BaseAgent):
                             sell_qty = amount / price
                     if not sell_qty or sell_qty <= 0:
                         sell_qty = position.qty
-                order = self.broker.submit_order(
+                order = await self.broker.submit_order_async(
                     symbol=symbol,
                     qty=sell_qty,
                     side="sell",
@@ -152,8 +163,7 @@ class ExecutionAgent(BaseAgent):
                 await self.event_bus.publish(event)
 
                 return {"success": True, "order_id": order.id}
-            else:
-                return {"success": False, "error": "Order failed"}
+            return {"success": False, "error": "Order failed"}
 
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -219,7 +229,7 @@ class ExecutionAgent(BaseAgent):
         for attempt in range(5):
             await asyncio.sleep(0.5 * (2 ** attempt))  # 0.5s, 1s, 2s, 4s, 8s
             try:
-                refreshed = self.broker.get_order(order.id)
+                refreshed = await asyncio.to_thread(self.broker.get_order, order.id)
                 if refreshed:
                     status = getattr(refreshed, 'status', '').lower()
                     # Stop polling if filled or terminal state

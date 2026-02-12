@@ -7,12 +7,15 @@ Alpaca has two APIs:
 Both use the same API keys. The alpaca-trade-api library handles both.
 Free tier uses IEX data feed, paid tier uses SIP (full market data).
 """
+import logging
 from datetime import datetime, timedelta
 
 import pandas as pd
 
 import config
 from universe import Universe
+
+logger = logging.getLogger(__name__)
 
 
 class AlpacaBroker:
@@ -66,10 +69,10 @@ class AlpacaBroker:
         """Verify API credentials work."""
         try:
             account = self.api.get_account()
-            print(f"Connected to Alpaca ({self.universe.value} universe)")
-            print(f"Account status: {account.status}")
-            print(f"Buying power: ${float(account.buying_power):.2f}")
-            print(f"Portfolio value: ${float(account.portfolio_value):.2f}")
+            logger.info(f"Connected to Alpaca ({self.universe.value} universe)")
+            logger.info(f"Account status: {account.status}")
+            logger.info(f"Buying power: ${float(account.buying_power):.2f}")
+            logger.info(f"Portfolio value: ${float(account.portfolio_value):.2f}")
         except Exception as e:
             raise ConnectionError(f"Failed to connect to Alpaca: {e}")
 
@@ -148,7 +151,7 @@ class AlpacaBroker:
             trade = self.api.get_latest_trade(symbol, feed=self.data_feed)
             return trade.price
         except Exception as e:
-            print(f"Error getting price for {symbol}: {e}")
+            logger.warning(f"Error getting price for {symbol}: {e}")
             # Fallback: try quote
             try:
                 quote = self.api.get_latest_quote(symbol, feed=self.data_feed)
@@ -185,11 +188,11 @@ class AlpacaBroker:
 
         try:
             order = self.api.submit_order(**order_params)
-            print(f"Order submitted: {side} {symbol} - Order ID: {order.id}")
+            logger.info(f"Order submitted: {side} {symbol} - Order ID: {order.id}")
             return order
         except Exception as e:
             # Propagate the reason so callers can surface it
-            print(f"Order failed: {e}")
+            logger.error(f"Order failed: {e}")
             raise
 
     def get_asset_name(self, symbol: str) -> str:
@@ -203,7 +206,7 @@ class AlpacaBroker:
             asset = self.api.get_asset(symbol)
             name = getattr(asset, "name", "") or ""
         except Exception as e:
-            print(f"Error fetching asset name for {symbol}: {e}")
+            logger.debug(f"Error fetching asset name for {symbol}: {e}")
             name = ""
         self._asset_name_cache[symbol] = name
         return name

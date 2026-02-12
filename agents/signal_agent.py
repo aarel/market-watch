@@ -1,14 +1,19 @@
 """Signal Agent - generates trading signals from market data using pluggable strategies."""
-import asyncio
-import pandas as pd
+import logging
 from typing import TYPE_CHECKING
+
+import pandas as pd
+
+from strategies import MomentumStrategy, Strategy
 
 from .base import BaseAgent
 from .events import MarketDataReady, SignalGenerated, SignalsUpdated
-from strategies import Strategy, MomentumStrategy
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from broker import AlpacaBroker
+
     from .event_bus import EventBus
 
 
@@ -18,6 +23,8 @@ class SignalAgent(BaseAgent):
 
     The agent delegates signal generation to a pluggable Strategy instance,
     allowing for different trading strategies without changing the agent code.
+
+    Uses BrokerQueryService for cached position lookups.
     """
 
     def __init__(
@@ -31,11 +38,11 @@ class SignalAgent(BaseAgent):
 
         Args:
             event_bus: Event bus for agent communication
-            broker: Broker interface for position lookups
+            broker: Broker or BrokerQueryService for position lookups (cached in production)
             strategy: Trading strategy to use (defaults to MomentumStrategy)
         """
         super().__init__("SignalAgent", event_bus)
-        self.broker = broker
+        self.broker = broker  # BrokerQueryService in production (cached calls)
         self.strategy = strategy or MomentumStrategy()
         self._last_signals = []
 
@@ -43,12 +50,32 @@ class SignalAgent(BaseAgent):
         """Start listening for market data events."""
         await super().start()
         self.event_bus.subscribe(MarketDataReady, self._handle_market_data)
-        print(f"SignalAgent started with strategy: {self.strategy.name}")
+        from .events import ConfigUpdated
+        self.event_bus.subscribe(ConfigUpdated, self._handle_config_updated)
+        logger.info(f"SignalAgent started with strategy: {self.strategy.name}")
 
     async def stop(self):
         """Stop the agent."""
         self.event_bus.unsubscribe(MarketDataReady, self._handle_market_data)
+        from .events import ConfigUpdated
+        self.event_bus.unsubscribe(ConfigUpdated, self._handle_config_updated)
         await super().stop()
+
+    async def _handle_config_updated(self, event):
+        """Handle config updates (strategy parameter changes)."""
+        # Check if strategy parameters changed
+        strategy_changed = any(k in event.changed_keys for k in [
+            "momentum_threshold", "sell_threshold", "stop_loss_pct"
+        ])
+
+        if strategy_changed:
+            # Reload strategy with new thresholds
+            import config
+            self.strategy.momentum_threshold = config.MOMENTUM_THRESHOLD
+            self.strategy.sell_threshold = config.SELL_THRESHOLD
+            self.strategy.stop_loss_pct = config.STOP_LOSS_PCT
+            logger.info(f"Strategy parameters updated: momentum={config.MOMENTUM_THRESHOLD}, "
+                       f"sell={config.SELL_THRESHOLD}, stop_loss={config.STOP_LOSS_PCT}")
 
     async def _handle_market_data(self, event: MarketDataReady):
         """Process market data and generate signals."""
@@ -84,8 +111,8 @@ class SignalAgent(BaseAgent):
                 ))
                 continue
 
-            # Get current position info
-            position_info = self._get_position_info(symbol)
+            # Get current position info (async to avoid blocking event loop)
+            position_info = await self._get_position_info(symbol)
 
             # Generate signal using strategy
             try:
@@ -116,7 +143,7 @@ class SignalAgent(BaseAgent):
                     await self.event_bus.publish(signal_event)
 
             except Exception as e:
-                print(f"SignalAgent: Error generating signal for {symbol}: {e}")
+                logger.error(f"Error generating signal for {symbol}: {e}")
                 signals.append(SignalGenerated(
                     universe=self.universe,
                     session_id=self.session_id,
@@ -191,12 +218,12 @@ class SignalAgent(BaseAgent):
             return df
 
         except Exception as e:
-            print(f"SignalAgent: Error converting bars to DataFrame: {e}")
+            logger.error(f"Error converting bars to DataFrame: {e}")
             return None
 
-    def _get_position_info(self, symbol: str) -> dict:
+    async def _get_position_info(self, symbol: str) -> dict:
         """
-        Get current position information for a symbol.
+        Get current position information for a symbol (async to avoid blocking).
 
         Args:
             symbol: Ticker symbol
@@ -205,7 +232,7 @@ class SignalAgent(BaseAgent):
             Position info dict or None if no position
         """
         try:
-            position = self.broker.get_position(symbol)
+            position = await self.broker.get_position_async(symbol)
             if position is None:
                 return None
 
@@ -225,7 +252,7 @@ class SignalAgent(BaseAgent):
                 'unrealized_pnl_pct': unrealized_pnl_pct,
             }
 
-        except Exception as e:
+        except Exception:
             # Position doesn't exist or error occurred
             return None
 
@@ -237,7 +264,7 @@ class SignalAgent(BaseAgent):
             strategy: New strategy instance to use
         """
         self.strategy = strategy
-        print(f"SignalAgent: Strategy changed to {strategy.name}")
+        logger.info(f"Strategy changed to {strategy.name}")
 
     def get_strategy(self) -> Strategy:
         """Get the current strategy instance."""
