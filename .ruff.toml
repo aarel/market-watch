@@ -1,0 +1,82 @@
+# Ruff configuration for market-watch
+# Documentation: https://docs.astral.sh/ruff/
+
+# Exclude common directories
+extend-exclude = [
+    ".venv",
+    ".venv-wsl",
+    "__pycache__",
+    "*.egg-info",
+    ".git",
+    ".pytest_cache",
+    "logs",
+    "data",
+    "development_docs/archive",
+]
+
+# Set the target Python version
+target-version = "py312"
+
+# Line length (common standard is 88 for Black, but 100 is also popular)
+line-length = 120
+
+[lint]
+# Enable specific rule sets
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "UP",  # pyupgrade (modern Python syntax)
+    "B",   # flake8-bugbear (likely bugs)
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "RET", # flake8-return
+]
+
+# Disable specific rules that are too strict or conflict with project style
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function call in argument defaults
+    "B904",   # Within except, raise from err or None
+    "RET504", # Unnecessary variable assignment before return
+    "SIM108", # Use ternary operator (sometimes less readable)
+    "N802",   # Function name should be lowercase (allows mixed case)
+    "N806",   # Variable in function should be lowercase
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+[lint.per-file-ignores]
+# Tests can have more relaxed rules
+"tests/*" = [
+    "E501",   # Line too long
+    "F401",   # Unused import
+    "F811",   # Redefinition of unused name
+    "N802",   # Function name should be lowercase
+    "B011",   # Do not assert False
+]
+
+# Scripts can import but not use for side effects
+"scripts/*" = [
+    "F401",   # Unused import (scripts often import for setup)
+]
+
+# __init__.py files commonly have unused imports for re-export
+"**/__init__.py" = [
+    "F401",   # Unused import
+]
+
+[lint.isort]
+# Configure import sorting
+known-first-party = ["agents", "analytics", "alerts", "backtest", "broker", "server", "universe", "config"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[format]
+# Format configuration (if using ruff format)
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

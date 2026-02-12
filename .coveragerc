@@ -1,0 +1,108 @@
+# Coverage.py configuration for market-watch
+# Documentation: https://coverage.readthedocs.io/
+
+[run]
+# What to measure
+source = .
+omit =
+    # Test files should not be measured
+    tests/*
+    test_*.py
+    *_test.py
+
+    # Virtual environments
+    .venv/*
+    .venv-wsl/*
+    */.venv/*
+    */venv/*
+
+    # Development and tooling
+    scripts/dev_tools_tui.py
+    scripts/organize_project_files.py
+    scripts/migrate_data_namespaces.py
+    agents/dev/*
+
+    # Configuration files (not logic)
+    config.py
+
+    # Setup files
+    setup.py
+    */setup.py
+
+    # Generated files
+    */__pycache__/*
+    *.pyc
+    *.pyo
+
+    # Data and logs
+    data/*
+    logs/*
+
+    # Documentation
+    docs/*
+    development_docs/*
+
+    # Archive
+    */archive/*
+
+# Enable branch coverage (more thorough)
+branch = True
+
+# Concurrency settings
+concurrency = thread
+
+[report]
+# Reporting options
+precision = 2
+show_missing = True
+skip_covered = False
+skip_empty = True
+
+# Sort by coverage percentage (least covered first)
+sort = Cover
+
+# Format options
+exclude_lines =
+    # Standard pragma
+    pragma: no cover
+
+    # Defensive programming
+    raise AssertionError
+    raise NotImplementedError
+    raise RuntimeError
+
+    # Type checking blocks
+    if TYPE_CHECKING:
+    if typing.TYPE_CHECKING:
+
+    # Debugging code
+    def __repr__
+    def __str__
+
+    # Abstract methods
+    @abstractmethod
+    @abc.abstractmethod
+
+    # Platform specific
+    if sys.platform
+
+    # Main guards
+    if __name__ == .__main__.:
+
+    # Optional dependencies
+    except ImportError:
+    except ModuleNotFoundError:
+
+[html]
+# HTML report settings
+directory = htmlcov
+title = Market-Watch Coverage Report
+
+[json]
+# JSON report settings
+output = coverage.json
+pretty_print = True
+
+[xml]
+# XML report for CI tools
+output = coverage.xml

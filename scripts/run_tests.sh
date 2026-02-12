@@ -1,6 +1,12 @@
 #!/bin/bash
 # Test runner script with logging
 # Usage: ./run_tests.sh [options]
+#
+# Env priority:
+# 1) Active VIRTUAL_ENV (if already activated)
+# 2) .venv-wsl
+# 3) .venv
+# 4) venv
 
 # Colors for output
 RED='\033[0;31m'
@@ -20,25 +26,37 @@ echo "Running Market-Watch Test Suite..."
 echo "Log file: ${LOG_FILE}"
 echo ""
 
-# Activate virtual environment if it exists
-if [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
-    echo "✓ Virtual environment activated (venv)"
-elif [ -f "venv/Scripts/activate" ]; then
-    source venv/Scripts/activate
-    echo "✓ Virtual environment activated (Windows venv)"
+# Activate virtual environment if it exists (respect active env first)
+if [ -n "${VIRTUAL_ENV:-}" ]; then
+    echo "✓ Using active virtual environment (${VIRTUAL_ENV})"
+elif [ -f ".venv-wsl/bin/activate" ]; then
+    source .venv-wsl/bin/activate
+    echo "✓ Virtual environment activated (.venv-wsl)"
+elif [ -f ".venv-wsl/Scripts/activate" ]; then
+    source .venv-wsl/Scripts/activate
+    echo "✓ Virtual environment activated (Windows .venv-wsl)"
 elif [ -f ".venv/bin/activate" ]; then
     source .venv/bin/activate
     echo "✓ Virtual environment activated (.venv)"
 elif [ -f ".venv/Scripts/activate" ]; then
     source .venv/Scripts/activate
     echo "✓ Virtual environment activated (Windows .venv)"
+elif [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
+    echo "✓ Virtual environment activated (venv)"
+elif [ -f "venv/Scripts/activate" ]; then
+    source venv/Scripts/activate
+    echo "✓ Virtual environment activated (Windows venv)"
 else
     echo -e "${YELLOW}⚠ Warning: Virtual environment not found${NC}"
 fi
 
-# Prefer python from venv if available, else fallback to python3/python
-if command -v python >/dev/null 2>&1; then
+# Prefer python from active venv if available, else fallback to python3/python
+if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ]; then
+    PYTHON_BIN="${VIRTUAL_ENV}/bin/python"
+elif [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/Scripts/python.exe" ]; then
+    PYTHON_BIN="${VIRTUAL_ENV}/Scripts/python.exe"
+elif command -v python >/dev/null 2>&1; then
     PYTHON_BIN=python
 elif command -v python3 >/dev/null 2>&1; then
     PYTHON_BIN=python3
