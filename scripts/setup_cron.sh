@@ -155,7 +155,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "To remove this cron job:"
     echo "  crontab -e"
-    echo "  (then delete the line containing: run_post_market.sh)"
+    echo "  (then delete lines containing: run_post_market.sh, rotate_logs.py, archive_retention.py)"
     echo ""
 else
     echo "❌ Failed to add cron job"
@@ -176,39 +176,51 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Check the log file in $PROJECT_DIR/logs/"
 fi
 
-# ── log rotation cron jobs ────────────────────────────────────────────────────
-# Daily:  5:00 AM ET  — move yesterday's completed logs into logs/weekly/
-# Weekly: Sun 11:59 PM ET — archive logs/weekly/ into logs/archive/YYYY-MM/
+# ── log rotation + retention cron jobs ───────────────────────────────────────
+# Daily:     5:00 AM ET  — move yesterday's completed logs into logs/weekly/
+# Weekly:    Sun 11:59 PM ET — archive logs/weekly/ into logs/archive/YYYY-MM/
+# Retention: 5:30 AM ET daily — zip archive content older than 30 days
 #
 # ET cron note: cron runs in system time.  These entries assume the system
 # clock is set to US/Eastern (common in WSL when Windows is ET).  If your
 # system is UTC, shift the hours accordingly (EDT: +4, EST: +5).
 
 ROTATE_SCRIPT="$PROJECT_DIR/scripts/rotate_logs.py"
+RETENTION_SCRIPT="$PROJECT_DIR/scripts/archive_retention.py"
 DAILY_ROTATE="0 5 * * * $PYTHON_PATH $ROTATE_SCRIPT --daily"
 WEEKLY_ROTATE="59 23 * * 0 $PYTHON_PATH $ROTATE_SCRIPT --weekly"
+DAILY_RETENTION="30 5 * * * $PYTHON_PATH $RETENTION_SCRIPT --apply"
 
 echo ""
 echo "=========================================="
-echo "Log Rotation Setup"
+echo "Log Rotation + Retention Setup"
 echo "=========================================="
 echo ""
 echo "Cron entries to add:"
 echo "  $DAILY_ROTATE"
 echo "  $WEEKLY_ROTATE"
+if [ -f "$RETENTION_SCRIPT" ]; then
+    echo "  $DAILY_RETENTION"
+else
+    echo "  (retention skipped: missing $RETENTION_SCRIPT)"
+fi
 echo ""
 
-read -p "Add log rotation cron jobs? (y/n) " -n 1 -r
+read -p "Add log rotation and retention cron jobs? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    (crontab -l 2>/dev/null; echo "$DAILY_ROTATE"; echo "$WEEKLY_ROTATE") | crontab -
-    if [ $? -eq 0 ]; then
-        echo "✅ Log rotation cron jobs added"
+    if [ -f "$RETENTION_SCRIPT" ]; then
+        (crontab -l 2>/dev/null; echo "$DAILY_ROTATE"; echo "$WEEKLY_ROTATE"; echo "$DAILY_RETENTION") | crontab -
     else
-        echo "❌ Failed to add log rotation cron jobs"
+        (crontab -l 2>/dev/null; echo "$DAILY_ROTATE"; echo "$WEEKLY_ROTATE") | crontab -
+    fi
+    if [ $? -eq 0 ]; then
+        echo "✅ Log rotation and retention cron jobs added"
+    else
+        echo "❌ Failed to add log rotation/retention cron jobs"
     fi
 else
-    echo "Skipped log rotation cron jobs"
+    echo "Skipped log rotation and retention cron jobs"
 fi
 
 echo ""

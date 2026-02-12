@@ -15,7 +15,10 @@ Run the interactive setup script:
 This will:
 - Create a wrapper script with logging
 - Prompt you to choose a schedule (recommended: 4:30 PM ET)
-- Add a cron job to run automatically weekdays
+- Add a weekday cron job for post-market backtests
+- Optionally add maintenance cron jobs for:
+  - Daily/weekly log rotation (`scripts/rotate_logs.py`)
+  - Daily archive retention zip (`scripts/archive_retention.py --apply`)
 - Optionally run a test
 
 ### 2. Manual Test Run
@@ -175,7 +178,10 @@ ls -lt logs/post_market_$(date +%Y%m%d)*.log
 
 ```bash
 crontab -e
-# Delete the line containing: run_post_market.sh
+# Delete lines containing:
+#   run_post_market.sh
+#   scripts/rotate_logs.py
+#   scripts/archive_retention.py
 ```
 
 ## Advanced Usage
@@ -230,6 +236,28 @@ Run tests with per-test progress output:
 
 ```bash
 ./run_tests --verbose
+```
+
+### Archive Retention (Logs + Test Results)
+
+Compress archive content older than 30 days into date zips:
+
+```bash
+# Preview only (safe default)
+python scripts/archive_retention.py
+
+# Apply changes (write zips + remove compressed source files)
+python scripts/archive_retention.py --apply
+```
+
+Defaults:
+- `logs/archive` -> `logs/archive_zips/MM_DD_YYYY.zip`
+- `test_results/archive` -> `test_results/archive_zips/MM_DD_YYYY.zip`
+
+Override retention window:
+
+```bash
+python scripts/archive_retention.py --retention-days 45 --apply
 ```
 
 ### Export to Google Sheets / Excel
