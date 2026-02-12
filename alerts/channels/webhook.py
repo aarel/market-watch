@@ -1,11 +1,12 @@
 """Webhook alert delivery channel."""
 import asyncio
-import aiohttp
-from typing import Dict, Any
 from enum import Enum
+from typing import Any
 
-from .base import AlertChannel
+import aiohttp
+
 from ..models import Alert, AlertSeverity
+from .base import AlertChannel
 
 
 class WebhookType(Enum):
@@ -72,7 +73,7 @@ class WebhookChannel(AlertChannel):
                         response.raise_for_status()
                         return True
 
-            except Exception as exc:
+            except Exception:
                 if attempt == self.retry_attempts - 1:
                     raise  # Re-raise on final attempt
                 # Exponential backoff
@@ -80,7 +81,7 @@ class WebhookChannel(AlertChannel):
 
         return False
 
-    def _format_payload(self, alert: Alert) -> Dict[str, Any]:
+    def _format_payload(self, alert: Alert) -> dict[str, Any]:
         """
         Format alert as webhook payload.
 
@@ -92,14 +93,13 @@ class WebhookChannel(AlertChannel):
         """
         if self.webhook_type == WebhookType.DISCORD:
             return self._format_discord(alert)
-        elif self.webhook_type == WebhookType.SLACK:
+        if self.webhook_type == WebhookType.SLACK:
             return self._format_slack(alert)
-        elif self.webhook_type == WebhookType.TELEGRAM:
+        if self.webhook_type == WebhookType.TELEGRAM:
             return self._format_telegram(alert)
-        else:
-            return self._format_generic(alert)
+        return self._format_generic(alert)
 
-    def _format_generic(self, alert: Alert) -> Dict[str, Any]:
+    def _format_generic(self, alert: Alert) -> dict[str, Any]:
         """
         Format as generic JSON payload.
 
@@ -111,7 +111,7 @@ class WebhookChannel(AlertChannel):
         """
         return alert.to_dict()
 
-    def _format_discord(self, alert: Alert) -> Dict[str, Any]:
+    def _format_discord(self, alert: Alert) -> dict[str, Any]:
         """
         Format as Discord webhook payload.
 
@@ -167,7 +167,7 @@ class WebhookChannel(AlertChannel):
             }]
         }
 
-    def _format_slack(self, alert: Alert) -> Dict[str, Any]:
+    def _format_slack(self, alert: Alert) -> dict[str, Any]:
         """
         Format as Slack incoming webhook payload.
 
@@ -222,7 +222,7 @@ class WebhookChannel(AlertChannel):
             }]
         }
 
-    def _format_telegram(self, alert: Alert) -> Dict[str, Any]:
+    def _format_telegram(self, alert: Alert) -> dict[str, Any]:
         """
         Format as Telegram bot message.
 
@@ -258,7 +258,7 @@ class WebhookChannel(AlertChannel):
             "parse_mode": "Markdown"
         }
 
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: dict[str, Any]) -> bool:
         """
         Validate webhook channel configuration.
 

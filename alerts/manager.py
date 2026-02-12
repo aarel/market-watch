@@ -1,12 +1,11 @@
 """Alert manager for evaluating rules and dispatching alerts."""
 import uuid
-from datetime import datetime
-from typing import List, Dict, Optional
-from threading import RLock
 from collections import deque
+from datetime import datetime
+from threading import RLock
 
-from .models import Alert, AlertRule, AlertTrigger, AlertSeverity, ChannelType
 from .channels.base import AlertChannel
+from .models import Alert, AlertRule, AlertSeverity, AlertTrigger, ChannelType
 
 
 class AlertManager:
@@ -24,8 +23,8 @@ class AlertManager:
         Args:
             max_history: Maximum number of alerts to keep in history
         """
-        self._rules: Dict[str, AlertRule] = {}
-        self._channels: Dict[ChannelType, AlertChannel] = {}
+        self._rules: dict[str, AlertRule] = {}
+        self._channels: dict[ChannelType, AlertChannel] = {}
         self._history: deque = deque(maxlen=max_history)
         self._lock = RLock()
 
@@ -49,7 +48,7 @@ class AlertManager:
         with self._lock:
             self._rules.pop(rule_id, None)
 
-    def get_rule(self, rule_id: str) -> Optional[AlertRule]:
+    def get_rule(self, rule_id: str) -> AlertRule | None:
         """
         Get a rule by ID.
 
@@ -62,7 +61,7 @@ class AlertManager:
         with self._lock:
             return self._rules.get(rule_id)
 
-    def list_rules(self) -> List[AlertRule]:
+    def list_rules(self) -> list[AlertRule]:
         """
         Get all rules.
 
@@ -99,8 +98,8 @@ class AlertManager:
         severity: AlertSeverity,
         title: str,
         message: str,
-        context: Optional[Dict] = None,
-    ) -> List[Alert]:
+        context: dict | None = None,
+    ) -> list[Alert]:
         """
         Trigger alert evaluation and delivery.
 
@@ -175,7 +174,7 @@ class AlertManager:
                 error_msg = f"Failed to send via {channel_type.value}: {exc}"
                 alert.delivery_errors.append(error_msg)
 
-    def get_history(self, limit: Optional[int] = None) -> List[Alert]:
+    def get_history(self, limit: int | None = None) -> list[Alert]:
         """
         Get alert history.
 

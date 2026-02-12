@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 
 class AlertSeverity(Enum):
@@ -48,9 +48,9 @@ class AlertRule:
     name: str
     trigger: AlertTrigger
     severity: AlertSeverity
-    channels: List[ChannelType]
+    channels: list[ChannelType]
     enabled: bool = True
-    conditions: Dict[str, Any] = field(default_factory=dict)
+    conditions: dict[str, Any] = field(default_factory=dict)
 
     def matches(self, event_type: AlertTrigger, event_severity: AlertSeverity) -> bool:
         """Check if this rule should fire for the given event."""
@@ -97,13 +97,13 @@ class Alert:
     severity: AlertSeverity
     title: str
     message: str
-    context: Dict[str, Any] = field(default_factory=dict)
-    channels: List[ChannelType] = field(default_factory=list)
-    delivered: Optional[datetime] = None
+    context: dict[str, Any] = field(default_factory=dict)
+    channels: list[ChannelType] = field(default_factory=list)
+    delivered: datetime | None = None
     delivery_attempts: int = 0
-    delivery_errors: List[str] = field(default_factory=list)
+    delivery_errors: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "id": self.id,

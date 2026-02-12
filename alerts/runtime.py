@@ -1,13 +1,11 @@
 """Runtime alert configuration and wiring."""
 from __future__ import annotations
 
-from typing import List
-
 import config
-from alerts.manager import get_manager
-from alerts.models import AlertRule, AlertTrigger, AlertSeverity, ChannelType
 from alerts.channels.email import EmailChannel
 from alerts.channels.webhook import WebhookChannel, WebhookType
+from alerts.manager import get_manager
+from alerts.models import AlertRule, AlertSeverity, AlertTrigger, ChannelType
 
 _DEFAULT_ANOMALY_RULE_ID = "default_anomaly_rule"
 _DEFAULT_CUSTOM_RULE_ID = "default_custom_rule"
@@ -27,7 +25,7 @@ def configure_alerts(runtime_config: dict) -> dict:
     manager = get_manager()
     alerts_enabled = bool(runtime_config.get("alerts_enabled", False))
 
-    enabled_channels: List[ChannelType] = []
+    enabled_channels: list[ChannelType] = []
 
     # Email channel
     if alerts_enabled and runtime_config.get("alert_email_enabled", False):
@@ -176,7 +174,7 @@ def _build_webhook_channel() -> WebhookChannel | None:
     )
 
 
-def _parse_email_list(value: str) -> List[str]:
+def _parse_email_list(value: str) -> list[str]:
     if not value:
         return []
     return [email.strip() for email in value.split(",") if email.strip()]

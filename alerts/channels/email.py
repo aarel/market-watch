@@ -1,13 +1,12 @@
 """Email alert delivery channel."""
 import asyncio
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Dict, Any, List
-from datetime import datetime
+from email.mime.text import MIMEText
+from typing import Any
 
-from .base import AlertChannel
 from ..models import Alert, AlertSeverity
+from .base import AlertChannel
 
 
 class EmailChannel(AlertChannel):
@@ -25,7 +24,7 @@ class EmailChannel(AlertChannel):
         smtp_user: str,
         smtp_password: str,
         from_addr: str,
-        to_addrs: List[str],
+        to_addrs: list[str],
         use_tls: bool = True,
         retry_attempts: int = 3,
     ):
@@ -70,7 +69,7 @@ class EmailChannel(AlertChannel):
                 await asyncio.to_thread(self._send_smtp, alert)
                 return True
 
-            except Exception as exc:
+            except Exception:
                 if attempt == self.retry_attempts - 1:
                     raise  # Re-raise on final attempt
                 # Wait before retry (exponential backoff)
@@ -237,7 +236,7 @@ class EmailChannel(AlertChannel):
 
         return html
 
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: dict[str, Any]) -> bool:
         """
         Validate email channel configuration.
 

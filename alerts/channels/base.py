@@ -1,6 +1,7 @@
 """Base interface for alert delivery channels."""
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any
+
 from ..models import Alert
 
 
@@ -29,7 +30,7 @@ class AlertChannel(ABC):
         pass
 
     @abstractmethod
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: dict[str, Any]) -> bool:
         """
         Validate channel configuration.
 
