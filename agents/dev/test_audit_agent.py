@@ -67,8 +67,15 @@ class TestAuditAgent:
             "start_app.sh",
         }
 
-    def run_audit(self, run_tests: bool = True, run_coverage: bool = True) -> dict:
+    def run_audit(
+        self,
+        run_tests: bool = True,
+        run_coverage: bool = True,
+        verbose: bool = False,
+    ) -> dict:
         run_dir = self._create_run_dir()
+        if verbose:
+            print(f"TestAuditAgent: run dir {run_dir}", flush=True)
         summary: dict[str, object] = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "run_dir": str(run_dir),
@@ -78,16 +85,33 @@ class TestAuditAgent:
         }
 
         if run_tests:
-            pytest_result = self._run_pytest_with_coverage(run_dir, run_coverage)
+            if verbose:
+                print("TestAuditAgent: running pytest...", flush=True)
+            pytest_result = self._run_pytest_with_coverage(run_dir, run_coverage, verbose=verbose)
             summary["pytest"] = pytest_result
             if pytest_result.get("coverage_json"):
+                if verbose:
+                    print("TestAuditAgent: analyzing coverage JSON...", flush=True)
                 summary["coverage"] = self._analyze_coverage(pytest_result["coverage_json"])
         if summary["coverage"] is None:
+            if verbose:
+                print("TestAuditAgent: coverage JSON unavailable, using fallback analysis.", flush=True)
             summary["coverage"] = self._analyze_coverage(None)
 
-        summary["test_validity"] = self._analyze_tests()
+        if verbose:
+            if self.tests_dir.exists():
+                test_files = list(self.tests_dir.rglob("*.py"))
+                print(f"TestAuditAgent: scanning {len(test_files)} test files for validity...", flush=True)
+            else:
+                print("TestAuditAgent: tests directory not found.", flush=True)
+        test_validity = self._analyze_tests()
+        summary["test_validity"] = test_validity
+        if verbose and hasattr(test_validity, "total_tests"):
+            print(f"TestAuditAgent: total tests discovered {test_validity.total_tests}", flush=True)
 
         self._write_summary(run_dir, summary)
+        if verbose:
+            print("TestAuditAgent: summary written.", flush=True)
         return summary
 
     def _create_run_dir(self) -> Path:
@@ -103,7 +127,7 @@ class TestAuditAgent:
             return False
         return True
 
-    def _run_pytest_with_coverage(self, run_dir: Path, run_coverage: bool) -> dict:
+    def _run_pytest_with_coverage(self, run_dir: Path, run_coverage: bool, verbose: bool = False) -> dict:
         result: dict[str, object] = {
             "exit_code": None,
             "stdout": None,
@@ -119,28 +143,54 @@ class TestAuditAgent:
         env = os.environ.copy()
         env["PYTHONPATH"] = str(self.repo_root)
 
+        pytest_args = ["tests"]
+        if verbose:
+            pytest_args.append("-vv")
+        else:
+            pytest_args.append("-q")
+
         if run_coverage and self._coverage_available():
             result["coverage_enabled"] = True
             cov_file = run_dir / ".coverage"
             env["COVERAGE_FILE"] = str(cov_file)
-            cmd = [sys.executable, "-m", "coverage", "run", "-m", "pytest", "tests", "-q"]
+            cmd = [sys.executable, "-m", "coverage", "run", "-m", "pytest", *pytest_args]
+            if verbose:
+                print("TestAuditAgent: coverage enabled.", flush=True)
         else:
             if run_coverage:
                 result["coverage_error"] = "coverage not installed"
-            cmd = [sys.executable, "-m", "pytest", "tests", "-q"]
+            cmd = [sys.executable, "-m", "pytest", *pytest_args]
+            if verbose:
+                print("TestAuditAgent: coverage disabled.", flush=True)
 
-        proc = subprocess.run(
+        if verbose:
+            print(f"TestAuditAgent: command: {' '.join(cmd)}", flush=True)
+            print(f"TestAuditAgent: stdout -> {stdout_path}", flush=True)
+            print(f"TestAuditAgent: stderr -> {stderr_path}", flush=True)
+        stderr_path.write_text("", encoding="utf-8")
+
+        proc = subprocess.Popen(
             cmd,
             cwd=self.repo_root,
             env=env,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
+            bufsize=1,
         )
-        stdout_path.write_text(proc.stdout, encoding="utf-8")
-        stderr_path.write_text(proc.stderr, encoding="utf-8")
+        with stdout_path.open("w", encoding="utf-8") as out:
+            if proc.stdout:
+                for line in proc.stdout:
+                    out.write(line)
+                    out.flush()
+                    if verbose:
+                        print(line.rstrip(), flush=True)
+        proc.wait()
         result["exit_code"] = proc.returncode
         result["stdout"] = str(stdout_path)
         result["stderr"] = str(stderr_path)
+        if verbose:
+            print(f"TestAuditAgent: pytest exit code {proc.returncode}", flush=True)
 
         if result["coverage_enabled"]:
             coverage_json = run_dir / "coverage.json"
@@ -165,6 +215,10 @@ class TestAuditAgent:
             else:
                 result["coverage_error"] = json_proc.stderr.strip() or "coverage json failed"
             result["coverage_report"] = str(coverage_report)
+            if verbose:
+                print(f"TestAuditAgent: coverage report -> {coverage_report}", flush=True)
+                if result.get("coverage_json"):
+                    print(f"TestAuditAgent: coverage JSON -> {coverage_json}", flush=True)
 
         return result
 
