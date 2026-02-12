@@ -1,10 +1,11 @@
 """Tests for alert framework."""
-import unittest
 import asyncio
+import unittest
 from datetime import datetime
-from alerts.models import AlertRule, Alert, AlertTrigger, AlertSeverity, ChannelType
-from alerts.manager import AlertManager
+
 from alerts.channels.base import AlertChannel
+from alerts.manager import AlertManager
+from alerts.models import Alert, AlertRule, AlertSeverity, AlertTrigger, ChannelType
 
 
 class MockChannel(AlertChannel):

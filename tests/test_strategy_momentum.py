@@ -1,10 +1,11 @@
 """Tests for strategies/momentum.py - Momentum trading strategy."""
 
 import unittest
+
 import pandas as pd
 
-from strategies.momentum import MomentumStrategy
 from strategies.base import SignalType
+from strategies.momentum import MomentumStrategy
 
 
 class TestMomentumStrategy(unittest.TestCase):

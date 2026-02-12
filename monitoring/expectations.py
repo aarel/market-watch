@@ -4,12 +4,10 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
-from typing import Iterable
 
 import config
 
 from .models import Expectation
-
 
 DEFAULT_EXPECTATIONS = [
     # DataAgent
@@ -86,7 +84,7 @@ DEFAULT_EXPECTATIONS = [
 def load_expectations(path: str | None = None) -> list[Expectation]:
     """Load expectations from JSON, falling back to defaults."""
     if path and os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as handle:
+        with open(path, encoding="utf-8") as handle:
             raw = json.load(handle)
         return [Expectation(**item) for item in raw]
 

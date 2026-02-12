@@ -1,9 +1,10 @@
 """Tests for email alert channel."""
 import unittest
-from unittest.mock import patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+
 from alerts.channels.email import EmailChannel
-from alerts.models import Alert, AlertTrigger, AlertSeverity, ChannelType
+from alerts.models import Alert, AlertSeverity, AlertTrigger, ChannelType
 
 
 class TestEmailChannel(unittest.IsolatedAsyncioTestCase):

@@ -1,15 +1,14 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
 from analytics.metrics import compute_period_returns
 
-
 pytestmark = [pytest.mark.stress, pytest.mark.whitebox]
 
 
 def test_period_returns_light_stress():
-    base = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2025, 1, 1, tzinfo=UTC)
     equity_points = []
     equity = 100000.0
     for i in range(5000):

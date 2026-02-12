@@ -4,10 +4,10 @@ from unittest.mock import patch
 
 import pandas as pd
 
+import config
 from agents.data_agent import DataAgent
 from agents.event_bus import EventBus
 from universe import Universe, UniverseContext
-import config
 
 
 class DummySnapshot:

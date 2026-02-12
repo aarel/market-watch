@@ -1,13 +1,18 @@
 """External Alert Agent - routes critical events to alert channels."""
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from .base import BaseAgent
-from .events import RiskCheckFailed, OrderFailed, LogEvent
 from alerts.manager import get_manager
-from alerts.models import AlertTrigger, AlertSeverity
+from alerts.models import AlertSeverity, AlertTrigger
+
+from .base import BaseAgent
+from .events import LogEvent, OrderFailed, RiskCheckFailed
 
 if TYPE_CHECKING:
     from .event_bus import EventBus
@@ -16,7 +21,7 @@ if TYPE_CHECKING:
 class ExternalAlertAgent(BaseAgent):
     """Triggers external alerts for critical runtime events."""
 
-    def __init__(self, event_bus: "EventBus", cooldown_seconds: int = 600):
+    def __init__(self, event_bus: EventBus, cooldown_seconds: int = 600):
         super().__init__("ExternalAlertAgent", event_bus)
         self._cooldown_seconds = max(60, cooldown_seconds)
         self._last_alert_at: dict[tuple, datetime] = {}
@@ -120,4 +125,4 @@ class ExternalAlertAgent(BaseAgent):
                 context=context,
             )
         except Exception as exc:
-            print(f"ExternalAlertAgent error: {exc}")
+            logger.error(f"Error: {exc}")

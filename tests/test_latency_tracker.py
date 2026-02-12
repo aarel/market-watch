@@ -1,5 +1,6 @@
 """Tests for latency tracking system."""
 import unittest
+
 from server.latency_tracker import LatencyTracker
 
 

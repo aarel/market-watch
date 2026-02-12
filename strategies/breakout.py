@@ -5,11 +5,11 @@ Buys when price breaks above recent highs and sells when price
 breaks below recent lows.
 """
 
-import pandas as pd
-from typing import Optional
 
-from strategies.base import Strategy, TradingSignal, SignalType
+import pandas as pd
+
 import config
+from strategies.base import SignalType, Strategy, TradingSignal
 
 
 class BreakoutStrategy(Strategy):
@@ -67,7 +67,7 @@ class BreakoutStrategy(Strategy):
         symbol: str,
         bars: pd.DataFrame,
         current_price: float,
-        current_position: Optional[dict] = None
+        current_position: dict | None = None
     ) -> TradingSignal:
         """Generate trading signal based on breakouts."""
         # Calculate N-day high and low (excluding current bar)
@@ -86,11 +86,10 @@ class BreakoutStrategy(Strategy):
                 symbol, current_price, period_high, period_low,
                 breakout_level, breakdown_level, current_position
             )
-        else:
-            return self._analyze_without_position(
-                symbol, current_price, period_high, period_low,
-                breakout_level, breakdown_level
-            )
+        return self._analyze_without_position(
+            symbol, current_price, period_high, period_low,
+            breakout_level, breakdown_level
+        )
 
     def _analyze_with_position(
         self,

@@ -5,9 +5,9 @@ Validates that:
 - Preset definitions are coherent with strategy characteristics
 - Custom preset behavior works correctly
 """
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
 
 import config
 from server.config_manager import ConfigManager

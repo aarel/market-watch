@@ -1,11 +1,10 @@
 """Utilities to compute basic performance metrics from equity and trade data."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from calendar import monthrange
-from datetime import datetime, date, timezone
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from math import sqrt
-from typing import List, Dict, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
@@ -18,7 +17,7 @@ class EquityMetrics:
     period_days: int = 0
 
 
-def compute_equity_metrics(equity_points: List[Dict]) -> EquityMetrics:
+def compute_equity_metrics(equity_points: list[dict]) -> EquityMetrics:
     """Compute basic metrics from equity snapshots."""
     if not equity_points or len(equity_points) < 2:
         return EquityMetrics()
@@ -64,8 +63,8 @@ def compute_equity_metrics(equity_points: List[Dict]) -> EquityMetrics:
     )
 
 
-def _collapse_daily(points: List[Dict]) -> List[Dict]:
-    by_day: Dict[date, Dict] = {}
+def _collapse_daily(points: list[dict]) -> list[dict]:
+    by_day: dict[date, dict] = {}
     for pt in points:
         ts = pt.get("timestamp")
         equity = pt.get("equity") or pt.get("portfolio_value") or pt.get("account_value")
@@ -84,13 +83,13 @@ def _collapse_daily(points: List[Dict]) -> List[Dict]:
     return sorted(by_day.values(), key=lambda x: x["timestamp"])
 
 
-def avg(values: List[float]) -> float:
+def avg(values: list[float]) -> float:
     if not values:
         return 0.0
     return sum(values) / len(values)
 
 
-def _stddev(values: List[float]) -> float:
+def _stddev(values: list[float]) -> float:
     n = len(values)
     if n < 2:
         return 0.0
@@ -112,7 +111,7 @@ class TradeOutcomeStats:
     win_rate_pct: float = 0.0
 
 
-def compute_trade_outcomes(trades: List[Dict]) -> TradeOutcomeStats:
+def compute_trade_outcomes(trades: list[dict]) -> TradeOutcomeStats:
     """Approximate realized P/L and win-rate from a trade stream.
 
     Uses a simple running-average cost basis per symbol to classify sell trades
@@ -126,8 +125,8 @@ def compute_trade_outcomes(trades: List[Dict]) -> TradeOutcomeStats:
     # Sort chronologically for correct cost-basis tracking
     ordered = sorted(trades, key=lambda t: _trade_ts(t) or datetime.min)
 
-    holdings: Dict[str, Dict[str, float]] = {}
-    notional_vals: List[float] = []
+    holdings: dict[str, dict[str, float]] = {}
+    notional_vals: list[float] = []
     realized_pnl = 0.0
     wins = losses = breakevens = 0
     buys = sells = 0
@@ -189,14 +188,14 @@ def compute_trade_outcomes(trades: List[Dict]) -> TradeOutcomeStats:
     )
 
 
-def compute_round_trip_trades(trades: List[Dict]) -> List[Dict]:
+def compute_round_trip_trades(trades: list[dict]) -> list[dict]:
     """Compute realized P&L per completed round-trip trade (buy -> sell)."""
     if not trades:
         return []
 
     ordered = sorted(trades, key=lambda t: _trade_ts(t) or datetime.min)
-    positions: Dict[str, Dict[str, float | datetime | None]] = {}
-    completed: List[Dict] = []
+    positions: dict[str, dict[str, float | datetime | None]] = {}
+    completed: list[dict] = []
 
     for trade in ordered:
         side = (trade.get("side") or "").lower()
@@ -242,16 +241,16 @@ def compute_round_trip_trades(trades: List[Dict]) -> List[Dict]:
 
 
 def compute_period_returns(
-    equity_points: List[Dict],
+    equity_points: list[dict],
     granularity: str = "daily",
     timezone_name: str = "America/New_York",
-) -> List[Dict]:
+) -> list[dict]:
     """Compute period returns (daily/weekly/monthly) from equity snapshots."""
     if not equity_points:
         return []
 
     tz = _get_timezone(timezone_name)
-    buckets: Dict[str, Dict[str, object]] = {}
+    buckets: dict[str, dict[str, object]] = {}
     for pt in equity_points:
         ts = _parse_timestamp(pt.get("timestamp"))
         equity = _extract_equity_value(pt)
@@ -275,7 +274,7 @@ def compute_period_returns(
     if len(collapsed) < 2:
         return []
 
-    returns: List[Dict] = []
+    returns: list[dict] = []
     for idx in range(1, len(collapsed)):
         prev = collapsed[idx - 1]
         cur = collapsed[idx]
@@ -297,7 +296,7 @@ def compute_period_returns(
     return returns
 
 
-def _trade_ts(trade: Dict) -> Optional[datetime]:
+def _trade_ts(trade: dict) -> datetime | None:
     ts = trade.get("timestamp") or trade.get("filled_at") or trade.get("submitted_at")
     if isinstance(ts, datetime):
         return ts
@@ -307,7 +306,7 @@ def _trade_ts(trade: Dict) -> Optional[datetime]:
         return None
 
 
-def _parse_timestamp(value) -> Optional[datetime]:
+def _parse_timestamp(value) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
@@ -318,11 +317,11 @@ def _parse_timestamp(value) -> Optional[datetime]:
         except Exception:
             return None
     if ts.tzinfo is None:
-        return ts.replace(tzinfo=timezone.utc)
+        return ts.replace(tzinfo=UTC)
     return ts
 
 
-def _extract_equity_value(point: Dict) -> Optional[float]:
+def _extract_equity_value(point: dict) -> float | None:
     for key in ("equity", "portfolio_value", "account_value"):
         val = point.get(key)
         if val is not None:

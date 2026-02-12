@@ -5,8 +5,7 @@ Monitors warn/fail event rates and detects unusual spikes that indicate
 system degradation or issues requiring attention.
 """
 from collections import deque
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, List, Tuple
+from datetime import UTC, datetime, timedelta
 from threading import RLock
 
 
@@ -42,10 +41,10 @@ class AnomalyDetector:
         self._lock = RLock()
 
         # Baseline rates (events per minute)
-        self._baseline_warn_rate: Optional[float] = None
-        self._baseline_fail_rate: Optional[float] = None
+        self._baseline_warn_rate: float | None = None
+        self._baseline_fail_rate: float | None = None
 
-    def record_event(self, outcome: str, timestamp: Optional[datetime] = None):
+    def record_event(self, outcome: str, timestamp: datetime | None = None):
         """
         Record an event occurrence.
 
@@ -54,7 +53,7 @@ class AnomalyDetector:
             timestamp: Event timestamp (default: now)
         """
         if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
+            timestamp = datetime.now(UTC)
         timestamp = self._normalize_timestamp(timestamp)
 
         with self._lock:
@@ -68,7 +67,7 @@ class AnomalyDetector:
 
     def _clean_old_events(self):
         """Remove events outside the time window."""
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=self.window_minutes)
+        cutoff = datetime.now(UTC) - timedelta(minutes=self.window_minutes)
 
         while self._warn_events and self._warn_events[0] < cutoff:
             self._warn_events.popleft()
@@ -103,8 +102,8 @@ class AnomalyDetector:
     def _normalize_timestamp(timestamp: datetime) -> datetime:
         """Normalize timestamps to timezone-aware UTC."""
         if timestamp.tzinfo is None:
-            return timestamp.replace(tzinfo=timezone.utc)
-        return timestamp.astimezone(timezone.utc)
+            return timestamp.replace(tzinfo=UTC)
+        return timestamp.astimezone(UTC)
 
     def update_baseline(self):
         """
@@ -122,7 +121,7 @@ class AnomalyDetector:
             if len(self._fail_events) >= self.min_events_for_detection:
                 self._baseline_fail_rate = self._calculate_rate(self._fail_events)
 
-    def detect_anomaly(self) -> Optional[Dict[str, any]]:
+    def detect_anomaly(self) -> dict[str, any] | None:
         """
         Check for anomalies in recent event rates.
 
@@ -171,7 +170,7 @@ class AnomalyDetector:
 
             return None
 
-    def get_status(self) -> Dict[str, any]:
+    def get_status(self) -> dict[str, any]:
         """
         Get current detector status.
 

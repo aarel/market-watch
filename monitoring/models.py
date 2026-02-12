@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -12,12 +12,12 @@ class Observation:
     timestamp: datetime
     event_type: str
     agent: str
-    action: Optional[str] = None
-    symbol: Optional[str] = None
-    outcome: Optional[str] = None
-    reason: Optional[str] = None
-    reason_code: Optional[str] = None
-    latency_ms: Optional[float] = None
+    action: str | None = None
+    symbol: str | None = None
+    outcome: str | None = None
+    reason: str | None = None
+    reason_code: str | None = None
+    latency_ms: float | None = None
     inputs: dict[str, Any] = field(default_factory=dict)
     outputs: dict[str, Any] = field(default_factory=dict)
     context: dict[str, Any] = field(default_factory=dict)
@@ -46,8 +46,8 @@ class Expectation:
     agent: str
     metric: str
     description: str
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
+    min_value: float | None = None
+    max_value: float | None = None
     severity: str = "warn"  # warn or fail
 
 
@@ -56,11 +56,11 @@ class EvaluationFinding:
     """Result of evaluating a metric against an expectation."""
     agent: str
     metric: str
-    value: Optional[float]
+    value: float | None
     status: str
     description: str
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
+    min_value: float | None = None
+    max_value: float | None = None
     severity: str = "warn"
 
 
@@ -68,7 +68,7 @@ class EvaluationFinding:
 class EvaluationReport:
     """Aggregated evaluation results."""
     generated_at: datetime
-    metrics: dict[str, dict[str, Optional[float]]]
+    metrics: dict[str, dict[str, float | None]]
     findings: list[EvaluationFinding]
     event_counts: dict[str, int] = field(default_factory=dict)
 

@@ -7,15 +7,14 @@ simulating order execution and tracking portfolio performance.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Protocol
+from typing import Protocol
 
 import pandas as pd
-import numpy as np
 
-from backtest.data import HistoricalData
-from backtest.metrics import calculate_metrics, PerformanceMetrics
-from backtest.results import BacktestResults, Trade
 import config
+from backtest.data import HistoricalData
+from backtest.metrics import calculate_metrics
+from backtest.results import BacktestResults, Trade
 
 
 class StrategyProtocol(Protocol):
@@ -66,7 +65,7 @@ class BacktestBroker:
     current_date: datetime = None
     lookback_days: int = 20
 
-    def get_bars(self, symbol: str, days: int = None) -> Optional[pd.DataFrame]:
+    def get_bars(self, symbol: str, days: int = None) -> pd.DataFrame | None:
         """
         Get historical bars up to current backtest date.
 
@@ -85,7 +84,7 @@ class BacktestBroker:
             days
         )
 
-    def get_current_price(self, symbol: str) -> Optional[float]:
+    def get_current_price(self, symbol: str) -> float | None:
         """Get the closing price for the current date."""
         return self.data.get_price(
             symbol,
@@ -100,7 +99,7 @@ class BacktestBroker:
         In backtesting, positions are managed by the engine,
         not queried from a broker.
         """
-        return None
+        return
 
 
 @dataclass
@@ -189,10 +188,10 @@ class BacktestEngine:
 
     def run(
         self,
-        symbols: Optional[list[str]] = None,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
-        benchmark_symbol: Optional[str] = None,
+        symbols: list[str] | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        benchmark_symbol: str | None = None,
     ) -> BacktestResults:
         """
         Run the backtest simulation.
@@ -344,12 +343,11 @@ class BacktestEngine:
                 return 'sell'
 
             return 'hold'
-        else:
-            # Check for buy signals
-            if momentum > self.momentum_threshold:
-                return 'buy'
+        # Check for buy signals
+        if momentum > self.momentum_threshold:
+            return 'buy'
 
-            return 'hold'
+        return 'hold'
 
     def _check_stop_losses(
         self,
@@ -472,7 +470,7 @@ class BacktestEngine:
         symbols: list[str],
         start_date: str,
         end_date: str,
-        benchmark_symbol: Optional[str]
+        benchmark_symbol: str | None
     ) -> BacktestResults:
         """Build the BacktestResults object from simulation state."""
 
@@ -545,11 +543,11 @@ class BacktestEngine:
 
     def set_strategy_params(
         self,
-        lookback_days: Optional[int] = None,
-        momentum_threshold: Optional[float] = None,
-        sell_threshold: Optional[float] = None,
-        stop_loss_pct: Optional[float] = None,
-        max_position_pct: Optional[float] = None,
+        lookback_days: int | None = None,
+        momentum_threshold: float | None = None,
+        sell_threshold: float | None = None,
+        stop_loss_pct: float | None = None,
+        max_position_pct: float | None = None,
     ):
         """
         Update strategy parameters.

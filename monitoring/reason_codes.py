@@ -1,22 +1,20 @@
 """Reason code mapping for structured observability logs."""
 from __future__ import annotations
 
-from typing import Tuple
-
 from agents.events import (
     Event,
     MarketDataReady,
-    SignalGenerated,
-    SignalsUpdated,
-    RiskCheckPassed,
-    RiskCheckFailed,
     OrderExecuted,
     OrderFailed,
+    RiskCheckFailed,
+    RiskCheckPassed,
+    SignalGenerated,
+    SignalsUpdated,
     StopLossTriggered,
 )
 
 
-def classify_event(event: Event) -> Tuple[str, str]:
+def classify_event(event: Event) -> tuple[str, str]:
     """Return (reason_code, outcome) for a given event."""
     if isinstance(event, MarketDataReady):
         return "market_data_ready", "info"

@@ -1,6 +1,7 @@
 """Tests for anomaly detection system."""
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
+
 from monitoring.anomaly_detector import AnomalyDetector
 
 
@@ -52,7 +53,7 @@ class TestAnomalyDetector(unittest.TestCase):
 
     def test_calculates_event_rate(self):
         """Test event rate calculation."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Record events over 10 minutes (should be ~1 event/min)
         for i in range(10):
             timestamp = now - timedelta(minutes=i)
@@ -68,7 +69,7 @@ class TestAnomalyDetector(unittest.TestCase):
     def test_update_baseline(self):
         """Test baseline establishment."""
         # Record 15 events to meet minimum threshold
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for i in range(15):
             timestamp = now - timedelta(minutes=i)
             self.detector.record_event("warn", timestamp=timestamp)
@@ -94,7 +95,7 @@ class TestAnomalyDetector(unittest.TestCase):
 
     def test_detects_warn_spike_anomaly(self):
         """Test detection of warn event spike."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Establish baseline with 10 events over 45 minutes (~0.22/min)
         for i in range(10):
@@ -117,7 +118,7 @@ class TestAnomalyDetector(unittest.TestCase):
 
     def test_detects_fail_spike_anomaly(self):
         """Test detection of fail event spike with high severity."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Establish baseline with events within the window
         for i in range(10):
@@ -210,7 +211,7 @@ class TestAnomalyDetector(unittest.TestCase):
 
     def test_anomaly_detected_flag_in_status(self):
         """Test that anomaly_detected flag is correct."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Establish baseline with events within the window
         for i in range(10):

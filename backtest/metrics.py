@@ -5,11 +5,10 @@ Provides standard financial performance metrics used to evaluate
 trading strategy effectiveness.
 """
 
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from typing import Optional
-
 
 # Annualization factor (trading days per year)
 TRADING_DAYS_PER_YEAR = 252
@@ -52,9 +51,9 @@ class PerformanceMetrics:
     avg_position_duration: float  # Days
 
     # Benchmark comparison (optional)
-    benchmark_return: Optional[float] = None
-    alpha: Optional[float] = None
-    beta: Optional[float] = None
+    benchmark_return: float | None = None
+    alpha: float | None = None
+    beta: float | None = None
 
     # Risk limit diagnostics
     max_daily_loss: float = 0.0
@@ -433,9 +432,9 @@ def calculate_metrics(
     trades: list[dict],
     position_series: pd.Series,
     initial_capital: float,
-    benchmark_returns: Optional[pd.Series] = None,
-    daily_loss_limit_pct: Optional[float] = None,
-    max_drawdown_limit_pct: Optional[float] = None,
+    benchmark_returns: pd.Series | None = None,
+    daily_loss_limit_pct: float | None = None,
+    max_drawdown_limit_pct: float | None = None,
 ) -> PerformanceMetrics:
     """
     Calculate all performance metrics.

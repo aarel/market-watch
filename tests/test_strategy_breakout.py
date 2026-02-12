@@ -1,10 +1,11 @@
 """Tests for strategies/breakout.py - Breakout trading strategy."""
 
 import unittest
+
 import pandas as pd
 
-from strategies.breakout import BreakoutStrategy
 from strategies.base import SignalType
+from strategies.breakout import BreakoutStrategy
 
 
 class TestBreakoutStrategy(unittest.TestCase):

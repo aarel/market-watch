@@ -1,14 +1,17 @@
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from contextlib import asynccontextmanager
 
 import config
-from .lifespan import lifespan as full_lifespan, ws_manager
-from .routers import status, config as cfg_router, analytics, trading, observability, alerts
-from .dependencies import get_state
+
+from .lifespan import lifespan as full_lifespan
+from .lifespan import ws_manager
 from .middleware import LatencyMiddleware
+from .routers import alerts, analytics, observability, status, trading
+from .routers import config as cfg_router
 
 USE_NOOP_LIFESPAN = os.getenv("FASTAPI_DISABLE_LIFESPAN", "0") == "1"
 

@@ -21,10 +21,10 @@ Usage:
     strategy = get_strategy('mean_reversion', ma_period=20, deviation_threshold=0.03)
 """
 
-from strategies.base import Strategy, TradingSignal, SignalType
-from strategies.momentum import MomentumStrategy
-from strategies.mean_reversion import MeanReversionStrategy
+from strategies.base import SignalType, Strategy, TradingSignal
 from strategies.breakout import BreakoutStrategy
+from strategies.mean_reversion import MeanReversionStrategy
+from strategies.momentum import MomentumStrategy
 from strategies.rsi import RSIStrategy
 
 # Registry of all available strategies

@@ -8,8 +8,6 @@ and exporting backtest results in various formats.
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -23,8 +21,8 @@ class Trade:
     side: str  # 'buy' or 'sell'
     entry_date: datetime
     entry_price: float
-    exit_date: Optional[datetime] = None
-    exit_price: Optional[float] = None
+    exit_date: datetime | None = None
+    exit_price: float | None = None
     quantity: int = 0
     pnl: float = 0.0
     pnl_pct: float = 0.0
@@ -75,7 +73,7 @@ class BacktestResults:
 
     # Metadata
     run_timestamp: datetime = field(default_factory=datetime.now)
-    benchmark_symbol: Optional[str] = None
+    benchmark_symbol: str | None = None
 
     def summary(self) -> str:
         """Generate a formatted summary of the backtest."""
@@ -95,7 +93,7 @@ class BacktestResults:
         ]
 
         if self.strategy_params:
-            lines.append(f"  Parameters:")
+            lines.append("  Parameters:")
             for key, value in self.strategy_params.items():
                 lines.append(f"    {key}: {value}")
 
@@ -212,7 +210,7 @@ class BacktestResults:
         Returns:
             BacktestResults object
         """
-        with open(filepath, 'r') as f:
+        with open(filepath) as f:
             data = json.load(f)
 
         # Reconstruct equity curve

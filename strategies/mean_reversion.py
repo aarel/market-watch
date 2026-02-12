@@ -5,11 +5,11 @@ Buys when price deviates significantly below its moving average
 and sells when price returns to or exceeds the average.
 """
 
-import pandas as pd
-from typing import Optional
 
-from strategies.base import Strategy, TradingSignal, SignalType
+import pandas as pd
+
 import config
+from strategies.base import SignalType, Strategy, TradingSignal
 
 
 class MeanReversionStrategy(Strategy):
@@ -67,7 +67,7 @@ class MeanReversionStrategy(Strategy):
         symbol: str,
         bars: pd.DataFrame,
         current_price: float,
-        current_position: Optional[dict] = None
+        current_position: dict | None = None
     ) -> TradingSignal:
         """Generate trading signal based on mean reversion."""
         # Calculate moving average
@@ -82,10 +82,9 @@ class MeanReversionStrategy(Strategy):
             return self._analyze_with_position(
                 symbol, current_price, ma, deviation, current_position
             )
-        else:
-            return self._analyze_without_position(
-                symbol, current_price, ma, deviation
-            )
+        return self._analyze_without_position(
+            symbol, current_price, ma, deviation
+        )
 
     def _analyze_with_position(
         self,

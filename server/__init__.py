@@ -3,9 +3,10 @@ from fastapi import HTTPException
 from starlette.requests import Request
 
 import config
+
+from .config_manager import ConfigManager
 from .main import app  # noqa: F401
 from .state import AppState
-from .config_manager import ConfigManager
 
 # Expose shared state and config for tests and legacy imports
 state = AppState.instance()

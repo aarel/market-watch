@@ -52,6 +52,26 @@ class TestPositionSizer(unittest.TestCase):
         )
         self.assertAlmostEqual(trade_value, 10000.0)
 
+    def test_returns_zero_when_base_value_non_positive(self):
+        sizer = PositionSizer(scale_by_strength=True, min_strength=0.0, max_strength=1.0)
+        trade_value = sizer.calculate_trade_value(
+            signal_strength=0.5,
+            account_value=-1000,
+            buying_power=5000,
+            max_position_pct=0.1,
+        )
+        self.assertEqual(trade_value, 0.0)
+
+    def test_none_signal_strength_clamps_to_zero(self):
+        sizer = PositionSizer(scale_by_strength=True, min_strength=0.0, max_strength=1.0)
+        trade_value = sizer.calculate_trade_value(
+            signal_strength=None,
+            account_value=100000,
+            buying_power=100000,
+            max_position_pct=0.1,
+        )
+        self.assertEqual(trade_value, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

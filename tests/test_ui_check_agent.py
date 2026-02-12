@@ -4,8 +4,8 @@ import unittest
 from unittest.mock import patch
 
 from agents.event_bus import EventBus
-from agents.ui_check_agent import UICheckAgent
 from agents.events import LogEvent
+from agents.ui_check_agent import UICheckAgent
 from universe import Universe, UniverseContext
 
 

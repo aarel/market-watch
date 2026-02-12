@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from server import app
 from server.config_manager import ConfigManager
 
-
 pytestmark = [pytest.mark.smoke, pytest.mark.blackbox]
 
 

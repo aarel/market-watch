@@ -2,26 +2,26 @@
 import asyncio
 import csv
 import os
-from datetime import datetime, timedelta, date, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional, Dict
 
 import config
+from universe import Universe, get_data_path
+
 from .base import BaseAgent
 from .events import LogEvent
-from universe import Universe, get_data_path
 
 
 class ReplayRecorderAgent(BaseAgent):
     """Periodically records latest bars to data/replay for later SIM replay."""
 
-    def __init__(self, event_bus, broker, interval_minutes: int = 5, symbols: Optional[list[str]] = None):
+    def __init__(self, event_bus, broker, interval_minutes: int = 5, symbols: list[str] | None = None):
         super().__init__("ReplayRecorderAgent", event_bus)
         self.broker = broker
         self.interval_minutes = max(1, interval_minutes)
         self.symbols = symbols or config.WATCHLIST
-        self._task: Optional[asyncio.Task] = None
-        self._last_ts: Dict[str, datetime] = {}
+        self._task: asyncio.Task | None = None
+        self._last_ts: dict[str, datetime] = {}
 
     async def start(self):
         await super().start()
@@ -49,7 +49,7 @@ class ReplayRecorderAgent(BaseAgent):
         # Record only when not in SIM mode; expect real broker data
         if self.universe == Universe.SIMULATION:
             return
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         out_dir = Path(get_data_path(self.universe, "replay"))
         os.makedirs(out_dir, exist_ok=True)
         symbols = self.symbols or []
@@ -57,7 +57,7 @@ class ReplayRecorderAgent(BaseAgent):
             return
         for sym in symbols:
             try:
-                bars = self.broker.get_bars(sym, days=2)
+                bars = await asyncio.to_thread(self.broker.get_bars, sym, days=2)
                 if bars is None or len(bars) == 0:
                     continue
                 # Use most recent bar

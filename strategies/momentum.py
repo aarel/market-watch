@@ -5,11 +5,11 @@ Buys stocks showing strong upward price momentum and sells when
 momentum reverses or stop-loss is triggered.
 """
 
-import pandas as pd
-from typing import Optional
 
-from strategies.base import Strategy, TradingSignal, SignalType
+import pandas as pd
+
 import config
+from strategies.base import SignalType, Strategy, TradingSignal
 
 
 class MomentumStrategy(Strategy):
@@ -67,7 +67,7 @@ class MomentumStrategy(Strategy):
         symbol: str,
         bars: pd.DataFrame,
         current_price: float,
-        current_position: Optional[dict] = None
+        current_position: dict | None = None
     ) -> TradingSignal:
         """
         Analyze symbol and generate trading signal.
@@ -90,10 +90,9 @@ class MomentumStrategy(Strategy):
             return self._analyze_with_position(
                 symbol, current_price, momentum, current_position
             )
-        else:
-            return self._analyze_without_position(
-                symbol, current_price, momentum
-            )
+        return self._analyze_without_position(
+            symbol, current_price, momentum
+        )
 
     def _calculate_momentum(self, bars: pd.DataFrame) -> float:
         """

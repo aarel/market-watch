@@ -12,10 +12,9 @@ Design Principles:
 - All data/logs/events are universe-scoped
 """
 
-from enum import Enum
-from typing import Optional
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
+from enum import Enum
 
 
 class Universe(Enum):
@@ -96,10 +95,10 @@ class Universe(Enum):
         """
         if self == Universe.LIVE:
             return "LIVE_VERIFIED"
-        elif self == Universe.PAPER:
+        if self == Universe.PAPER:
             return "PAPER_ONLY"
-        else:  # SIMULATION
-            return "SIM_VALID_FOR_TRAINING"
+        # SIMULATION
+        return "SIM_VALID_FOR_TRAINING"
 
     @classmethod
     def from_string(cls, value: str) -> "Universe":
@@ -139,8 +138,8 @@ class UniverseContext:
     def __init__(
         self,
         universe: Universe,
-        session_id: Optional[str] = None,
-        data_lineage_id: Optional[str] = None
+        session_id: str | None = None,
+        data_lineage_id: str | None = None
     ):
         """
         Create a new UniverseContext.
@@ -152,14 +151,14 @@ class UniverseContext:
         """
         self._universe = universe
         self._session_id = session_id or self._generate_session_id()
-        self._created_at = datetime.now(timezone.utc)
+        self._created_at = datetime.now(UTC)
         self._data_lineage_id = data_lineage_id
         self._validity_class = universe.default_validity_class
 
     @staticmethod
     def _generate_session_id() -> str:
         """Generate a unique session ID."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return f"session_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
     @property
@@ -178,7 +177,7 @@ class UniverseContext:
         return self._created_at
 
     @property
-    def data_lineage_id(self) -> Optional[str]:
+    def data_lineage_id(self) -> str | None:
         """Data provenance identifier (immutable)."""
         return self._data_lineage_id
 
@@ -311,7 +310,7 @@ def validate_universe_transition(
         "from_universe": from_universe.value,
         "to_universe": to_universe.value,
         "reason": reason,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "transition_id": uuid.uuid4().hex,
         "warning": "This is a destructive transition requiring teardown and rebuild"
     }

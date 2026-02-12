@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agents.dev.clean_code_audit_agent import ProjectIndex, CleanCodeAuditAgent
+from agents.dev.clean_code_audit_agent import CleanCodeAuditAgent, ProjectIndex
 from agents.event_bus import EventBus
 from universe import Universe, UniverseContext
 

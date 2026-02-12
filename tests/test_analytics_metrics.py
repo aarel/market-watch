@@ -4,13 +4,13 @@ Enhanced tests for analytics/metrics.py
 Tests performance metric calculations and trade outcome analysis.
 """
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from analytics.metrics import (
     compute_equity_metrics,
-    compute_trade_outcomes,
-    compute_round_trip_trades,
     compute_period_returns,
+    compute_round_trip_trades,
+    compute_trade_outcomes,
 )
 
 
@@ -300,7 +300,7 @@ class TestRoundTripTrades(unittest.TestCase):
 
 class TestPeriodReturns(unittest.TestCase):
     def test_compute_period_returns_daily(self):
-        base = datetime(2026, 1, 1, 15, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 1, 1, 15, 0, tzinfo=UTC)
         points = [
             {"timestamp": base, "equity": 100},
             {"timestamp": base + timedelta(hours=3), "equity": 110},
@@ -313,7 +313,7 @@ class TestPeriodReturns(unittest.TestCase):
         self.assertLess(returns[1]["return_pct"], 0)
 
     def test_compute_period_returns_weekly(self):
-        base = datetime(2026, 1, 1, 15, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 1, 1, 15, 0, tzinfo=UTC)
         points = [
             {"timestamp": base, "equity": 100},
             {"timestamp": base + timedelta(days=7), "equity": 110},

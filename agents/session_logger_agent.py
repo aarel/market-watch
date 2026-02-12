@@ -1,21 +1,18 @@
 """SessionLoggerAgent - periodically logs SIM session snapshots for training/replay analysis."""
 import asyncio
-import json
-import os
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+
+import config
+from monitoring.logger import SystemLogWriter
 
 from .base import BaseAgent
 from .events import LogEvent
-import config
-from universe import Universe
-from monitoring.logger import SystemLogWriter
 
 
 class SessionLoggerAgent(BaseAgent):
     """Logs account/positions summary to JSONL for SIM training analysis."""
 
-    def __init__(self, event_bus, broker, interval_minutes: int = 10, log_path: Optional[str] = None):
+    def __init__(self, event_bus, broker, interval_minutes: int = 10, log_path: str | None = None):
         super().__init__("SessionLoggerAgent", event_bus)
         self.broker = broker
         self.interval_minutes = max(1, interval_minutes)
@@ -58,7 +55,7 @@ class SessionLoggerAgent(BaseAgent):
             raise exc
 
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "universe": self.universe.value,
             "replay_enabled": getattr(config, "SIM_REPLAY_ENABLED", False),
             "portfolio_value": float(getattr(account, "portfolio_value", 0) or 0),

@@ -5,11 +5,11 @@ Buys when RSI indicates oversold conditions and sells when
 RSI indicates overbought conditions.
 """
 
-import pandas as pd
-from typing import Optional
 
-from strategies.base import Strategy, TradingSignal, SignalType
+import pandas as pd
+
 import config
+from strategies.base import SignalType, Strategy, TradingSignal
 
 
 class RSIStrategy(Strategy):
@@ -67,7 +67,7 @@ class RSIStrategy(Strategy):
         symbol: str,
         bars: pd.DataFrame,
         current_price: float,
-        current_position: Optional[dict] = None
+        current_position: dict | None = None
     ) -> TradingSignal:
         """Generate trading signal based on RSI."""
         # Calculate RSI
@@ -79,10 +79,9 @@ class RSIStrategy(Strategy):
             return self._analyze_with_position(
                 symbol, current_price, rsi, current_position
             )
-        else:
-            return self._analyze_without_position(
-                symbol, current_price, rsi
-            )
+        return self._analyze_without_position(
+            symbol, current_price, rsi
+        )
 
     def _calculate_rsi(self, bars: pd.DataFrame) -> float:
         """

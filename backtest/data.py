@@ -5,10 +5,8 @@ Handles downloading, caching, and loading of historical OHLCV data
 from Alpaca's Market Data API.
 """
 
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -35,7 +33,7 @@ class HistoricalData:
 
     DEFAULT_DATA_DIR = Path(__file__).parent.parent / "data" / "historical"
 
-    def __init__(self, data_dir: Optional[Path] = None):
+    def __init__(self, data_dir: Path | None = None):
         """
         Initialize the historical data manager.
 
@@ -78,7 +76,7 @@ class HistoricalData:
         """Get the cache file path for a symbol."""
         return self.data_dir / f"{symbol.upper()}_daily.csv"
 
-    def _load_cache(self, symbol: str) -> Optional[pd.DataFrame]:
+    def _load_cache(self, symbol: str) -> pd.DataFrame | None:
         """Load cached data for a symbol if it exists."""
         cache_path = self._cache_path(symbol)
         if not cache_path.exists():
@@ -105,7 +103,7 @@ class HistoricalData:
         self,
         symbols: list[str],
         start: str,
-        end: Optional[str] = None,
+        end: str | None = None,
         force: bool = False
     ) -> dict[str, pd.DataFrame]:
         """
@@ -177,8 +175,8 @@ class HistoricalData:
     def load(
         self,
         symbols: list[str],
-        start: Optional[str] = None,
-        end: Optional[str] = None
+        start: str | None = None,
+        end: str | None = None
     ) -> dict[str, pd.DataFrame]:
         """
         Load historical data from cache.
@@ -220,11 +218,11 @@ class HistoricalData:
 
         return results
 
-    def get(self, symbol: str) -> Optional[pd.DataFrame]:
+    def get(self, symbol: str) -> pd.DataFrame | None:
         """Get loaded data for a single symbol."""
         return self._data.get(symbol.upper())
 
-    def get_price(self, symbol: str, date: pd.Timestamp, price_type: str = 'close') -> Optional[float]:
+    def get_price(self, symbol: str, date: pd.Timestamp, price_type: str = 'close') -> float | None:
         """
         Get a specific price for a symbol on a date.
 
@@ -259,7 +257,7 @@ class HistoricalData:
         symbol: str,
         date: pd.Timestamp,
         num_bars: int
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """
         Get historical bars up to and including a specific date.
 
@@ -293,7 +291,7 @@ class HistoricalData:
         return list(self._data.keys())
 
     @property
-    def date_range(self) -> tuple[Optional[pd.Timestamp], Optional[pd.Timestamp]]:
+    def date_range(self) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
         """Get the overall date range of loaded data."""
         if not self._data:
             return None, None
@@ -312,7 +310,7 @@ class HistoricalData:
             cached.append(symbol)
         return sorted(cached)
 
-    def clear_cache(self, symbols: Optional[list[str]] = None):
+    def clear_cache(self, symbols: list[str] | None = None):
         """
         Clear cached data.
 

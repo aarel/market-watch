@@ -1,24 +1,20 @@
 """UICheckAgent - lightweight UI smoke test using HTTP fetch and selector checks."""
 import asyncio
-import json
-import os
-import re
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import requests
 
-from .base import BaseAgent
-from .events import LogEvent
 import config
 from monitoring.logger import SystemLogWriter
-from universe import Universe
+
+from .base import BaseAgent
+from .events import LogEvent
 
 
 class UICheckAgent(BaseAgent):
     """Periodically fetches the UI and checks for key elements."""
 
-    def __init__(self, event_bus, interval_minutes: int = 30, url: Optional[str] = None, log_path: Optional[str] = None):
+    def __init__(self, event_bus, interval_minutes: int = 30, url: str | None = None, log_path: str | None = None):
         super().__init__("UICheckAgent", event_bus)
         self.interval_minutes = max(5, interval_minutes)
         self.url = url or f"http://{config.API_HOST}:{config.UI_PORT}"
@@ -49,7 +45,7 @@ class UICheckAgent(BaseAgent):
             await asyncio.sleep(self.interval_minutes * 60)
 
     async def _check_once(self):
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         status = "ok"
         detail = {}
         try:

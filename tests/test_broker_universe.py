@@ -1,6 +1,6 @@
 """Tests for broker universe enforcement."""
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from broker import AlpacaBroker
 from fake_broker import FakeBroker

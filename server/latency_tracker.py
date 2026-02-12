@@ -4,11 +4,8 @@ Latency tracking for API endpoints.
 Tracks request duration and calculates percentiles (p50, p95) for monitoring.
 Uses rolling window to maintain recent measurements without unbounded memory growth.
 """
-import time
 from collections import defaultdict, deque
-from typing import Dict, List, Tuple
 from threading import RLock
-import statistics
 
 
 class LatencyTracker:
@@ -22,7 +19,7 @@ class LatencyTracker:
             window_size: Maximum number of measurements to keep per endpoint
         """
         self.window_size = window_size
-        self._measurements: Dict[str, deque] = defaultdict(lambda: deque(maxlen=window_size))
+        self._measurements: dict[str, deque] = defaultdict(lambda: deque(maxlen=window_size))
         self._lock = RLock()
 
     def record(self, endpoint: str, duration_ms: float):
@@ -36,7 +33,7 @@ class LatencyTracker:
         with self._lock:
             self._measurements[endpoint].append(duration_ms)
 
-    def get_percentiles(self, endpoint: str) -> Tuple[float, float, int]:
+    def get_percentiles(self, endpoint: str) -> tuple[float, float, int]:
         """
         Get p50 and p95 latency for an endpoint.
 
@@ -64,7 +61,7 @@ class LatencyTracker:
 
         return (round(p50, 2), round(p95, 2), count)
 
-    def get_all_percentiles(self) -> Dict[str, Dict[str, float]]:
+    def get_all_percentiles(self) -> dict[str, dict[str, float]]:
         """
         Get latency percentiles for all tracked endpoints.
 
@@ -85,7 +82,7 @@ class LatencyTracker:
 
         return result
 
-    def get_summary(self) -> Dict[str, float]:
+    def get_summary(self) -> dict[str, float]:
         """
         Get aggregate latency summary across all endpoints.
 

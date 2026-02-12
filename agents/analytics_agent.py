@@ -2,21 +2,22 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from datetime import datetime
 
-from .base import BaseAgent
-from .events import MarketDataReady, OrderExecuted, Event
 from analytics.store import AnalyticsStore
 
+from .base import BaseAgent
+from .events import MarketDataReady, OrderExecuted
+
 if TYPE_CHECKING:
-    from .event_bus import EventBus
     from broker import AlpacaBroker
+
+    from .event_bus import EventBus
 
 
 class AnalyticsAgent(BaseAgent):
     """Listens to events and persists analytics-friendly data."""
 
-    def __init__(self, event_bus: "EventBus", broker: "AlpacaBroker", store: AnalyticsStore):
+    def __init__(self, event_bus: EventBus, broker: AlpacaBroker, store: AnalyticsStore):
         super().__init__("AnalyticsAgent", event_bus)
         self.broker = broker
         self.store = store

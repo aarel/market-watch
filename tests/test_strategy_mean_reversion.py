@@ -1,10 +1,11 @@
 """Tests for strategies/mean_reversion.py - Mean reversion strategy."""
 
 import unittest
+
 import pandas as pd
 
-from strategies.mean_reversion import MeanReversionStrategy
 from strategies.base import SignalType
+from strategies.mean_reversion import MeanReversionStrategy
 
 
 class TestMeanReversionStrategy(unittest.TestCase):

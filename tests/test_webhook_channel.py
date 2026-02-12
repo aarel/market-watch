@@ -1,9 +1,10 @@
 """Tests for webhook alert channel."""
 import unittest
-from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from alerts.channels.webhook import WebhookChannel, WebhookType
-from alerts.models import Alert, AlertTrigger, AlertSeverity, ChannelType
+from alerts.models import Alert, AlertSeverity, AlertTrigger, ChannelType
 
 
 class TestWebhookChannel(unittest.IsolatedAsyncioTestCase):

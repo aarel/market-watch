@@ -1,14 +1,14 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import config
-from alerts.manager import get_manager
-from alerts.models import AlertRule, AlertTrigger, AlertSeverity, ChannelType
-from alerts.channels.base import AlertChannel
-from alerts.runtime import configure_alerts
 from agents.event_bus import EventBus
+from agents.events import LogEvent, OrderFailed, RiskCheckFailed
 from agents.external_alert_agent import ExternalAlertAgent
-from agents.events import OrderFailed, RiskCheckFailed, LogEvent
+from alerts.channels.base import AlertChannel
+from alerts.manager import get_manager
+from alerts.models import AlertRule, AlertSeverity, AlertTrigger, ChannelType
+from alerts.runtime import configure_alerts
 from universe import Universe, UniverseContext
 
 
@@ -145,7 +145,7 @@ class TestExternalAlertAgent(unittest.IsolatedAsyncioTestCase):
             source="Coordinator",
             level="error",
             message="Unhandled exception",
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         await self.event_bus.publish(event)
 

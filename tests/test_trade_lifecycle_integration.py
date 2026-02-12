@@ -9,27 +9,27 @@ Tests the complete flow:
 5. AnalyticsAgent captures trade
 6. All events flow through EventBus correctly
 """
-import pytest
 import unittest
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, MagicMock
 from decimal import Decimal
+from unittest.mock import AsyncMock, MagicMock, Mock
 
-from agents.event_bus import EventBus
-from agents.signal_agent import SignalAgent
-from agents.risk_agent import RiskAgent
-from agents.execution_agent import ExecutionAgent
+import pytest
+
 from agents.analytics_agent import AnalyticsAgent
+from agents.event_bus import EventBus
 from agents.events import (
     MarketDataReady,
-    SignalGenerated,
-    RiskCheckPassed,
-    RiskCheckFailed,
     OrderExecuted,
+    RiskCheckFailed,
+    RiskCheckPassed,
+    SignalGenerated,
 )
-from universe import Universe, UniverseContext
+from agents.execution_agent import ExecutionAgent
+from agents.risk_agent import RiskAgent
+from agents.signal_agent import SignalAgent
 from strategies.momentum import MomentumStrategy
-
+from universe import Universe, UniverseContext
 
 pytestmark = [pytest.mark.integration, pytest.mark.whitebox]
 
@@ -86,6 +86,19 @@ class MockBroker:
     def get_bars(self, symbol, timeframe='1Day', limit=30, days=None):
         """Get historical bars for RVOL calculation (returns empty for mock)."""
         return []
+
+    # Async wrappers (for non-blocking agent calls)
+    async def get_portfolio_value_async(self):
+        return self.get_portfolio_value()
+
+    async def get_buying_power_async(self):
+        return self.get_buying_power()
+
+    async def get_position_async(self, symbol):
+        return self.get_position(symbol)
+
+    async def submit_order_async(self, **kwargs):
+        return self.submit_order(**kwargs)
 
     def submit_order(self, symbol, qty=None, notional=None, side='buy', **kwargs):
         """Submit order and return mock order object."""

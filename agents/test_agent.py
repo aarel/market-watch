@@ -1,27 +1,23 @@
 """TestAgent - runs automated test suite on a schedule."""
 import asyncio
-import json
-import os
 import subprocess
 from datetime import datetime
-from typing import Optional
+
+from monitoring.logger import SystemLogWriter
 
 from .base import BaseAgent
 from .events import LogEvent
-import config
-from monitoring.logger import SystemLogWriter
-from universe import Universe
 
 
 class TestAgent(BaseAgent):
     """Periodically runs the test suite and logs results."""
 
-    def __init__(self, event_bus, interval_minutes: int, log_path: Optional[str] = None):
+    def __init__(self, event_bus, interval_minutes: int, log_path: str | None = None):
         super().__init__("TestAgent", event_bus)
         self.interval_minutes = max(5, interval_minutes)
         filename = (log_path.split("/")[-1] if log_path else "tests.jsonl")
         self._log_writer = SystemLogWriter(self.universe, filename=filename)
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
 
     async def start(self):
         await super().start()

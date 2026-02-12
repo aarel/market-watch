@@ -1,16 +1,22 @@
 """Tests for backtest/metrics.py - Performance calculations."""
 
 import unittest
-import pandas as pd
-import numpy as np
 from datetime import datetime
+from unittest.mock import patch
+
+import numpy as np
+import pandas as pd
 
 from backtest.metrics import (
-    calculate_sharpe_ratio,
+    calculate_annualized_return,
+    calculate_benchmark_comparison,
+    calculate_exposure,
     calculate_max_drawdown,
-    calculate_sortino_ratio,
     calculate_metrics,
-    calculate_trade_statistics
+    calculate_sharpe_ratio,
+    calculate_sortino_ratio,
+    calculate_volatility,
+    calculate_trade_statistics,
 )
 
 
@@ -174,6 +180,73 @@ class TestMetricCalculations(unittest.TestCase):
 
         self.assertEqual(stats['total_trades'], 0)
         self.assertEqual(stats['win_rate'], 0.0)
+
+    def test_annualized_return_handles_zero_days(self):
+        self.assertEqual(calculate_annualized_return(0.1, 0), 0.0)
+
+    def test_annualized_return_handles_non_positive_years(self):
+        with patch("backtest.metrics.TRADING_DAYS_PER_YEAR", -252):
+            self.assertEqual(calculate_annualized_return(0.1, 10), 0.0)
+
+    def test_volatility_with_insufficient_returns(self):
+        returns = pd.Series([0.01])
+        self.assertEqual(calculate_volatility(returns), 0.0)
+
+    def test_sharpe_ratio_with_insufficient_returns(self):
+        returns = pd.Series([0.01])
+        self.assertEqual(calculate_sharpe_ratio(returns), 0.0)
+
+    def test_sortino_ratio_with_insufficient_returns(self):
+        returns = pd.Series([0.01])
+        self.assertEqual(calculate_sortino_ratio(returns), 0.0)
+
+    def test_sortino_ratio_zero_downside_std(self):
+        returns = pd.Series([0.1, 0.1, -0.01, -0.01])
+        self.assertEqual(calculate_sortino_ratio(returns), 10.0)
+
+    def test_max_drawdown_with_single_point(self):
+        dates = pd.date_range('2023-01-01', periods=1, freq='D')
+        equity_curve = pd.Series([100], index=dates)
+        max_dd, duration = calculate_max_drawdown(equity_curve)
+        self.assertEqual(max_dd, 0.0)
+        self.assertEqual(duration, 0)
+
+    def test_exposure_with_empty_series(self):
+        position_series = pd.Series([], dtype=float)
+        equity_curve = pd.Series([], dtype=float)
+        self.assertEqual(calculate_exposure(position_series, equity_curve), 0.0)
+
+    def test_benchmark_comparison_insufficient_data(self):
+        strategy_returns = pd.Series([0.01, 0.02, -0.01, 0.0, 0.01])
+        benchmark_returns = pd.Series([0.005, 0.01, -0.005, 0.0, 0.002])
+        result = calculate_benchmark_comparison(strategy_returns, benchmark_returns)
+        self.assertIsNone(result["alpha"])
+        self.assertIsNone(result["beta"])
+        self.assertIsNotNone(result["benchmark_return"])
+
+    def test_benchmark_comparison_sufficient_data(self):
+        strategy_returns = pd.Series(np.linspace(0.001, 0.02, 30))
+        benchmark_returns = pd.Series(np.linspace(0.0005, 0.015, 30))
+        result = calculate_benchmark_comparison(strategy_returns, benchmark_returns)
+        self.assertIsNotNone(result["alpha"])
+        self.assertIsNotNone(result["beta"])
+        self.assertIsNotNone(result["benchmark_return"])
+
+    def test_calculate_metrics_with_benchmark_returns(self):
+        dates = pd.date_range('2023-01-01', periods=5, freq='D')
+        equity_curve = pd.Series([100, 101, 100, 102, 103], index=dates)
+        position_series = pd.Series([0, 0, 0, 0, 0], index=dates)
+        benchmark_returns = pd.Series([0.01, -0.005, 0.002, 0.0, 0.003], index=dates)
+
+        metrics = calculate_metrics(
+            equity_curve=equity_curve,
+            trades=[],
+            position_series=position_series,
+            initial_capital=100,
+            benchmark_returns=benchmark_returns,
+        )
+
+        self.assertIsNotNone(metrics.benchmark_return)
 
 
 if __name__ == '__main__':

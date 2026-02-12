@@ -1,6 +1,6 @@
+import os
 import unittest
 from unittest.mock import patch
-import os
 
 # Disable heavy FastAPI lifespan during unit tests
 os.environ.setdefault("FASTAPI_DISABLE_LIFESPAN", "1")

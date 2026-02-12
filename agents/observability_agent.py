@@ -1,29 +1,33 @@
 """Observability Agent - structured logging and context annotation."""
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+from alerts.manager import get_manager
+from alerts.models import AlertSeverity, AlertTrigger
+from monitoring.anomaly_detector import get_detector
+from monitoring.context import MarketContextTracker
+from monitoring.logger import JSONLLogger, SystemLogWriter
+from monitoring.models import Observation
+from monitoring.reason_codes import classify_event
 
 from .base import BaseAgent
 from .events import (
     Event,
     MarketDataReady,
-    SignalsUpdated,
-    SignalGenerated,
-    RiskCheckPassed,
-    RiskCheckFailed,
     OrderExecuted,
     OrderFailed,
+    RiskCheckFailed,
+    RiskCheckPassed,
+    SignalGenerated,
+    SignalsUpdated,
     StopLossTriggered,
 )
-from monitoring.context import MarketContextTracker
-from monitoring.logger import JSONLLogger, SystemLogWriter
-from universe import Universe
-from monitoring.models import Observation
-from monitoring.reason_codes import classify_event
-from monitoring.anomaly_detector import get_detector
-from alerts.manager import get_manager
-from alerts.models import AlertTrigger, AlertSeverity
 
 if TYPE_CHECKING:
     from .event_bus import EventBus
@@ -32,7 +36,7 @@ if TYPE_CHECKING:
 class ObservabilityAgent(BaseAgent):
     """Captures structured logs for all events and annotates context."""
 
-    def __init__(self, event_bus: "EventBus", log_path: str, max_log_mb: float = 5.0):
+    def __init__(self, event_bus: EventBus, log_path: str, max_log_mb: float = 5.0):
         super().__init__("ObservabilityAgent", event_bus)
         # Prefer universe-scoped system log writer when possible
         if log_path.startswith("logs/"):
@@ -84,7 +88,7 @@ class ObservabilityAgent(BaseAgent):
                 await self._maybe_alert_on_anomaly(detector, event.timestamp)
 
         except Exception as exc:
-            print(f"ObservabilityAgent error: {exc}")
+            logger.error(f"Error: {exc}")
 
     def _build_context(self, event: Event) -> dict[str, Any]:
         if isinstance(event, MarketDataReady):
@@ -195,7 +199,7 @@ class ObservabilityAgent(BaseAgent):
             )
             self._last_anomaly_alert_at = now
         except Exception as exc:
-            print(f"ObservabilityAgent anomaly alert error: {exc}")
+            logger.error(f"Anomaly alert error: {exc}")
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float:

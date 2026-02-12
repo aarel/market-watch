@@ -1,7 +1,7 @@
 """Test ExecutionAgent._await_fill polling behavior."""
 import unittest
-from unittest.mock import MagicMock, AsyncMock
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 from agents.execution_agent import ExecutionAgent
 from universe import Universe, UniverseContext
@@ -63,8 +63,7 @@ class TestExecutionAwaitFill(unittest.IsolatedAsyncioTestCase):
             call_count += 1
             if call_count < 3:
                 return SimpleNamespace(id=order_id, status="pending_new")
-            else:
-                return SimpleNamespace(id=order_id, status="filled", filled_avg_price=200.0)
+            return SimpleNamespace(id=order_id, status="filled", filled_avg_price=200.0)
 
         self.broker.get_order = MagicMock(side_effect=mock_get_order)
 
@@ -105,8 +104,7 @@ class TestExecutionAwaitFill(unittest.IsolatedAsyncioTestCase):
             call_count += 1
             if call_count == 1:
                 return SimpleNamespace(id=order_id, status="pending_new")
-            else:
-                return SimpleNamespace(id=order_id, status="canceled")
+            return SimpleNamespace(id=order_id, status="canceled")
 
         self.broker.get_order = MagicMock(side_effect=mock_get_order)
 
@@ -168,8 +166,7 @@ class TestExecutionAwaitFill(unittest.IsolatedAsyncioTestCase):
             call_count += 1
             if call_count < 3:
                 raise Exception("API error")
-            else:
-                return SimpleNamespace(id=order_id, status="filled", filled_avg_price=250.0)
+            return SimpleNamespace(id=order_id, status="filled", filled_avg_price=250.0)
 
         self.broker.get_order = MagicMock(side_effect=mock_get_order)
 

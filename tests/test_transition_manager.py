@@ -54,7 +54,7 @@ class TestTransitionManager(unittest.TestCase):
 
         self.assertEqual(brokers, [Universe.LIVE])
         self.assertEqual(stores, [Universe.LIVE])
-        self.assertEqual(coords, [(f"broker_live", f"store_live")])
+        self.assertEqual(coords, [("broker_live", "store_live")])
         self.assertEqual(state.broker, "broker_live")
         self.assertEqual(state.analytics_store, "store_live")
         self.assertEqual(state.coordinator, "coord_broker_live_store_live")

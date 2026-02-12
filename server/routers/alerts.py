@@ -1,18 +1,19 @@
 """Alert management API endpoints."""
-from typing import Optional
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from datetime import datetime
 
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
 from alerts.manager import get_manager
-from alerts.models import Alert, AlertTrigger, AlertSeverity, ChannelType
+from alerts.models import AlertSeverity, AlertTrigger, ChannelType
+
 from ..dependencies import get_state
 
 router = APIRouter()
 
 
 @router.get("/alerts/history")
-async def get_alert_history(limit: Optional[int] = 20, state=Depends(get_state)):
+async def get_alert_history(limit: int | None = 20, state=Depends(get_state)):
     """
     Get alert history.
 
@@ -67,12 +68,11 @@ async def test_alert(request: TestAlertRequest, state=Depends(get_state)):
                 "message": "Test alert sent successfully" if alert.delivered else "Test alert created but delivery failed",
                 "errors": alert.delivery_errors,
             }
-        else:
-            return {
-                "success": False,
-                "message": f"No alert rules configured for {request.channel}",
-                "errors": [],
-            }
+        return {
+            "success": False,
+            "message": f"No alert rules configured for {request.channel}",
+            "errors": [],
+        }
 
     except Exception as exc:
         return {

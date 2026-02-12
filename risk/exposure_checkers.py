@@ -1,6 +1,9 @@
 """Risk exposure checkers - modular risk validation components."""
+import logging
+
+logger = logging.getLogger(__name__)
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -12,8 +15,8 @@ class SectorMapLoader:
     """Loads and caches sector map from JSON string or file."""
 
     def __init__(self):
-        self._cache: Optional[dict] = None
-        self._cache_key: Optional[tuple] = None
+        self._cache: dict | None = None
+        self._cache_key: tuple | None = None
 
     def get(self, sector_map_json: str = "", sector_map_path: str = "") -> dict:
         """Load sector map with caching.
@@ -34,15 +37,15 @@ class SectorMapLoader:
             try:
                 raw_map = json.loads(sector_map_json)
             except Exception as e:
-                print(f"SectorMapLoader: Error parsing SECTOR_MAP_JSON: {e}")
+                logger.error(f"Error parsing SECTOR_MAP_JSON: {e}")
         elif sector_map_path:
             try:
-                with open(sector_map_path, "r", encoding="utf-8") as handle:
+                with open(sector_map_path, encoding="utf-8") as handle:
                     raw_map = json.load(handle)
             except FileNotFoundError:
-                print(f"SectorMapLoader: Sector map file not found: {sector_map_path}")
+                logger.warning(f"Sector map file not found: {sector_map_path}")
             except Exception as e:
-                print(f"SectorMapLoader: Error reading sector map: {e}")
+                logger.error(f"Error reading sector map: {e}")
 
         # Normalize keys to uppercase
         normalized = {}
@@ -52,7 +55,7 @@ class SectorMapLoader:
                     continue
                 normalized[str(key_sym).upper()] = str(value).strip()
         else:
-            print("SectorMapLoader: Sector map must be a JSON object of symbol->sector")
+            logger.error("Sector map must be a JSON object of symbol->sector")
 
         self._cache = normalized
         self._cache_key = key
@@ -65,7 +68,7 @@ class ReturnCalculator:
     def __init__(self, broker: "AlpacaBroker"):
         self.broker = broker
 
-    def get_returns(self, symbol: str, lookback_days: int) -> Optional[pd.Series]:
+    def get_returns(self, symbol: str, lookback_days: int) -> pd.Series | None:
         """Calculate daily returns for a symbol.
 
         Args:
@@ -78,7 +81,7 @@ class ReturnCalculator:
         try:
             bars = self.broker.get_bars(symbol, days=lookback_days)
         except Exception as e:
-            print(f"ReturnCalculator: Error fetching bars for {symbol}: {e}")
+            logger.error(f"Error fetching bars for {symbol}: {e}")
             return None
 
         if bars is None or len(bars) == 0:
@@ -278,7 +281,7 @@ class RVOLChecker:
         try:
             bars = self.broker.get_bars(symbol, days=lookback_days)
         except Exception as e:
-            print(f"RVOLChecker: Error fetching bars for {symbol}: {e}")
+            logger.error(f"Error fetching bars for {symbol}: {e}")
             return True  # Allow trade if data unavailable
 
         if bars is None or len(bars) == 0:

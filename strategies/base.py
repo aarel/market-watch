@@ -8,7 +8,6 @@ and implement the required methods.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 import pandas as pd
 
@@ -109,7 +108,7 @@ class Strategy(ABC):
         symbol: str,
         bars: pd.DataFrame,
         current_price: float,
-        current_position: Optional[dict] = None
+        current_position: dict | None = None
     ) -> TradingSignal:
         """
         Analyze a symbol and generate a trading signal.

@@ -1,8 +1,8 @@
 import os
 import tempfile
 import unittest
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from datetime import datetime, timezone
 
 from agents.dev.docs_scaffold_agent import DocScaffoldPlanner
 
@@ -56,7 +56,7 @@ class TestDocScaffoldPlanner(unittest.TestCase):
         planner = DocScaffoldPlanner(repo_root=self.repo_root)
         audit_file = self.docs_root / "DRA_audit_note.md"
         audit_file.write_text("audit", encoding="utf-8")
-        timestamp = datetime(2026, 2, 6, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        timestamp = datetime(2026, 2, 6, 12, 0, 0, tzinfo=UTC).timestamp()
         os.utime(audit_file, (timestamp, timestamp))
 
         plans = planner.build_plan(date_bucket_categories=["audits"])
@@ -72,7 +72,7 @@ class TestDocScaffoldPlanner(unittest.TestCase):
         audit_dir.mkdir(parents=True, exist_ok=True)
         audit_file = audit_dir / "DRA_old.md"
         audit_file.write_text("audit", encoding="utf-8")
-        timestamp = datetime(2026, 2, 6, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        timestamp = datetime(2026, 2, 6, 12, 0, 0, tzinfo=UTC).timestamp()
         os.utime(audit_file, (timestamp, timestamp))
 
         plans = planner.build_plan(date_bucket_categories=["audits"])

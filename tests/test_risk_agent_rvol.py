@@ -1,10 +1,11 @@
 import unittest
-import pandas as pd
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pandas as pd
+
 from agents.event_bus import EventBus
-from agents.events import SignalGenerated, RiskCheckFailed, RiskCheckPassed
+from agents.events import RiskCheckFailed, RiskCheckPassed, SignalGenerated
 from agents.risk_agent import RiskAgent
 from universe import Universe, UniverseContext
 
@@ -33,6 +34,16 @@ class DummyBroker:
                 "volume": [1000000] * 29 + [2500000]  # Last bar has 2.5x avg volume
             })
         return self._bars_data
+
+    # Async wrappers (for non-blocking agent calls)
+    async def get_portfolio_value_async(self):
+        return self.get_portfolio_value()
+
+    async def get_buying_power_async(self):
+        return self.get_buying_power()
+
+    async def get_position_async(self, symbol):
+        return self.get_position(symbol)
 
 
 class DummyBreaker:

@@ -8,19 +8,19 @@ Tests the full universe transition flow including:
 - Component teardown
 - Fresh context creation
 """
-import pytest
-import unittest
-import tempfile
-import shutil
 import os
-from pathlib import Path
+import shutil
+import tempfile
+import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 
-from universe import Universe, UniverseContext
+import pytest
+
 from analytics.store import AnalyticsStore
 from fake_broker import FakeBroker
 from server.state import AppState
-
+from universe import Universe, UniverseContext
 
 pytestmark = [pytest.mark.integration, pytest.mark.whitebox]
 

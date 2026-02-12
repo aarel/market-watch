@@ -1,6 +1,6 @@
 """Test that AnalyticsAgent only records filled orders."""
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from agents.analytics_agent import AnalyticsAgent
 from agents.events import OrderExecuted
@@ -59,7 +59,7 @@ class TestAnalyticsFilledFilter(unittest.IsolatedAsyncioTestCase):
             notional=1505.0,
             order_id="filled_order_1",
             status="filled",
-            filled_at=datetime.now(timezone.utc).isoformat(),
+            filled_at=datetime.now(UTC).isoformat(),
         )
 
         await self.agent._handle_order_executed(event)
@@ -81,7 +81,7 @@ class TestAnalyticsFilledFilter(unittest.IsolatedAsyncioTestCase):
             notional=1000.0,
             order_id="partial_order_1",
             status="partially_filled",
-            filled_at=datetime.now(timezone.utc).isoformat(),
+            filled_at=datetime.now(UTC).isoformat(),
         )
 
         await self.agent._handle_order_executed(event)

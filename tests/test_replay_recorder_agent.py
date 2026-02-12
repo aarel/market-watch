@@ -1,7 +1,7 @@
 import os
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pandas as pd
 
@@ -29,7 +29,7 @@ class TestReplayRecorderAgent(unittest.IsolatedAsyncioTestCase):
         self.tmpdir.cleanup()
 
     async def test_capture_once_writes_csv(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         bars = pd.DataFrame(
             {
                 "open": [1.0],

@@ -1,17 +1,20 @@
 """Alert Agent - handles notifications and WebSocket broadcasts."""
-from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from .base import BaseAgent
 from .events import (
     Event,
     LogEvent,
     MarketDataReady,
-    SignalGenerated,
-    RiskCheckPassed,
-    RiskCheckFailed,
     OrderExecuted,
     OrderFailed,
+    RiskCheckFailed,
+    RiskCheckPassed,
+    SignalGenerated,
     StopLossTriggered,
 )
 
@@ -26,7 +29,7 @@ class AlertAgent(BaseAgent):
         super().__init__("AlertAgent", event_bus)
         self._log: list[dict] = []
         self._max_log_size = 100
-        self._broadcast_callback: Optional[Callable] = None
+        self._broadcast_callback: Callable | None = None
 
     async def start(self):
         """Start listening to all events."""
@@ -55,9 +58,9 @@ class AlertAgent(BaseAgent):
                 try:
                     await self._broadcast_callback({"event": "log", "entry": log_entry})
                 except Exception as e:
-                    print(f"AlertAgent broadcast error: {e}")
+                    logger.error(f"Broadcast error: {e}")
 
-    def _event_to_log(self, event: Event) -> Optional[dict]:
+    def _event_to_log(self, event: Event) -> dict | None:
         """Convert an event to a log entry."""
         timestamp = event.timestamp.isoformat()
 
@@ -69,7 +72,7 @@ class AlertAgent(BaseAgent):
                 "data": {"symbols": event.symbols, "market_open": event.market_open},
             }
 
-        elif isinstance(event, SignalGenerated):
+        if isinstance(event, SignalGenerated):
             if event.action == "hold":
                 return None  # Don't log hold signals
             return {
@@ -84,7 +87,7 @@ class AlertAgent(BaseAgent):
                 },
             }
 
-        elif isinstance(event, RiskCheckPassed):
+        if isinstance(event, RiskCheckPassed):
             return {
                 "timestamp": timestamp,
                 "type": "info",
@@ -96,7 +99,7 @@ class AlertAgent(BaseAgent):
                 },
             }
 
-        elif isinstance(event, RiskCheckFailed):
+        if isinstance(event, RiskCheckFailed):
             return {
                 "timestamp": timestamp,
                 "type": "warning",
@@ -104,7 +107,7 @@ class AlertAgent(BaseAgent):
                 "data": {"symbol": event.symbol, "action": event.action, "reason": event.reason},
             }
 
-        elif isinstance(event, OrderExecuted):
+        if isinstance(event, OrderExecuted):
             return {
                 "timestamp": timestamp,
                 "type": "trade",
@@ -116,7 +119,7 @@ class AlertAgent(BaseAgent):
                 },
             }
 
-        elif isinstance(event, OrderFailed):
+        if isinstance(event, OrderFailed):
             return {
                 "timestamp": timestamp,
                 "type": "error",
@@ -124,7 +127,7 @@ class AlertAgent(BaseAgent):
                 "data": {"symbol": event.symbol, "action": event.action, "reason": event.reason},
             }
 
-        elif isinstance(event, StopLossTriggered):
+        if isinstance(event, StopLossTriggered):
             return {
                 "timestamp": timestamp,
                 "type": "warning",
@@ -137,7 +140,7 @@ class AlertAgent(BaseAgent):
                 },
             }
 
-        elif isinstance(event, LogEvent):
+        if isinstance(event, LogEvent):
             return {
                 "timestamp": timestamp,
                 "type": event.level,

@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+
     from .event_bus import EventBus
-    from universe import Universe
 
 
 class BaseAgent(ABC):

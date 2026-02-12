@@ -1,5 +1,5 @@
-import io
 import contextlib
+import io
 
 from scripts import run_test_audit
 

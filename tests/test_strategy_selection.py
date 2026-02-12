@@ -6,13 +6,13 @@ Validates that:
 - Invalid strategy selections are rejected
 - Strategy changes require explicit save to persist
 """
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
 
 import config
 from server.config_manager import ConfigManager
-from strategies import get_strategy, list_strategies, AVAILABLE_STRATEGIES
+from strategies import AVAILABLE_STRATEGIES, get_strategy, list_strategies
 
 
 class TestStrategySelection(unittest.TestCase):

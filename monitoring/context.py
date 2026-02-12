@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
-from agents.events import MarketDataReady
+if TYPE_CHECKING:
+    from agents.events import MarketDataReady
 
 
 @dataclass
@@ -16,10 +17,10 @@ class MarketContext:
     priced_symbols: int = 0
     bars_symbols: int = 0
     top_gainers_count: int = 0
-    avg_volatility: Optional[float] = None
+    avg_volatility: float | None = None
     volatility_regime: str = "unknown"
     direction_bias: str = "unknown"  # bullish, bearish, mixed, unknown
-    last_updated: Optional[str] = None
+    last_updated: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,7 +68,7 @@ class MarketContextTracker:
         return self._context
 
 
-def _summarize_bars(bars: dict[str, Any]) -> tuple[Optional[float], str]:
+def _summarize_bars(bars: dict[str, Any]) -> tuple[float | None, str]:
     volatilities = []
     directions = []
 
@@ -98,7 +99,7 @@ def _summarize_bars(bars: dict[str, Any]) -> tuple[Optional[float], str]:
     return avg_volatility, direction_bias
 
 
-def _categorize_volatility(avg_volatility: Optional[float]) -> str:
+def _categorize_volatility(avg_volatility: float | None) -> str:
     if avg_volatility is None:
         return "unknown"
     if avg_volatility < 0.01:

@@ -9,11 +9,11 @@ from unittest.mock import Mock, patch
 import pandas as pd
 
 from risk.exposure_checkers import (
-    SectorMapLoader,
-    ReturnCalculator,
-    SectorExposureChecker,
     CorrelationExposureChecker,
+    ReturnCalculator,
     RVOLChecker,
+    SectorExposureChecker,
+    SectorMapLoader,
 )
 
 
@@ -305,9 +305,9 @@ class TestCorrelationExposureChecker(unittest.TestCase):
         def get_bars_side_effect(symbol, days):
             if symbol == "GOOGL":
                 return pd.DataFrame({'close': [100, 101, 103, 102, 103.5]})
-            elif symbol == "AAPL":
+            if symbol == "AAPL":
                 return pd.DataFrame({'close': [150, 151.5, 154.5, 153, 155]})
-            elif symbol == "MSFT":
+            if symbol == "MSFT":
                 return pd.DataFrame({'close': [200, 196, 198, 204, 202]})
             return None
 
@@ -421,9 +421,9 @@ class TestCorrelationExposureChecker(unittest.TestCase):
         def get_bars_side_effect(symbol, days):
             if symbol == "GOOGL":
                 return pd.DataFrame({'close': [100, 101, 103, 102]})
-            elif symbol == "AAPL":
+            if symbol == "AAPL":
                 return pd.DataFrame({'close': [150, 151]})  # Only 2 bars - insufficient
-            elif symbol == "MSFT":
+            if symbol == "MSFT":
                 return pd.DataFrame({'close': [200, 201, 203, 202]})
             return None
 

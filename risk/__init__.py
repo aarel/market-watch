@@ -1,14 +1,14 @@
 """Risk management utilities."""
 
-from .position_sizer import PositionSizer
 from .circuit_breaker import CircuitBreaker
 from .exposure_checkers import (
-    SectorMapLoader,
-    ReturnCalculator,
-    SectorExposureChecker,
     CorrelationExposureChecker,
+    ReturnCalculator,
     RVOLChecker,
+    SectorExposureChecker,
+    SectorMapLoader,
 )
+from .position_sizer import PositionSizer
 
 __all__ = [
     "PositionSizer",

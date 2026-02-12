@@ -2,14 +2,14 @@ import csv
 import json
 import os
 from datetime import datetime
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 
-from universe import get_system_log_path
-from ..dependencies import get_state
 from monitoring.anomaly_detector import get_detector
+from universe import get_system_log_path
+
+from ..dependencies import get_state
 
 router = APIRouter()
 
@@ -36,14 +36,14 @@ def _write_daily_csv(warn_fail_entries: list[dict], date_str: str):
 
 
 @router.get("/observability/logs")
-async def get_observability_logs(level: Optional[str] = "warn", state=Depends(get_state)):
+async def get_observability_logs(level: str | None = "warn", state=Depends(get_state)):
     path = get_system_log_path(state.universe_context.universe, "agent_events.jsonl")
     if not os.path.exists(path):
         return {"logs": []}
 
     today = _today_est()  # e.g. "2026-02-05" in NY time
 
-    with open(path, "r", encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:
         lines = handle.readlines()
 
     entries = []  # all warn/fail today

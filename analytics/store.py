@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, date, timezone
+from collections.abc import Iterable
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import Iterable, List, Optional
 
 from universe import Universe, get_log_path
 
@@ -259,16 +259,16 @@ class AnalyticsStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         obj = dict(obj)
         if "timestamp" not in obj:
-            obj["timestamp"] = datetime.now(timezone.utc).isoformat()
+            obj["timestamp"] = datetime.now(UTC).isoformat()
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(obj, default=_json_default))
             handle.write("\n")
 
 
-def _read_jsonl(path: Path, cutoff: Optional[datetime] = None) -> Iterable[dict]:
+def _read_jsonl(path: Path, cutoff: datetime | None = None) -> Iterable[dict]:
     if not path.exists():
         return []
-    results: List[dict] = []
+    results: list[dict] = []
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
@@ -285,31 +285,31 @@ def _read_jsonl(path: Path, cutoff: Optional[datetime] = None) -> Iterable[dict]
     return results
 
 
-def _parse_ts(value) -> Optional[datetime]:
+def _parse_ts(value) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
         # If already a datetime, ensure it's timezone-aware
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
     try:
         dt = datetime.fromisoformat(str(value))
         # If parsed datetime is naive (from old data), assume UTC
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=UTC)
         return dt
     except Exception:
         return None
 
 
-def _cutoff_from_period(period: str) -> Optional[datetime]:
+def _cutoff_from_period(period: str) -> datetime | None:
     period = (period or "").lower()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if period in ("", "all"):
         return None
     if period == "ytd":
-        start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+        start = datetime(now.year, 1, 1, tzinfo=UTC)
         return start
     if period.endswith("d"):
         try:

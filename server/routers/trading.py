@@ -4,9 +4,9 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
-from agents import RiskCheckPassed
 import config
-from ..dependencies import get_state, get_broker, get_analytics_store
+
+from ..dependencies import get_analytics_store, get_broker, get_state
 
 router = APIRouter()
 
@@ -56,7 +56,7 @@ async def get_asset_names(symbols: str, broker=Depends(get_broker)):
     try:
         names = broker.get_asset_names(symbol_list)
         return {"names": names}
-    except Exception as e:
+    except Exception:
         # Return empty names on error - UI will handle gracefully
         return {"names": {}}
 

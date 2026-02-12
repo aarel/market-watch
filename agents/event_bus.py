@@ -1,9 +1,14 @@
 """Event bus for agent communication."""
 import asyncio
+import logging
 from collections import defaultdict
-from typing import Callable, Type
-from .events import Event
+from collections.abc import Callable
+
 from universe import UniverseContext
+
+from .events import Event
+
+logger = logging.getLogger(__name__)
 
 
 class EventBus:
@@ -35,12 +40,12 @@ class EventBus:
             )
 
         self._context = context
-        self._subscribers: dict[Type[Event], list[Callable]] = defaultdict(list)
+        self._subscribers: dict[type[Event], list[Callable]] = defaultdict(list)
         self._global_subscribers: list[Callable] = []
         self._event_log: list[Event] = []
         self._max_log_size = 100
 
-    def subscribe(self, event_type: Type[Event], handler: Callable):
+    def subscribe(self, event_type: type[Event], handler: Callable):
         """Subscribe to a specific event type."""
         self._subscribers[event_type].append(handler)
 
@@ -48,7 +53,7 @@ class EventBus:
         """Subscribe to all events."""
         self._global_subscribers.append(handler)
 
-    def unsubscribe(self, event_type: Type[Event], handler: Callable):
+    def unsubscribe(self, event_type: type[Event], handler: Callable):
         """Unsubscribe from an event type."""
         if handler in self._subscribers[event_type]:
             self._subscribers[event_type].remove(handler)
@@ -100,7 +105,7 @@ class EventBus:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as e:
-                print(f"Error in event handler for {event_type.__name__}: {e}")
+                logger.error(f"Error in event handler for {event_type.__name__}: {e}", exc_info=True)
 
         # Notify global subscribers
         for handler in self._global_subscribers:
@@ -109,7 +114,7 @@ class EventBus:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as e:
-                print(f"Error in global event handler: {e}")
+                logger.error(f"Error in global event handler: {e}", exc_info=True)
 
     def get_recent_events(self, count: int = 50) -> list[Event]:
         """Get recent events from the log."""

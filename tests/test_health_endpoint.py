@@ -11,8 +11,8 @@ from unittest.mock import Mock
 # Disable heavy FastAPI lifespan during unit tests
 os.environ.setdefault("FASTAPI_DISABLE_LIFESPAN", "1")
 
-from server.state import AppState
 from server.routers import status
+from server.state import AppState
 
 
 class TestHealthEndpoint(unittest.TestCase):

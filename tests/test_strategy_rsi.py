@@ -1,11 +1,12 @@
 """Tests for strategies/rsi.py - RSI trading strategy."""
 
 import unittest
-import pandas as pd
-import numpy as np
 
-from strategies.rsi import RSIStrategy
+import numpy as np
+import pandas as pd
+
 from strategies.base import SignalType
+from strategies.rsi import RSIStrategy
 
 
 class TestRSIStrategy(unittest.TestCase):

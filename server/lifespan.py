@@ -1,22 +1,20 @@
-import asyncio
-import os
-import json
+import logging
 from contextlib import asynccontextmanager
-from dataclasses import asdict
 
 from fastapi import FastAPI
 
 import config
+
+logger = logging.getLogger(__name__)
+from agents import Coordinator
+from alerts.runtime import configure_alerts
+from analytics.store import AnalyticsStore
 from broker import AlpacaBroker
 from fake_broker import FakeBroker
-from agents import Coordinator
-from analytics.store import AnalyticsStore
 from universe import Universe
-from alerts.runtime import configure_alerts
-from .state import AppState
-from .events import WebsocketManager
-from .dependencies import get_state
 
+from .dependencies import get_state
+from .events import WebsocketManager
 
 ws_manager = WebsocketManager()
 
@@ -62,6 +60,10 @@ async def lifespan(app: FastAPI):
         analytics_factory=analytics_factory,
         coordinator_factory=coordinator_factory,
     )
+
+    # Link ConfigManager to EventBus for config change propagation
+    state.config_manager.event_bus = state.coordinator.event_bus
+
     # Connect agent events to websocket
     async def broadcast_status(account=None, positions=None, market_open=None, top_gainers=None, market_indices=None):
         """Broadcast current status to websocket clients."""
@@ -90,7 +92,7 @@ async def lifespan(app: FastAPI):
                             "unrealized_plpc": float(pos.unrealized_plpc) * 100,
                         })
             except Exception as e:
-                print(f"lifespan: Error fetching account/positions for status broadcast: {e}")
+                logger.error(f"Error fetching account/positions for status broadcast: {e}")
 
         if market_open is None:
             try:
@@ -134,7 +136,7 @@ async def lifespan(app: FastAPI):
         """Broadcast status update after trade execution to refresh daily_trades count."""
         await broadcast_status()
 
-    from agents import MarketDataReady, SignalsUpdated, OrderExecuted
+    from agents import MarketDataReady, OrderExecuted, SignalsUpdated
     state.coordinator.event_bus.subscribe(MarketDataReady, handle_market_data)
     state.coordinator.event_bus.subscribe(SignalsUpdated, handle_signals)
     state.coordinator.event_bus.subscribe(OrderExecuted, handle_order_executed)

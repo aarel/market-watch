@@ -1,12 +1,11 @@
 """Broadcast helpers and websocket registry."""
-from typing import List
 
 from fastapi import WebSocket
 
 
 class WebsocketManager:
     def __init__(self):
-        self.connections: List[WebSocket] = []
+        self.connections: list[WebSocket] = []
         self._last_status: dict | None = None
         self._last_signals: dict | None = None
 

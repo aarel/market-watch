@@ -1,22 +1,20 @@
 import csv
 import io
-import os
+from dataclasses import asdict
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import HTMLResponse
 
+import config
 from analytics.metrics import (
     compute_equity_metrics,
-    compute_trade_outcomes,
-    compute_round_trip_trades,
     compute_period_returns,
+    compute_round_trip_trades,
+    compute_trade_outcomes,
 )
-from dataclasses import asdict
 
-from ..dependencies import get_analytics_store, get_broker
-from ..dependencies import get_state
-import config
+from ..dependencies import get_analytics_store, get_broker, get_state
 
 router = APIRouter()
 

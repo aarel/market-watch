@@ -1,11 +1,12 @@
 """Tests for backtest/results.py - Results formatting and export."""
 
-import unittest
-import pandas as pd
 import json
-import tempfile
 import os
+import tempfile
+import unittest
 from datetime import datetime
+
+import pandas as pd
 
 from backtest.results import BacktestResults, PerformanceMetrics, Trade
 
@@ -199,7 +200,7 @@ class TestBacktestResults(unittest.TestCase):
             self.assertTrue(os.path.exists(json_path))
 
             # Load and verify contents
-            with open(json_path, 'r') as f:
+            with open(json_path) as f:
                 data = json.load(f)
 
             self.assertIn('metrics', data)

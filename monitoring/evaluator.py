@@ -5,7 +5,7 @@ import json
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Optional
+from typing import Any
 
 from .expectations import load_expectations
 from .models import EvaluationFinding, EvaluationReport
@@ -13,8 +13,8 @@ from .models import EvaluationFinding, EvaluationReport
 
 def evaluate_log(
     log_path: str,
-    since: Optional[str] = None,
-    expectations_path: Optional[str] = None,
+    since: str | None = None,
+    expectations_path: str | None = None,
 ) -> EvaluationReport:
     """Evaluate a JSONL log file against expectations."""
     observations = _load_observations(log_path, since)
@@ -47,7 +47,7 @@ def evaluate_log(
     )
 
 
-def _load_observations(log_path: str, since: Optional[str]) -> list[dict[str, Any]]:
+def _load_observations(log_path: str, since: str | None) -> list[dict[str, Any]]:
     if not os.path.exists(log_path):
         return []
 
@@ -59,7 +59,7 @@ def _load_observations(log_path: str, since: Optional[str]) -> list[dict[str, An
             cutoff = None
 
     observations: list[dict[str, Any]] = []
-    with open(log_path, "r", encoding="utf-8") as handle:
+    with open(log_path, encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if not line:
@@ -80,8 +80,8 @@ def _load_observations(log_path: str, since: Optional[str]) -> list[dict[str, An
     return observations
 
 
-def _compute_metrics(observations: list[dict[str, Any]]) -> tuple[dict[str, dict[str, Optional[float]]], dict[str, int]]:
-    metrics: dict[str, dict[str, Optional[float]]] = defaultdict(dict)
+def _compute_metrics(observations: list[dict[str, Any]]) -> tuple[dict[str, dict[str, float | None]], dict[str, int]]:
+    metrics: dict[str, dict[str, float | None]] = defaultdict(dict)
     event_counts: dict[str, int] = defaultdict(int)
 
     market_events = [obs for obs in observations if obs.get("event_type") == "MarketDataReady"]
@@ -120,7 +120,7 @@ def _compute_metrics(observations: list[dict[str, Any]]) -> tuple[dict[str, dict
     return metrics, dict(event_counts)
 
 
-def _average_market_interval(market_events: list[dict[str, Any]]) -> Optional[float]:
+def _average_market_interval(market_events: list[dict[str, Any]]) -> float | None:
     if len(market_events) < 2:
         return None
     timestamps = []
@@ -139,7 +139,7 @@ def _average_market_interval(market_events: list[dict[str, Any]]) -> Optional[fl
     return sum(intervals) / len(intervals) if intervals else None
 
 
-def _average_ratio(observations: list[dict[str, Any]], metric_key: str) -> Optional[float]:
+def _average_ratio(observations: list[dict[str, Any]], metric_key: str) -> float | None:
     values = []
     for obs in observations:
         outputs = obs.get("outputs", {})
@@ -151,7 +151,7 @@ def _average_ratio(observations: list[dict[str, Any]], metric_key: str) -> Optio
     return sum(values) / len(values)
 
 
-def _evaluate_value(value: Optional[float], expectation) -> str:
+def _evaluate_value(value: float | None, expectation) -> str:
     if value is None:
         return "missing"
 

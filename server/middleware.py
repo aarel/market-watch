@@ -5,6 +5,7 @@ Includes latency tracking middleware that measures request duration
 and records it for monitoring purposes.
 """
 import time
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response

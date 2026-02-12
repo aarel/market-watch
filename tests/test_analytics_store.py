@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from threading import Thread
 
@@ -80,7 +80,7 @@ class TestAnalyticsStore(unittest.TestCase):
         self.assertIn("timestamp", loaded[0])
         # Should be close to now
         ts = datetime.fromisoformat(loaded[0]["timestamp"])
-        self.assertLess((datetime.now(timezone.utc) - ts).total_seconds(), 5)
+        self.assertLess((datetime.now(UTC) - ts).total_seconds(), 5)
 
     def test_record_equity_empty_dict(self):
         """Test that empty dict is ignored."""
@@ -145,7 +145,7 @@ class TestAnalyticsStore(unittest.TestCase):
 
     def test_load_equity_period_30d(self):
         """Test loading last 30 days of equity."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         snapshots = [
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=45)).isoformat(), "equity": 100000},
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=20)).isoformat(), "equity": 101000},
@@ -162,8 +162,8 @@ class TestAnalyticsStore(unittest.TestCase):
 
     def test_load_equity_period_ytd(self):
         """Test loading YTD equity."""
-        now = datetime.now(timezone.utc)
-        year_start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+        now = datetime.now(UTC)
+        year_start = datetime(now.year, 1, 1, tzinfo=UTC)
         snapshots = [
             {"session_id": self.test_session_id, "timestamp": (year_start - timedelta(days=10)).isoformat(), "equity": 100000},
             {"session_id": self.test_session_id, "timestamp": year_start.isoformat(), "equity": 101000},
@@ -187,7 +187,7 @@ class TestAnalyticsStore(unittest.TestCase):
 
     def test_load_trades_period_filter(self):
         """Test trade period filtering."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         trades = [
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=100)).isoformat(), "symbol": "OLD", "side": "buy"},
             {"session_id": self.test_session_id, "timestamp": (now - timedelta(days=50)).isoformat(), "symbol": "MID", "side": "buy"},
@@ -305,7 +305,7 @@ class TestCutoffFromPeriod(unittest.TestCase):
         """Test 'Nd' format."""
         cutoff = _cutoff_from_period("30d")
         self.assertIsNotNone(cutoff)
-        delta = datetime.now(timezone.utc) - cutoff
+        delta = datetime.now(UTC) - cutoff
         # Should be approximately 30 days
         self.assertGreater(delta.days, 29)
         self.assertLess(delta.days, 31)
@@ -313,7 +313,7 @@ class TestCutoffFromPeriod(unittest.TestCase):
     def test_period_weeks(self):
         """Test 'Nw' format."""
         cutoff = _cutoff_from_period("2w")
-        delta = datetime.now(timezone.utc) - cutoff
+        delta = datetime.now(UTC) - cutoff
         # Should be approximately 14 days
         self.assertGreater(delta.days, 13)
         self.assertLess(delta.days, 15)
@@ -321,7 +321,7 @@ class TestCutoffFromPeriod(unittest.TestCase):
     def test_period_months(self):
         """Test 'Nm' format."""
         cutoff = _cutoff_from_period("3m")
-        delta = datetime.now(timezone.utc) - cutoff
+        delta = datetime.now(UTC) - cutoff
         # Approximate: 3 months ≈ 90 days
         self.assertGreater(delta.days, 88)
         self.assertLess(delta.days, 92)
@@ -329,8 +329,8 @@ class TestCutoffFromPeriod(unittest.TestCase):
     def test_period_ytd(self):
         """Test YTD period."""
         cutoff = _cutoff_from_period("ytd")
-        now = datetime.now(timezone.utc)
-        expected = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+        now = datetime.now(UTC)
+        expected = datetime(now.year, 1, 1, tzinfo=UTC)
         self.assertEqual(cutoff.year, expected.year)
         self.assertEqual(cutoff.month, expected.month)
         self.assertEqual(cutoff.day, expected.day)
@@ -359,9 +359,9 @@ class TestParseTimestamp(unittest.TestCase):
         now_naive = datetime.now()
         ts = _parse_ts(now_naive)
         self.assertIsNotNone(ts.tzinfo)
-        self.assertEqual(ts.tzinfo, timezone.utc)
+        self.assertEqual(ts.tzinfo, UTC)
         # Test UTC-aware datetime is preserved
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         ts_utc = _parse_ts(now_utc)
         self.assertEqual(ts_utc, now_utc)
 

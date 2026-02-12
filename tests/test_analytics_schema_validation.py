@@ -1,7 +1,7 @@
 """Tests for analytics store schema validation."""
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
 from pathlib import Path
 
 from analytics.store import AnalyticsStore, SchemaValidationError
