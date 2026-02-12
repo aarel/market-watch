@@ -9,7 +9,7 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -85,7 +85,7 @@ def start_server(args: argparse.Namespace) -> int:
     )
     info = {
         "pid": proc.pid,
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "command": cmd,
         "log_file": str(log_file),
     }

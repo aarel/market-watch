@@ -11,18 +11,18 @@ import shlex
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional
-
+from typing import List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON_BIN = sys.executable
 PRESET_FILE = REPO_ROOT / "audit_presets.json"
 
-MENU_ACTIONS: List[tuple[str, Callable[["curses._CursesWindow"], None]]] = []
+MENU_ACTIONS: list[tuple[str, Callable[[curses._CursesWindow], None]]] = []
 VERBOSE = True
-ACTION_HELP: dict[str, List[str]] = {
+ACTION_HELP: dict[str, list[str]] = {
     "Run Clean Code Audit (draft)": [
         "Drafts a clean-code DRA audit with an evidence pack.",
         "Use when you want structure/quality issues surfaced quickly.",
@@ -118,7 +118,7 @@ def _select_preset(
         return None, None
     if selection.strip().lower() == "custom":
         return None, None
-    mapping = {key.lower(): key for key in presets.keys()}
+    mapping = {key.lower(): key for key in presets}
     key = mapping.get(selection.strip().lower())
     if not key:
         return None, None
@@ -127,16 +127,16 @@ def _select_preset(
 @dataclass
 class MenuItem:
     label: str
-    handler: Callable[["curses._CursesWindow"], None]
+    handler: Callable[[curses._CursesWindow], None]
 
 
 class TUI:
     def __init__(self, stdscr):
         self.stdscr = stdscr
-        self.menu_items: List[MenuItem] = []
+        self.menu_items: list[MenuItem] = []
         self.selected = 0
 
-    def add_item(self, label: str, handler: Callable[["curses._CursesWindow"], None]) -> None:
+    def add_item(self, label: str, handler: Callable[[curses._CursesWindow], None]) -> None:
         self.menu_items.append(MenuItem(label, handler))
 
     def run(self) -> None:
@@ -186,7 +186,7 @@ class TUI:
         self.stdscr.addnstr(y, x, text, width - x, attr)
 
 
-def popup_message(stdscr, title: str, lines: List[str]) -> None:
+def popup_message(stdscr, title: str, lines: list[str]) -> None:
     h, w = stdscr.getmaxyx()
     win_h = min(12, max(6, len(lines) + 4))
     win_w = min(90, max(40, max(len(title), *(len(line) for line in lines)) + 4))
@@ -254,7 +254,7 @@ def popup_confirm(stdscr, title: str, question: str) -> bool:
             return False
 
 
-def popup_inputs(stdscr, title: str, fields: List[tuple[str, str]]) -> List[str]:
+def popup_inputs(stdscr, title: str, fields: list[tuple[str, str]]) -> list[str]:
     curses.echo()
     h, w = stdscr.getmaxyx()
     win_h = min(4 + len(fields) * 2, h - 2)
@@ -283,7 +283,7 @@ def popup_inputs(stdscr, title: str, fields: List[tuple[str, str]]) -> List[str]
         win.addnstr(0, 2, f" {title} ", win_w - 4, curses.A_BOLD)
     except curses.error:
         pass
-    results: List[str] = []
+    results: list[str] = []
     for idx, (label, default) in enumerate(fields):
         y = 2 + idx * 2
         prompt = f"{label} [{default}]: " if default else f"{label}: "
@@ -299,7 +299,7 @@ def popup_inputs(stdscr, title: str, fields: List[tuple[str, str]]) -> List[str]
     return results
 
 
-def _render_stream_window(stdscr, title: str, lines: List[str], status_line: str | None = None) -> None:
+def _render_stream_window(stdscr, title: str, lines: list[str], status_line: str | None = None) -> None:
     try:
         stdscr.clear()
         height, width = stdscr.getmaxyx()
@@ -327,7 +327,7 @@ _PYTEST_STATUS_RE = re.compile(
 )
 
 
-def _parse_pytest_status_line(line: str) -> Optional[str]:
+def _parse_pytest_status_line(line: str) -> str | None:
     match = _PYTEST_STATUS_RE.match(line.strip())
     if not match:
         return None
@@ -350,7 +350,7 @@ def _collect_test_count(marker_expr: str) -> int:
     return len(lines)
 
 
-def run_command(stdscr, cmd: List[str], details: Optional[List[str]] = None) -> None:
+def run_command(stdscr, cmd: list[str], details: list[str] | None = None) -> None:
     preview = " ".join(shlex.quote(part) for part in cmd)
     if not popup_confirm(stdscr, "Run Command", f"Run: {preview}"):
         return
@@ -388,14 +388,14 @@ def run_command(stdscr, cmd: List[str], details: Optional[List[str]] = None) -> 
 
 def run_command_streaming(
     stdscr,
-    cmd: List[str],
-    details: Optional[List[str]] = None,
+    cmd: list[str],
+    details: list[str] | None = None,
     progress_total: int = 0,
 ) -> None:
     preview = " ".join(shlex.quote(part) for part in cmd)
     if not popup_confirm(stdscr, "Run Command", f"Run: {preview}"):
         return
-    output_lines: List[str] = []
+    output_lines: list[str] = []
     title = "Running command (streaming output)..."
     status_line = "Working"
     if details and VERBOSE:
@@ -491,7 +491,7 @@ def run_command_streaming(
     popup_message(stdscr, "Command Complete", completion)
 
 
-def _extract_prefix_line(lines: List[str], prefix: str) -> Optional[str]:
+def _extract_prefix_line(lines: list[str], prefix: str) -> str | None:
     for line in lines:
         if line.strip().startswith(prefix):
             return line.strip()
@@ -853,7 +853,7 @@ def handle_dev_server_control(stdscr) -> None:
     run_command_streaming(stdscr, cmd, details)
 
 
-def get_menu_actions() -> List[tuple[str, Callable[["curses._CursesWindow"], None]]]:
+def get_menu_actions() -> list[tuple[str, Callable[[curses._CursesWindow], None]]]:
     return [
         ("Run Clean Code Audit (draft)", handle_clean_code_audit),
         ("Update Clean Code Index (no draft)", handle_clean_code_index),
@@ -868,17 +868,17 @@ def get_menu_actions() -> List[tuple[str, Callable[["curses._CursesWindow"], Non
     ]
 
 
-def run_command_headless(cmd: List[str]) -> int:
+def run_command_headless(cmd: list[str]) -> int:
     preview = " ".join(shlex.quote(part) for part in cmd)
     print(f"Running: {preview}")
     proc = subprocess.run(cmd, cwd=REPO_ROOT)
     return proc.returncode
 
 
-def validate_menu() -> List[str]:
-    errors: List[str] = []
-    labels: List[str] = []
-    handlers: List[Optional[Callable]] = []
+def validate_menu() -> list[str]:
+    errors: list[str] = []
+    labels: list[str] = []
+    handlers: list[Callable | None] = []
     for label, handler in MENU_ACTIONS:
         labels.append(label)
         handlers.append(handler)
@@ -893,7 +893,7 @@ def validate_menu() -> List[str]:
     return errors
 
 
-def _resolve_action(action: str) -> Optional[Callable[[Optional[object]], None]]:
+def _resolve_action(action: str) -> Callable[[object | None], None] | None:
     action = (action or "").strip().lower()
     mapping = {label.lower(): handler for label, handler in MENU_ACTIONS}
     return mapping.get(action)

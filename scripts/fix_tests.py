@@ -11,7 +11,7 @@ def fix_mean_reversion_tests():
     """Fix test_strategy_mean_reversion.py parameter names."""
     file_path = 'tests/test_strategy_mean_reversion.py'
 
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         content = f.read()
 
     # Replace sell_threshold with return_threshold
@@ -28,7 +28,7 @@ def fix_rsi_tests():
     """Fix test_strategy_rsi.py parameter names."""
     file_path = 'tests/test_strategy_rsi.py'
 
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         content = f.read()
 
     # Replace parameter names
@@ -47,7 +47,7 @@ def fix_breakout_strategy_tests():
     """Fix test_strategy_breakout.py to match actual implementation."""
     file_path = 'tests/test_strategy_breakout.py'
 
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         content = f.read()
 
     # Fix required_history expectation (25 not 20)
@@ -66,7 +66,7 @@ def fix_metrics_imports():
     """Fix test_backtest_metrics.py to remove non-existent imports."""
     file_path = 'tests/test_backtest_metrics.py'
 
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         content = f.read()
 
     # Replace the import statement

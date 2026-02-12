@@ -21,7 +21,7 @@ What is NOT touched:
 import argparse
 import re
 import shutil
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 # ── timezone helper (ET without pytz) ────────────────────────────────────────
@@ -40,7 +40,7 @@ def _is_edt(dt: datetime) -> bool:
 
 
 def _today_et() -> date:
-    utc_now = datetime.now(timezone.utc)
+    utc_now = datetime.now(UTC)
     offset = timedelta(hours=-4) if _is_edt(utc_now) else timedelta(hours=-5)
     return (utc_now + offset).date()
 

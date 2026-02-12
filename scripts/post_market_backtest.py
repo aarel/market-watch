@@ -23,11 +23,11 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import config
 from analytics.metrics import compute_equity_metrics, compute_trade_outcomes
 from analytics.store import AnalyticsStore
 from backtest.data import HistoricalData
 from backtest.engine import BacktestEngine
-import config
 
 
 def load_live_config():
@@ -151,7 +151,7 @@ def run_backtest(symbols, period_days=30, download=False):
     )
 
     # Run backtest
-    print(f"\nRunning backtest with live parameters:")
+    print("\nRunning backtest with live parameters:")
     print(f"  Momentum threshold: {momentum_threshold:.1%}")
     print(f"  Sell threshold: {sell_threshold:.1%}")
     print(f"  Stop loss: {stop_loss:.1%}")

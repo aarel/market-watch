@@ -4,11 +4,11 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Optional
-
+from typing import List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,11 +34,11 @@ def _date_bucket(path: Path) -> str:
     return _latest_timestamp(path).strftime("%Y-%m-%d")
 
 
-def _plan_docs_archive() -> List[MovePlan]:
+def _plan_docs_archive() -> list[MovePlan]:
     docs_archive = REPO_ROOT / "docs" / "archive"
     if not docs_archive.exists():
         return []
-    plans: List[MovePlan] = []
+    plans: list[MovePlan] = []
     for item in docs_archive.rglob("*"):
         if item.is_dir():
             continue
@@ -49,11 +49,11 @@ def _plan_docs_archive() -> List[MovePlan]:
     return plans
 
 
-def _plan_tests_cleanup() -> List[MovePlan]:
+def _plan_tests_cleanup() -> list[MovePlan]:
     tests_root = REPO_ROOT / "tests"
     if not tests_root.exists():
         return []
-    plans: List[MovePlan] = []
+    plans: list[MovePlan] = []
     for item in tests_root.iterdir():
         if item.is_dir():
             continue
@@ -65,11 +65,11 @@ def _plan_tests_cleanup() -> List[MovePlan]:
     return plans
 
 
-def _plan_test_results_archive() -> List[MovePlan]:
+def _plan_test_results_archive() -> list[MovePlan]:
     test_root = REPO_ROOT / "test_results"
     if not test_root.exists():
         return []
-    plans: List[MovePlan] = []
+    plans: list[MovePlan] = []
     for item in test_root.iterdir():
         if item.is_dir():
             continue
@@ -83,8 +83,8 @@ def _plan_test_results_archive() -> List[MovePlan]:
     return plans
 
 
-def _apply_moves(plans: Iterable[MovePlan]) -> List[MovePlan]:
-    executed: List[MovePlan] = []
+def _apply_moves(plans: Iterable[MovePlan]) -> list[MovePlan]:
+    executed: list[MovePlan] = []
     for plan in plans:
         if not plan.src.exists():
             continue
@@ -110,7 +110,7 @@ def main() -> int:
     parser.add_argument("--dev-docs", action="store_true", help="Run development_docs organizer (separate script)")
     args = parser.parse_args()
 
-    plans: List[MovePlan] = []
+    plans: list[MovePlan] = []
     if args.docs_archive:
         plans.extend(_plan_docs_archive())
     if args.tests_cleanup:
