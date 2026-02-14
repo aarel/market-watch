@@ -1,0 +1,83 @@
+:root {
+  --bg: #0f1722;
+  --paper: #182331;
+  --ink: #e6edf7;
+  --accent: #3b82f6;
+  --muted: #9fb1c9;
+  --line: #2b3c52;
+  --surface-2: #131e2a;
+  --input-bg: #0f1a26;
+  --shadow: 0 16px 36px rgba(2, 8, 15, 0.45);
+}
+
+body {
+  background: radial-gradient(circle at 18% 8%, #1b2a3c, #0b121a 62%);
+}
+
+.card {
+  box-shadow: var(--shadow);
+}
+
+.input-section {
+  border-color: #2d4b73;
+  background: linear-gradient(180deg, #15263a, #111f31);
+}
+
+textarea {
+  border-color: #2d4664;
+}
+
+.request-link:hover,
+.request-link:focus {
+  background: #1d2d41;
+}
+
+.request-link.active {
+  background: #1b324f;
+}
+
+.secondary {
+  background: #425a7d;
+}
+
+.detail-block,
+.request-list {
+  background: var(--surface-2);
+}
+
+pre,
+.meta-row,
+.muted,
+.small {
+  color: var(--muted);
+}
+
+.status-done {
+  color: #b8f7da;
+  background: #114733;
+  border-color: #1f6d50;
+}
+
+.status-blocked {
+  color: #ffd2d2;
+  background: #5a1f1f;
+  border-color: #874040;
+}
+
+.status-in_progress {
+  color: #cee8ff;
+  background: #194367;
+  border-color: #2b5e8f;
+}
+
+.status-acked {
+  color: #ffe7bc;
+  background: #5f4512;
+  border-color: #85621d;
+}
+
+.status-new {
+  color: #d1deef;
+  background: #2a3c52;
+  border-color: #3b536f;
+}

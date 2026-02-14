@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Communicate Runtime</title>
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="market-watch-theme.css" id="market-theme" />
+</head>
+<body>
+  <main class="shell">
+    <section class="card">
+      <h1>Communicate Input Pad</h1>
+      <div class="input-section">
+        <textarea id="input" placeholder="Write one request and submit"></textarea>
+        <button id="submit">Write To INPUT PAD</button>
+        <p class="small">Deep link format: <code>?req=REQ-YYYYMMDD-HHMMSS</code> or <code>#/REQ-...</code></p>
+      </div>
+      <h2 class="section-title">Requests</h2>
+      <button id="toggle-sort" class="secondary">Sort: Newest</button>
+      <ul id="request-list" class="request-list">
+        <li class="request-link muted">Loading requests...</li>
+      </ul>
+    </section>
+    <section class="card">
+      <div class="toolbar">
+        <button id="copy-link" class="secondary">Copy REQ Link</button>
+        <button id="clear-selection" class="secondary">Back To List</button>
+        <button id="toggle-theme" class="secondary" aria-pressed="true">Use Default Theme</button>
+      </div>
+      <h2 id="detail-title" tabindex="-1">Request Detail</h2>
+      <p id="detail-meta" class="small">Select a REQ to view details.</p>
+      <div id="detail" class="detail-grid">
+        <div class="detail-block muted">No REQ selected.</div>
+      </div>
+    </section>
+  </main>
+  <script>
+    let selectedReq = '';
+    let requestIndex = [];
+    let marketThemeEnabled = true;
+    let sortMode = 'newest';
+
+    function parseSelectedReqFromLocation() {
+      const params = new URLSearchParams(window.location.search);
+      const reqFromQuery = (params.get('req') || '').trim();
+      if (reqFromQuery) return reqFromQuery;
+      const hash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+      if (/^REQ-/i.test(hash)) return hash;
+      return '';
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function extractBlock(text, key) {
+      const rx = new RegExp(`${key}:\\s*>?\\n([\\s\\S]*?)(?:\\n[a-z_]+:\\s|$)`, 'i');
+      const m = String(text || '').match(rx);
+      return m ? m[1].trim() : '';
+    }
+
+    function renderRequestList() {
+      const list = document.getElementById('request-list');
+      if (!requestIndex.length) {
+        list.innerHTML = '<li class="request-link muted">No requests yet.</li>';
+        return;
+      }
+      const statusClass = (status) => `status-chip status-${String(status || '').toLowerCase()}`;
+      list.innerHTML = requestIndex.map((r) => {
+        const active = r.request_id === selectedReq ? 'active' : '';
+        const href = `?req=${encodeURIComponent(r.request_id)}`;
+        return `
+          <li>
+            <a class="request-link ${active}" href="${href}" data-req="${escapeHtml(r.request_id)}">
+              <div class="req-row"><strong>${escapeHtml(r.request_id)}</strong> <span class="${statusClass(r.status)}">${escapeHtml(r.status)}</span></div>
+              <div class="meta-row">updated=${escapeHtml(r.last_updated_at || '')}</div>
+            </a>
+          </li>
+        `;
+      }).join('');
+      list.querySelectorAll('a[data-req]').forEach((a) => {
+        a.addEventListener('click', (event) => {
+          event.preventDefault();
+          navigateToReq(a.getAttribute('data-req'));
+        });
+      });
+    }
+
+    function parseReqTimestamp(req) {
+      const raw = req.created_at || req.last_updated_at || '';
+      const ts = Date.parse(raw);
+      return Number.isFinite(ts) ? ts : 0;
+    }
+
+    function sortRequestList(requests) {
+      const sorted = [...requests].sort((a, b) => {
+        const diff = parseReqTimestamp(b) - parseReqTimestamp(a);
+        if (diff !== 0) return diff;
+        return String(b.request_id || '').localeCompare(String(a.request_id || ''));
+      });
+      if (sortMode === 'oldest') {
+        sorted.reverse();
+      }
+      return sorted;
+    }
+
+    function setDetailEmpty(message) {
+      document.getElementById('detail-meta').textContent = message || 'Select a REQ to view details.';
+      document.getElementById('detail').innerHTML = '<div class="detail-block muted">No REQ selected.</div>';
+    }
+
+    function renderDetail(req) {
+      if (!req) {
+        setDetailEmpty('Select a REQ to view details.');
+        return;
+      }
+      const objective = extractBlock(req.request_text, 'objective') || req.request_text;
+      const constraints = extractBlock(req.request_text, 'constraints');
+      document.getElementById('detail-meta').innerHTML = `<strong>${escapeHtml(req.request_id)}</strong> <span class="status-chip status-${escapeHtml(String(req.status || '').toLowerCase())}">${escapeHtml(req.status || '')}</span> <span class="muted">updated ${escapeHtml(req.last_updated_at || '')}</span>`;
+      document.getElementById('detail').innerHTML = `
+        <div class="detail-block"><h3>Objective</h3><pre>${escapeHtml(objective)}</pre></div>
+        <div class="detail-block"><h3>Assumptions / Constraints</h3><pre>${escapeHtml(constraints || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Plan / Ack</h3><pre>${escapeHtml(req.codex_ack_plan || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Execution Log</h3><pre>${escapeHtml(req.execution_log || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Outputs</h3><pre>${escapeHtml(req.outputs || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Evidence</h3><pre>${escapeHtml(req.evidence || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Transcript</h3><pre>${escapeHtml(req.request_text || '(none)')}</pre></div>
+      `;
+      const title = document.getElementById('detail-title');
+      title.focus();
+    }
+
+    async function loadInputPad() {
+      const res = await fetch('/api/thread');
+      const data = await res.json();
+      if (data.input_pad && !data.input_pad.startsWith('Paste request text here')) {
+        document.getElementById('input').value = data.input_pad;
+      }
+    }
+
+    async function loadRequests() {
+      const res = await fetch('/api/requests');
+      const data = await res.json();
+      requestIndex = sortRequestList(data.requests || []);
+      renderRequestList();
+      if (selectedReq) {
+        await loadDetail(selectedReq);
+      } else {
+        setDetailEmpty('Select a REQ to view details.');
+      }
+    }
+
+    async function loadDetail(reqId) {
+      if (!reqId) {
+        renderDetail(null);
+        return;
+      }
+      const res = await fetch(`/api/request/${encodeURIComponent(reqId)}`);
+      if (!res.ok) {
+        renderDetail(null);
+        return;
+      }
+      const data = await res.json();
+      renderDetail(data.request);
+    }
+
+    async function refresh() {
+      selectedReq = parseSelectedReqFromLocation();
+      await loadInputPad();
+      await loadRequests();
+    }
+
+    function navigateToReq(reqId) {
+      selectedReq = reqId || '';
+      const url = selectedReq ? `?req=${encodeURIComponent(selectedReq)}#/${encodeURIComponent(selectedReq)}` : window.location.pathname;
+      history.pushState({}, '', url);
+      refresh();
+    }
+
+    document.getElementById('submit').addEventListener('click', async () => {
+      const text = document.getElementById('input').value.trim();
+      if (!text) return;
+      const res = await fetch('/api/input', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!res.ok) {
+        alert('Failed to write INPUT PAD');
+        return;
+      }
+      await refresh();
+    });
+
+    document.getElementById('copy-link').addEventListener('click', async () => {
+      if (!selectedReq) return;
+      const url = `${window.location.origin}${window.location.pathname}?req=${encodeURIComponent(selectedReq)}#/${encodeURIComponent(selectedReq)}`;
+      await navigator.clipboard.writeText(url);
+    });
+
+    document.getElementById('clear-selection').addEventListener('click', () => {
+      history.pushState({}, '', window.location.pathname);
+      selectedReq = '';
+      refresh();
+    });
+
+    document.getElementById('toggle-theme').addEventListener('click', () => {
+      marketThemeEnabled = !marketThemeEnabled;
+      const node = document.getElementById('market-theme');
+      node.disabled = !marketThemeEnabled;
+      const btn = document.getElementById('toggle-theme');
+      btn.textContent = marketThemeEnabled ? 'Use Default Theme' : 'Use Market Theme';
+      btn.setAttribute('aria-pressed', marketThemeEnabled ? 'true' : 'false');
+    });
+
+    document.getElementById('toggle-sort').addEventListener('click', () => {
+      sortMode = sortMode === 'newest' ? 'oldest' : 'newest';
+      const btn = document.getElementById('toggle-sort');
+      btn.textContent = sortMode === 'newest' ? 'Sort: Newest' : 'Sort: Oldest';
+      renderRequestList();
+    });
+
+    window.addEventListener('popstate', refresh);
+    window.addEventListener('hashchange', refresh);
+
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>
