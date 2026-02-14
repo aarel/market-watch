@@ -43,7 +43,7 @@ ACTION_HELP: dict[str, list[str]] = {
     ],
     "Run Test Suite (logged)": [
         "Runs the full test suite with logging via ./run_tests.",
-        "Creates test_results/test_run_* and latest_summary.txt.",
+        "Creates test_results/full_suite/<YYYYMMDD-HHMMSS>/ with structured artifacts.",
     ],
     "Project Scaffold (repo hygiene)": [
         "Moves stale files into date buckets (docs archive, tests cleanup, test_results).",
@@ -651,7 +651,7 @@ def handle_test_audit(stdscr) -> None:
         f"Run tests: {'yes' if not run_tests.lower().startswith('n') else 'no'}",
         f"Run coverage: {'yes' if not run_coverage.lower().startswith('n') else 'no'}",
         f"Repo root: {repo_root or str(REPO_ROOT)}",
-        "Outputs: test_results/test_audit_*",
+        "Outputs: test_results/test_audit/<YYYYMMDD-HHMMSS>/",
     ]
     run_command_streaming(stdscr, cmd, details)
 
@@ -694,7 +694,7 @@ def handle_run_tests(stdscr) -> None:
         f"Preset: {preset_key or 'Custom'}",
         f"Marker: {marker_expr or 'all'}",
         "Uses scripts/run_tests.sh if available.",
-        "Outputs: test_results/test_run_* and latest_summary.txt",
+        "Outputs: test_results/full_suite/<YYYYMMDD-HHMMSS>/",
         "Verbose mode shows per-test progress in the log.",
     ]
     run_command_streaming(stdscr, cmd, details, progress_total=total)

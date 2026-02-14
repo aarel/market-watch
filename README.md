@@ -159,6 +159,15 @@ Run the full test suite with logging:
 ./run_tests
 ```
 
+Forward-only artifact naming policy for new test runs:
+
+- `test_results/full_suite/<YYYYMMDD-HHMMSS>/pytest_stdout.log`
+- `test_results/full_suite/<YYYYMMDD-HHMMSS>/pytest_stderr.log`
+- `test_results/full_suite/<YYYYMMDD-HHMMSS>/summary.json`
+- `test_results/full_suite/<YYYYMMDD-HHMMSS>/metadata.json`
+
+Historical artifacts are preserved as-is and are not renamed retroactively.
+
 ## Going Live
 
 1. Test thoroughly in paper mode

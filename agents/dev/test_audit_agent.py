@@ -115,8 +115,8 @@ class TestAuditAgent:
         return summary
 
     def _create_run_dir(self) -> Path:
-        stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        run_dir = self.output_root / f"test_audit_{stamp}"
+        stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        run_dir = self.output_root / stamp
         run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir
 
@@ -137,8 +137,8 @@ class TestAuditAgent:
             "coverage_enabled": False,
             "coverage_error": None,
         }
-        stdout_path = run_dir / "pytest_stdout.txt"
-        stderr_path = run_dir / "pytest_stderr.txt"
+        stdout_path = run_dir / "pytest_stdout.log"
+        stderr_path = run_dir / "pytest_stderr.log"
 
         env = os.environ.copy()
         env["PYTHONPATH"] = str(self.repo_root)
@@ -321,6 +321,22 @@ class TestAuditAgent:
         json_path.write_text(json.dumps(summary, indent=2, default=_json_default), encoding="utf-8")
         markdown_path = run_dir / "summary.md"
         markdown_path.write_text(_summary_markdown(summary), encoding="utf-8")
+        metadata_path = run_dir / "metadata.json"
+        metadata = {
+            "suite_name": "test_audit",
+            "run_id": run_dir.name,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "run_dir": str(run_dir),
+            "artifacts": {
+                "pytest_stdout": "pytest_stdout.log",
+                "pytest_stderr": "pytest_stderr.log",
+                "summary": "summary.json",
+                "metadata": "metadata.json",
+                "coverage": "coverage.json",
+            },
+            "policy": "forward_only_canonical_artifact_schema_v1",
+        }
+        metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
 
 class _TestCollector(ast.NodeVisitor):

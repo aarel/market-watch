@@ -6,7 +6,7 @@
 
 | Goal | Command | What it does | Output |
 | --- | --- | --- | --- |
-| Full suite (preferred) | `bash scripts/run_tests.sh` | Activates venv (`venv`/`.venv`), runs full suite with `pytest`, timestamps log | `test_results/test_run_YYYYMMDD_HHMMSS.log` + `test_results/latest_summary.txt` |
+| Full suite (preferred) | `bash scripts/run_tests.sh` | Activates venv (`venv`/`.venv`), runs full suite with `pytest`, writes timestamped run artifacts | `test_results/full_suite/YYYYMMDD-HHMMSS/` (`pytest_stdout.log`, `pytest_stderr.log`, `summary.json`, `metadata.json`) |
 | Full suite (Windows) | `scripts\\run_tests.bat` | Same as above for Windows shells | Same as above |
 | Full suite (shortcut) | `./run_tests` | Wrapper that runs the logging test script | Same as above |
 | Full suite (verbose) | `./run_tests --verbose` | Logs per-test output for progress tracking | Same as above |
@@ -78,8 +78,8 @@ run_tests.bat
 
 This will:
 - Run all tests
-- Save detailed output to `test_results/test_run_YYYYMMDD_HHMMSS.log`
-- Create summary in `test_results/latest_summary.txt`
+- Save detailed output to `test_results/full_suite/YYYYMMDD-HHMMSS/pytest_stdout.log`
+- Save structured summary to `test_results/full_suite/YYYYMMDD-HHMMSS/summary.json`
 - Display colored results in terminal
 
 The summary file records total/passed/failed/error counts plus the log path for quick inspection.

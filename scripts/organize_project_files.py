@@ -70,10 +70,10 @@ def _plan_test_results_archive() -> list[MovePlan]:
     if not test_root.exists():
         return []
     plans: list[MovePlan] = []
+    # Forward-only schema keeps new artifacts in timestamped run dirs.
+    # This archiver targets only legacy flat files at test_results root.
     for item in test_root.iterdir():
         if item.is_dir():
-            continue
-        if item.name == "latest_summary.txt":
             continue
         if not item.name.startswith("test_run_") and not item.name.endswith(".log"):
             continue

@@ -2,17 +2,18 @@
 REM Test runner script with logging for Windows
 REM Usage: run_tests.bat
 
-REM Create test_results directory if it doesn't exist
-if not exist test_results mkdir test_results
-
 REM Generate timestamp for log file
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
-set TIMESTAMP=%datetime:~0,8%_%datetime:~8,6%
-set LOG_FILE=test_results\test_run_%TIMESTAMP%.log
-set SUMMARY_FILE=test_results\latest_summary.txt
+set TIMESTAMP=%datetime:~0,8%-%datetime:~8,6%
+set RUN_DIR=test_results\full_suite\%TIMESTAMP%
+if not exist "%RUN_DIR%" mkdir "%RUN_DIR%"
+set STDOUT_FILE=%RUN_DIR%\pytest_stdout.log
+set STDERR_FILE=%RUN_DIR%\pytest_stderr.log
+set SUMMARY_JSON=%RUN_DIR%\summary.json
+set METADATA_JSON=%RUN_DIR%\metadata.json
 
 echo Running Market-Watch Test Suite...
-echo Log file: %LOG_FILE%
+echo Run dir: %RUN_DIR%
 echo.
 
 REM Activate virtual environment if it exists
@@ -57,23 +58,25 @@ goto parse_args
 :args_done
 if "%HAS_VERBOSITY%"=="0" set PYTEST_ARGS=%PYTEST_ARGS% -q
 
-echo ========================================== > "%LOG_FILE%"
-echo Test Run: %DATE% %TIME% >> "%LOG_FILE%"
-echo Log file: %LOG_FILE% >> "%LOG_FILE%"
-echo Summary file: %SUMMARY_FILE% >> "%LOG_FILE%"
-echo Command: python -m pytest tests %PYTEST_ARGS% >> "%LOG_FILE%"
-echo Tip: use --verbose for per-test output or --quiet for dots only. >> "%LOG_FILE%"
-echo ========================================== >> "%LOG_FILE%"
-echo. >> "%LOG_FILE%"
+echo ==========================================
+echo Test Run: %DATE% %TIME%
+echo Run dir: %RUN_DIR%
+echo Stdout: %STDOUT_FILE%
+echo Stderr: %STDERR_FILE%
+echo Command: python -m pytest tests %PYTEST_ARGS%
+echo Tip: use --verbose for per-test output or --quiet for dots only.
+echo ==========================================
+echo.
 
 REM Run tests and capture output (pytest runs unittest tests too)
-python -m pytest tests %PYTEST_ARGS% >> "%LOG_FILE%" 2>&1
+python -m pytest tests %PYTEST_ARGS% > "%STDOUT_FILE%" 2> "%STDERR_FILE%"
 
 REM Capture exit code
 set TEST_EXIT_CODE=%ERRORLEVEL%
 
 REM Display output
-type "%LOG_FILE%"
+type "%STDOUT_FILE%"
+if exist "%STDERR_FILE%" type "%STDERR_FILE%"
 
 REM Generate summary
 echo.
@@ -82,27 +85,40 @@ echo   Test Summary
 echo ==========================================
 echo.
 
+REM Build combined log for summary parsing
+set COMBINED_LOG=%RUN_DIR%\combined.log
+copy /b "%STDOUT_FILE%"+"%STDERR_FILE%" "%COMBINED_LOG%" >nul
+
 REM Capture pytest summary line (last matching line)
 set SUMMARY_LINE=
-for /f "usebackq delims=" %%a in (`"type "%LOG_FILE%" ^| findstr /R /C:\"passed\" /C:\"failed\" /C:\"error\" /C:\"skipped\" /C:\"xfailed\" /C:\"xpassed\""` ) do set SUMMARY_LINE=%%a
+for /f "usebackq delims=" %%a in (`"type "%COMBINED_LOG%" ^| findstr /R /C:\"passed\" /C:\"failed\" /C:\"error\" /C:\"skipped\" /C:\"xfailed\" /C:\"xpassed\""` ) do set SUMMARY_LINE=%%a
 
-REM Write summary to file
-echo Market-Watch Test Suite Summary > "%SUMMARY_FILE%"
-echo Generated: %date% %time% >> "%SUMMARY_FILE%"
-echo Log file: %LOG_FILE% >> "%SUMMARY_FILE%"
-echo. >> "%SUMMARY_FILE%"
-echo Results: >> "%SUMMARY_FILE%"
-echo -------- >> "%SUMMARY_FILE%"
-if not "%SUMMARY_LINE%"=="" (
-    echo %SUMMARY_LINE% >> "%SUMMARY_FILE%"
-) else (
-    echo (No pytest summary line found) >> "%SUMMARY_FILE%"
-)
-echo. >> "%SUMMARY_FILE%"
-echo Exit Code: %TEST_EXIT_CODE% >> "%SUMMARY_FILE%"
+REM Write summary and metadata JSON
+echo { > "%SUMMARY_JSON%"
+echo   "suite_name": "full_suite", >> "%SUMMARY_JSON%"
+echo   "run_id": "%TIMESTAMP%", >> "%SUMMARY_JSON%"
+echo   "generated_at": "%date% %time%", >> "%SUMMARY_JSON%"
+echo   "command": "python -m pytest tests %PYTEST_ARGS%", >> "%SUMMARY_JSON%"
+echo   "pytest_summary_line": "%SUMMARY_LINE%", >> "%SUMMARY_JSON%"
+echo   "exit_code": %TEST_EXIT_CODE%, >> "%SUMMARY_JSON%"
+echo   "artifacts": { >> "%SUMMARY_JSON%"
+echo     "pytest_stdout": "pytest_stdout.log", >> "%SUMMARY_JSON%"
+echo     "pytest_stderr": "pytest_stderr.log", >> "%SUMMARY_JSON%"
+echo     "summary": "summary.json", >> "%SUMMARY_JSON%"
+echo     "metadata": "metadata.json" >> "%SUMMARY_JSON%"
+echo   } >> "%SUMMARY_JSON%"
+echo } >> "%SUMMARY_JSON%"
+
+echo { > "%METADATA_JSON%"
+echo   "suite_name": "full_suite", >> "%METADATA_JSON%"
+echo   "run_id": "%TIMESTAMP%", >> "%METADATA_JSON%"
+echo   "generated_at": "%date% %time%", >> "%METADATA_JSON%"
+echo   "run_dir": "%RUN_DIR%", >> "%METADATA_JSON%"
+echo   "policy": "forward_only_canonical_artifact_schema_v1" >> "%METADATA_JSON%"
+echo } >> "%METADATA_JSON%"
 
 REM Display summary
-type "%SUMMARY_FILE%"
+type "%SUMMARY_JSON%"
 echo.
 
 if %TEST_EXIT_CODE% EQU 0 (
@@ -110,13 +126,14 @@ if %TEST_EXIT_CODE% EQU 0 (
 ) else (
     echo [FAILED] Some tests failed
     echo.
-    echo View full log: %LOG_FILE%
+    echo View stdout log: %STDOUT_FILE%
+    echo View stderr log: %STDERR_FILE%
     echo To see failures only:
-    echo   findstr /C:"FAIL:" %LOG_FILE%
-    echo   findstr /C:"ERROR:" %LOG_FILE%
+    echo   findstr /C:"FAIL:" %STDOUT_FILE%
+    echo   findstr /C:"ERROR:" %STDOUT_FILE%
 )
 
 echo.
-echo Test logs saved to: test_results\
+echo Test artifacts saved to: %RUN_DIR%
 
 exit /b %TEST_EXIT_CODE%

@@ -14,16 +14,18 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Create test_results directory if it doesn't exist
-mkdir -p test_results
-
-# Generate timestamp for log file
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-LOG_FILE="test_results/test_run_${TIMESTAMP}.log"
-SUMMARY_FILE="test_results/latest_summary.txt"
+# Create canonical run directory
+TIMESTAMP_UNDERSCORE=$(date +"%Y%m%d_%H%M%S")
+TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+RUN_DIR="test_results/full_suite/${TIMESTAMP}"
+mkdir -p "${RUN_DIR}"
+STDOUT_FILE="${RUN_DIR}/pytest_stdout.log"
+STDERR_FILE="${RUN_DIR}/pytest_stderr.log"
+SUMMARY_JSON="${RUN_DIR}/summary.json"
+METADATA_JSON="${RUN_DIR}/metadata.json"
 
 echo "Running Market-Watch Test Suite..."
-echo "Log file: ${LOG_FILE}"
+echo "Run dir: ${RUN_DIR}"
 echo ""
 
 # Activate virtual environment if it exists (respect active env first)
@@ -107,20 +109,31 @@ if [ $HAS_VERBOSITY -eq 0 ]; then
     PYTEST_ARGS+=("-q")
 fi
 
-echo "==========================================" | tee "${LOG_FILE}"
-echo "Test Run: $(date)" | tee -a "${LOG_FILE}"
-echo "Log file: ${LOG_FILE}" | tee -a "${LOG_FILE}"
-echo "Summary file: ${SUMMARY_FILE}" | tee -a "${LOG_FILE}"
-echo "Command: ${PYTHON_BIN} -m pytest tests ${PYTEST_ARGS[*]}" | tee -a "${LOG_FILE}"
-echo "Tip: use --verbose for per-test output or --quiet for dots only." | tee -a "${LOG_FILE}"
-echo "==========================================" | tee -a "${LOG_FILE}"
-echo "" | tee -a "${LOG_FILE}"
+echo "=========================================="
+echo "Test Run: $(date)"
+echo "Run dir: ${RUN_DIR}"
+echo "Stdout: ${STDOUT_FILE}"
+echo "Stderr: ${STDERR_FILE}"
+echo "Command: ${PYTHON_BIN} -m pytest tests ${PYTEST_ARGS[*]}"
+echo "Tip: use --verbose for per-test output or --quiet for dots only."
+echo "=========================================="
+echo ""
 
 # Run tests and capture output (pytest runs unittest tests too)
-"${PYTHON_BIN}" -m pytest tests "${PYTEST_ARGS[@]}" 2>&1 | tee -a "${LOG_FILE}"
+set +e
+"${PYTHON_BIN}" -m pytest tests "${PYTEST_ARGS[@]}" >"${STDOUT_FILE}" 2>"${STDERR_FILE}"
+TEST_EXIT_CODE=$?
+set -e
 
-# Capture exit code
-TEST_EXIT_CODE=${PIPESTATUS[0]}
+# Display captured output
+cat "${STDOUT_FILE}"
+if [ -s "${STDERR_FILE}" ]; then
+    cat "${STDERR_FILE}" >&2
+fi
+
+# Combined log used only for summary parsing (not authoritative artifact)
+COMBINED_LOG="${RUN_DIR}/combined.log"
+cat "${STDOUT_FILE}" "${STDERR_FILE}" > "${COMBINED_LOG}"
 
 # Generate summary
 echo ""
@@ -129,13 +142,13 @@ echo "  Test Summary"
 echo "=========================================="
 
 # Count results from pytest summary
-TOTAL_TESTS=$(grep -Eo "[0-9]+ (passed|failed|skipped|xfailed|xpassed|error|errors)" "${LOG_FILE}" | awk '{sum+=$1} END{print sum+0}')
-PASSED=$(grep -Eo "[0-9]+ passed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
-FAILED=$(grep -Eo "[0-9]+ failed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
-ERRORS=$(grep -Eo "[0-9]+ error(s)?" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
-SKIPPED=$(grep -Eo "[0-9]+ skipped" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
-XFAILED=$(grep -Eo "[0-9]+ xfailed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
-XPASSED=$(grep -Eo "[0-9]+ xpassed" "${LOG_FILE}" | tail -1 | awk '{print $1+0}')
+TOTAL_TESTS=$(grep -Eo "[0-9]+ (passed|failed|skipped|xfailed|xpassed|error|errors)" "${COMBINED_LOG}" | awk '{sum+=$1} END{print sum+0}')
+PASSED=$(grep -Eo "[0-9]+ passed" "${COMBINED_LOG}" | tail -1 | awk '{print $1+0}')
+FAILED=$(grep -Eo "[0-9]+ failed" "${COMBINED_LOG}" | tail -1 | awk '{print $1+0}')
+ERRORS=$(grep -Eo "[0-9]+ error(s)?" "${COMBINED_LOG}" | tail -1 | awk '{print $1+0}')
+SKIPPED=$(grep -Eo "[0-9]+ skipped" "${COMBINED_LOG}" | tail -1 | awk '{print $1+0}')
+XFAILED=$(grep -Eo "[0-9]+ xfailed" "${COMBINED_LOG}" | tail -1 | awk '{print $1+0}')
+XPASSED=$(grep -Eo "[0-9]+ xpassed" "${COMBINED_LOG}" | tail -1 | awk '{print $1+0}')
 
 # Default missing counts to 0
 PASSED=${PASSED:-0}
@@ -145,28 +158,46 @@ SKIPPED=${SKIPPED:-0}
 XFAILED=${XFAILED:-0}
 XPASSED=${XPASSED:-0}
 
-# Write summary to file
-cat > "${SUMMARY_FILE}" <<EOF
-Market-Watch Test Suite Summary
-Generated: $(date)
-Log file: ${LOG_FILE}
+# Write canonical summary + metadata
+cat > "${SUMMARY_JSON}" <<EOF
+{
+  "suite_name": "full_suite",
+  "run_id": "${TIMESTAMP}",
+  "generated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "command": "${PYTHON_BIN} -m pytest tests ${PYTEST_ARGS[*]}",
+  "counts": {
+    "total": ${TOTAL_TESTS},
+    "passed": ${PASSED},
+    "failed": ${FAILED},
+    "errors": ${ERRORS},
+    "skipped": ${SKIPPED},
+    "xfailed": ${XFAILED},
+    "xpassed": ${XPASSED}
+  },
+  "exit_code": ${TEST_EXIT_CODE},
+  "artifacts": {
+    "pytest_stdout": "pytest_stdout.log",
+    "pytest_stderr": "pytest_stderr.log",
+    "summary": "summary.json",
+    "metadata": "metadata.json"
+  }
+}
+EOF
 
-Results:
---------
-Total Tests: ${TOTAL_TESTS}
-Passed:      ${PASSED}
-Failed:      ${FAILED}
-Errors:      ${ERRORS}
-Skipped:     ${SKIPPED}
-XFailed:     ${XFAILED}
-XPassed:     ${XPASSED}
-
-Exit Code: ${TEST_EXIT_CODE}
+cat > "${METADATA_JSON}" <<EOF
+{
+  "suite_name": "full_suite",
+  "run_id": "${TIMESTAMP}",
+  "generated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "run_dir": "${RUN_DIR}",
+  "legacy_timestamp": "${TIMESTAMP_UNDERSCORE}",
+  "policy": "forward_only_canonical_artifact_schema_v1"
+}
 EOF
 
 # Display summary with colors
 echo ""
-cat "${SUMMARY_FILE}"
+cat "${SUMMARY_JSON}"
 echo ""
 
 if [ ${TEST_EXIT_CODE} -eq 0 ]; then
@@ -174,13 +205,14 @@ if [ ${TEST_EXIT_CODE} -eq 0 ]; then
 else
     echo -e "${RED}✗ Some tests failed${NC}"
     echo ""
-    echo "View full log: ${LOG_FILE}"
+    echo "View stdout log: ${STDOUT_FILE}"
+    echo "View stderr log: ${STDERR_FILE}"
     echo "To see failures only:"
-    echo "  grep -A 10 'FAIL:' ${LOG_FILE}"
-    echo "  grep -A 10 'ERROR:' ${LOG_FILE}"
+    echo "  grep -A 10 'FAIL:' ${STDOUT_FILE}"
+    echo "  grep -A 10 'ERROR:' ${STDOUT_FILE}"
 fi
 
 echo ""
-echo "Test logs saved to: test_results/"
+echo "Test artifacts saved to: ${RUN_DIR}"
 
 exit ${TEST_EXIT_CODE}
