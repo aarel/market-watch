@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from monitoring.anomaly_detector import get_detector
 from universe import get_system_log_path
 
-from ..dependencies import get_state
+from ..runtime.demo_hardening import get_safe_universe_context
 
 router = APIRouter()
 
@@ -36,8 +36,8 @@ def _write_daily_csv(warn_fail_entries: list[dict], date_str: str):
 
 
 @router.get("/observability/logs")
-async def get_observability_logs(level: str | None = "warn", state=Depends(get_state)):
-    path = get_system_log_path(state.universe_context.universe, "agent_events.jsonl")
+async def get_observability_logs(level: str | None = "warn", ctx=Depends(get_safe_universe_context)):
+    path = get_system_log_path(ctx.universe, "agent_events.jsonl")
     if not os.path.exists(path):
         return {"logs": []}
 
