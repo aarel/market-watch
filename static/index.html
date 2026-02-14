@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Market Watch Trading Bot</title>
     <link rel="icon" type="image/png" href="/img/favicon.png?v=1.0.0">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,6 +21,12 @@
             --red: #f85149;
             --blue: #58a6ff;
             --yellow: #d29922;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            max-width: 100%;
+            overflow-x: hidden;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -905,7 +911,30 @@
         }
 
         @media (max-width: 768px) {
+            .container {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }
+            .grid,
+            .analytics-grid,
+            .returns-grid,
+            .trade-history-grid,
+            .agent-grid,
+            .obs-grid {
+                display: flex;
+                flex-direction: column;
+            }
+            .sidebar {
+                display: none !important;
+            }
             .grid { grid-template-columns: 1fr; }
+            table {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
             .tooltip .tooltip-text { width: 220px; }
             .modal { min-width: 90vw; }
         }
@@ -1170,7 +1199,13 @@
             <!-- Trade Performance Analysis -->
             <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
                 <div style="margin-bottom: 16px;">
-                    <h3 style="font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); margin: 0 0 8px 0;">Trade Performance Analysis</h3>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <h3 style="font-size: 14px; font-weight: 600; text-transform: uppercase; color: var(--text-dim); margin: 0;">Trade Performance Analysis</h3>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Matches completed buy/sell round trips, then highlights the best and worst realized P&amp;L trades for the selected period.</span>
+                        </span>
+                    </div>
                     <div class="help-text">Best and worst performing trades by realized P&L</div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" id="trade-analysis-container">
@@ -1306,7 +1341,13 @@
             <!-- Trades Card -->
             <div class="card">
                 <div class="trade-history-header">
-                    <h2>Trades</h2>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h2>Trades</h2>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Recent execution history from the broker feed. Shows side, size, average fill price, status, source, and execution time.</span>
+                        </span>
+                    </div>
                     <div style="display: flex; gap: 8px; align-items:center;">
                         <div class="help-text" id="trade-history-count">Showing 0 of 0</div>
                         <button class="btn btn-secondary" onclick="fetchTrades()">Refresh</button>
@@ -1909,6 +1950,43 @@
             return `${sign}${num.toFixed(digits)}%`;
         }
 
+        function cleanTimestampText(value) {
+            if (value === null || value === undefined) return '-';
+            return String(value).replace(/(\.\d{1,6})(?=\s*(Z|[+-]\d{2}:?\d{2})?$)/, '');
+        }
+
+        function parseTimestamp(value) {
+            if (!value) return null;
+            const cleaned = cleanTimestampText(value);
+            const date = new Date(cleaned);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        function formatClockTime(value) {
+            const date = parseTimestamp(value);
+            if (!date) return cleanTimestampText(value);
+            return date.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+            });
+        }
+
+        function formatDateTime(value) {
+            const date = parseTimestamp(value);
+            if (!date) return cleanTimestampText(value);
+            return date.toLocaleString([], {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+            });
+        }
+
         function stopTickerScroll(id) {
             const state = tickerStates.get(id);
             if (state && state.raf) {
@@ -2352,11 +2430,11 @@
                 return detail ? `${detail} · Exp: ${count}` : `Exp: ${count}`;
             };
             const agentInfo = {
-                data: { name: 'Data', detail: detailWithExp(agents.data?.last_fetch ? 'Last: ' + new Date(agents.data.last_fetch).toLocaleTimeString() : '', 'DataAgent') },
+                data: { name: 'Data', detail: detailWithExp(agents.data?.last_fetch ? 'Last: ' + formatClockTime(agents.data.last_fetch) : '', 'DataAgent') },
                 signal: { name: 'Signal', detail: detailWithExp(agents.signal?.actionable ? agents.signal.actionable + ' actionable' : '', 'SignalAgent') },
                 risk: { name: 'Risk', detail: detailWithExp(agents.risk ? agents.risk.daily_trades + '/' + agents.risk.max_daily_trades + ' trades' : '', 'RiskAgent') },
                 execution: { name: 'Execution', detail: detailWithExp(agents.execution?.orders_executed ? agents.execution.orders_executed + ' executed' : '', 'ExecutionAgent') },
-                monitor: { name: 'Monitor', detail: detailWithExp(agents.monitor?.last_check ? 'Last: ' + new Date(agents.monitor.last_check).toLocaleTimeString() : '', 'MonitorAgent') },
+                monitor: { name: 'Monitor', detail: detailWithExp(agents.monitor?.last_check ? 'Last: ' + formatClockTime(agents.monitor.last_check) : '', 'MonitorAgent') },
                 alert: { name: 'Alert', detail: detailWithExp(agents.alert?.log_entries ? agents.alert.log_entries + ' logs' : '', 'AlertAgent') },
                 observability: {
                     name: 'Observability',
@@ -2523,7 +2601,7 @@
                     ? `${formatMoney(trade.filled_avg_price)} avg`
                     : 'Price -';
                 const timeValue = trade.filled_at || trade.submitted_at;
-                const timeLabel = timeValue ? new Date(timeValue).toLocaleString() : 'Time -';
+                const timeLabel = timeValue ? formatDateTime(timeValue) : 'Time -';
                 const reason = trade.reason ? `<div class="trade-reason">${escapeHtml(trade.reason)}</div>` : '';
 
                 return `
@@ -2885,7 +2963,7 @@
                         <td>${formatNumber(trade.qty, 4)}</td>
                         <td>${formatMoney(trade.filled_avg_price)}</td>
                         <td>${notional ? formatMoney(notional) : '-'}</td>
-                        <td>${filledAt ? new Date(filledAt).toLocaleString() : '-'}</td>
+                        <td>${filledAt ? formatDateTime(filledAt) : '-'}</td>
                     </tr>
                 `;
             }).join('');
@@ -3440,7 +3518,7 @@
                 container.innerHTML = '';
             }
 
-            const time = new Date(entry.timestamp).toLocaleTimeString();
+            const time = formatClockTime(entry.timestamp);
             const logType = entry.type || 'info';
             const div = document.createElement('div');
             div.className = 'log-entry';
@@ -3977,7 +4055,7 @@
             // Reverse to show newest first, take first 30
             const recentEntries = entries.slice().reverse().slice(0, 30);
             const items = recentEntries.map(entry => {
-                const ts = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '-';
+                const ts = entry.timestamp ? formatDateTime(entry.timestamp) : '-';
                 const symbol = entry.symbol ? buildSymbolTooltip(entry.symbol, 'inline-symbol') : '';
                 const reason = escapeHtml(entry.reason || entry.event_type || 'Warn');
                 const outcome = escapeHtml(entry.outcome || 'warn');
@@ -4016,7 +4094,7 @@
             }
             // Alerts come from API newest first
             const items = alerts.map(alert => {
-                const ts = alert.timestamp ? new Date(alert.timestamp).toLocaleString() : '-';
+                const ts = alert.timestamp ? formatDateTime(alert.timestamp) : '-';
                 const severityClass = {
                     'low': 'ok',
                     'medium': 'warning',
@@ -4062,7 +4140,7 @@
             }
             if (breakerActivatedEl) {
                 if (breaker?.activated_at) {
-                    breakerActivatedEl.textContent = `Last activated: ${new Date(breaker.activated_at).toLocaleString()}`;
+                    breakerActivatedEl.textContent = `Last activated: ${formatDateTime(breaker.activated_at)}`;
                 } else {
                     breakerActivatedEl.textContent = 'Last activated: -';
                 }
