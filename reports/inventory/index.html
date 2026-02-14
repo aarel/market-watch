@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repository Structural Inventory</title>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --ink: #1e2630;
+      --muted: #5f6f82;
+      --line: #d7dde5;
+      --accent: #0b7285;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #eef3f8, var(--bg));
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1rem;
+      max-width: 1400px;
+      margin: 1rem auto;
+      padding: 0 1rem 1rem;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.8rem;
+    }
+    h1, h2, h3 { margin: 0.2rem 0 0.6rem; }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    input, select {
+      width: 100%;
+      margin-bottom: 0.5rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.82rem;
+      background: #f7fafc;
+    }
+    .grid2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.8rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 0.35rem 0.45rem;
+      vertical-align: top;
+    }
+    th { cursor: pointer; background: #f8fafc; position: sticky; top: 0; }
+    .table-wrap { max-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+    canvas {
+      width: 100%;
+      height: 180px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .tree button {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 0.3rem;
+      padding: 0.3rem 0.45rem;
+      background: #fff;
+      cursor: pointer;
+    }
+    @media (max-width: 1000px) {
+      .layout { grid-template-columns: 1fr; }
+      .grid2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <h2>Inventory Controls</h2>
+      <p class="muted" id="generatedAt"></p>
+      <input id="search" placeholder="Search path substring" />
+      <select id="category"></select>
+      <select id="extension"></select>
+      <select id="sizeRange">
+        <option value="">All sizes</option>
+        <option value="lt1m">< 1 MB</option>
+        <option value="1to10m">1-10 MB</option>
+        <option value="gt10m">> 10 MB</option>
+      </select>
+      <select id="mtime"></select>
+      <select id="ownership"></select>
+      <h3>Directory Tree (top level)</h3>
+      <div id="tree" class="tree"></div>
+      <button id="clearPrefix">Clear Tree Filter</button>
+    </aside>
+    <main>
+      <section class="panel">
+        <h1>Repository Structural Inventory</h1>
+        <div id="summary" class="chips"></div>
+        <h3>Findings</h3>
+        <div id="findings"></div>
+      </section>
+      <section class="grid2">
+        <div class="panel"><h3>Counts by Category</h3><canvas id="countChart" width="640" height="220"></canvas></div>
+        <div class="panel"><h3>Size by Category</h3><canvas id="sizeChart" width="640" height="220"></canvas></div>
+        <div class="panel"><h3>Modified-Time Histogram</h3><canvas id="timeChart" width="640" height="220"></canvas></div>
+        <div class="panel"><h3>Category Detail</h3><div id="categoryCards"></div></div>
+      </section>
+      <section class="grid2">
+        <div class="panel"><h3>Largest Files</h3><div id="largestFiles" class="table-wrap"></div></div>
+        <div class="panel"><h3>Largest Directories</h3><div id="largestDirs" class="table-wrap"></div></div>
+        <div class="panel"><h3>Most Dense Directories</h3><div id="denseDirs" class="table-wrap"></div></div>
+        <div class="panel"><h3>Duplication Candidates</h3><div id="dups" class="table-wrap"></div></div>
+      </section>
+    </main>
+  </div>
+  <script>
+    let data = null;
+    let pathPrefix = "";
+    async function loadData() {
+      const res = await fetch("data.json");
+      data = await res.json();
+      renderControls();
+      renderAll();
+    }
+    function fmtBytes(v) {
+      if (v < 1024) return v + " B";
+      if (v < 1024*1024) return (v/1024).toFixed(1) + " KB";
+      if (v < 1024*1024*1024) return (v/1024/1024).toFixed(1) + " MB";
+      return (v/1024/1024/1024).toFixed(2) + " GB";
+    }
+    function renderControls() {
+      document.getElementById("generatedAt").textContent = "Generated: " + data.generated_at;
+      const category = document.getElementById("category");
+      category.innerHTML = '<option value="">All categories</option>' + data.filter_values.categories.map(v => `<option>${v}</option>`).join("");
+      const ext = document.getElementById("extension");
+      ext.innerHTML = '<option value="">All extensions</option>' + data.filter_values.extensions.map(v => `<option>${v}</option>`).join("");
+      const mtime = document.getElementById("mtime");
+      mtime.innerHTML = '<option value="">All modified buckets</option>' + data.filter_values.mtime_buckets.map(v => `<option>${v}</option>`).join("");
+      const own = document.getElementById("ownership");
+      own.innerHTML = '<option value="">All ownership tags</option>' + data.filter_values.ownership.map(v => `<option>${v}</option>`).join("");
+      for (const id of ["search","category","extension","sizeRange","mtime","ownership"]) {
+        document.getElementById(id).addEventListener("input", renderAll);
+      }
+      const tree = document.getElementById("tree");
+      const entries = Object.entries(data.charts.top_level_tree).sort((a,b)=>b[1]-a[1]);
+      tree.innerHTML = entries.map(([k,v]) => `<button data-prefix="${k === "(root)" ? "" : k + "/"}">${k} (${v})</button>`).join("");
+      tree.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          pathPrefix = btn.dataset.prefix || "";
+          renderAll();
+        });
+      });
+      document.getElementById("clearPrefix").addEventListener("click", () => {
+        pathPrefix = "";
+        renderAll();
+      });
+    }
+    function filteredFiles() {
+      const q = document.getElementById("search").value.toLowerCase().trim();
+      const c = document.getElementById("category").value;
+      const e = document.getElementById("extension").value;
+      const s = document.getElementById("sizeRange").value;
+      const m = document.getElementById("mtime").value;
+      const o = document.getElementById("ownership").value;
+      return data.files.filter(f => {
+        if (pathPrefix && !f.path.startsWith(pathPrefix)) return false;
+        if (q && !f.path.toLowerCase().includes(q)) return false;
+        if (c && f.category !== c) return false;
+        if (e && f.ext !== e) return false;
+        if (m && f.mtime_bucket !== m) return false;
+        if (o && f.ownership !== o) return false;
+        if (s === "lt1m" && f.size >= 1024*1024) return false;
+        if (s === "1to10m" && (f.size < 1024*1024 || f.size > 10*1024*1024)) return false;
+        if (s === "gt10m" && f.size <= 10*1024*1024) return false;
+        return true;
+      });
+    }
+    function renderSummary(files) {
+      const total = files.reduce((a,b)=>a+b.size,0);
+      const dirs = new Set(files.map(f=>f.dir)).size;
+      document.getElementById("summary").innerHTML =
+        `<span class="chip">Files: ${files.length}</span>` +
+        `<span class="chip">Dirs: ${dirs}</span>` +
+        `<span class="chip">Size: ${fmtBytes(total)}</span>` +
+        `<span class="chip">Tree Filter: ${pathPrefix || "(none)"}</span>`;
+    }
+    function renderFindings() {
+      const el = document.getElementById("findings");
+      if (!data.findings.length) {
+        el.innerHTML = '<p class="muted">No major entropy hotspots detected by current heuristics.</p>';
+        return;
+      }
+      el.innerHTML = data.findings.map(f => `<p><strong>${f.severity}:</strong> ${f.title} — ${f.detail}</p>`).join("");
+    }
+    function drawBarChart(canvasId, labels, values, color) {
+      const c = document.getElementById(canvasId);
+      const ctx = c.getContext("2d");
+      ctx.clearRect(0,0,c.width,c.height);
+      const max = Math.max(1, ...values);
+      const pad = 40;
+      const w = (c.width - pad*2) / Math.max(1, labels.length);
+      ctx.font = "11px sans-serif";
+      labels.forEach((label, i) => {
+        const h = ((c.height - pad*2) * values[i]) / max;
+        const x = pad + i*w + 4;
+        const y = c.height - pad - h;
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, Math.max(8, w-8), h);
+        ctx.fillStyle = "#334";
+        ctx.fillText(String(values[i]), x, y - 4);
+        const short = label.length > 12 ? label.slice(0,10) + ".." : label;
+        ctx.save();
+        ctx.translate(x+2, c.height-pad+12);
+        ctx.rotate(-0.45);
+        ctx.fillText(short, 0, 0);
+        ctx.restore();
+      });
+    }
+    function renderCategoryCards() {
+      const el = document.getElementById("categoryCards");
+      el.innerHTML = data.categories.map(c => `
+        <div style="border-bottom:1px solid #d7dde5;padding:0.4rem 0;">
+          <strong>${c.name}</strong><br/>
+          files=${c.file_count}, dirs=${c.dir_count}, size=${fmtBytes(c.size_bytes)}<br/>
+          ownership=${c.ownership_clarity}, redundancy=${c.redundancy_risk}, advisory-priority=${c.cleanup_priority}
+        </div>
+      `).join("");
+    }
+    function makeTable(targetId, rows, columns) {
+      let sortKey = columns[0].key;
+      let sortDir = -1;
+      const root = document.getElementById(targetId);
+      function render() {
+        const sorted = [...rows].sort((a,b) => {
+          const av = a[sortKey], bv = b[sortKey];
+          if (typeof av === "number" && typeof bv === "number") return (av-bv) * sortDir;
+          return String(av).localeCompare(String(bv)) * sortDir;
+        });
+        const head = "<tr>" + columns.map(c => `<th data-k="${c.key}">${c.label}</th>`).join("") + "</tr>";
+        const body = sorted.slice(0, 200).map(r => "<tr>" + columns.map(c => `<td>${c.format ? c.format(r[c.key], r) : (r[c.key] ?? "")}</td>`).join("") + "</tr>").join("");
+        root.innerHTML = `<table>${head}${body}</table>`;
+        root.querySelectorAll("th").forEach(th => {
+          th.addEventListener("click", () => {
+            const k = th.dataset.k;
+            if (sortKey === k) sortDir *= -1;
+            else { sortKey = k; sortDir = -1; }
+            render();
+          });
+        });
+      }
+      render();
+    }
+    function renderTables(files) {
+      const fileRows = [...files].sort((a,b)=>b.size-a.size).slice(0, 80);
+      makeTable("largestFiles", fileRows, [
+        {key:"path", label:"path"},
+        {key:"size", label:"size", format:v=>fmtBytes(v)},
+        {key:"category", label:"category"},
+        {key:"ownership", label:"ownership"},
+      ]);
+      makeTable("largestDirs", data.tables.largest_dirs, [
+        {key:"path", label:"path"},
+        {key:"size", label:"size", format:v=>fmtBytes(v)},
+        {key:"count", label:"file_count"},
+      ]);
+      makeTable("denseDirs", data.tables.dense_dirs, [
+        {key:"path", label:"path"},
+        {key:"count", label:"file_count"},
+        {key:"size", label:"size", format:v=>fmtBytes(v)},
+      ]);
+      makeTable("dups", data.tables.dup_candidates, [
+        {key:"key", label:"dup_key"},
+        {key:"count", label:"count"},
+        {key:"total_size", label:"total_size", format:v=>fmtBytes(v)},
+        {key:"paths", label:"sample_paths", format:v=>Array.isArray(v)?v.join("<br/>"):""},
+      ]);
+    }
+    function renderAll() {
+      const files = filteredFiles();
+      renderSummary(files);
+      renderFindings();
+      renderCategoryCards();
+      const countMap = {};
+      const sizeMap = {};
+      for (const f of files) {
+        countMap[f.category] = (countMap[f.category] || 0) + 1;
+        sizeMap[f.category] = (sizeMap[f.category] || 0) + f.size;
+      }
+      const labels = Object.keys(countMap);
+      drawBarChart("countChart", labels, labels.map(k=>countMap[k]), "#0b7285");
+      drawBarChart("sizeChart", labels, labels.map(k=>sizeMap[k]), "#3f8f4f");
+      const tMap = {};
+      for (const f of files) tMap[f.mtime_bucket] = (tMap[f.mtime_bucket] || 0) + 1;
+      const tLabels = Object.keys(tMap).sort();
+      drawBarChart("timeChart", tLabels, tLabels.map(k=>tMap[k]), "#8f5f2f");
+      renderTables(files);
+    }
+    loadData();
+  </script>
+</body>
+</html>
