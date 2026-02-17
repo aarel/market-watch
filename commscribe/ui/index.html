@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Communicate Runtime</title>
+  <title>Market-Watch Communicate Runtime</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="theme.css" />
   <link rel="stylesheet" href="market-watch-theme.css" id="market-theme" />
 </head>
@@ -25,6 +26,8 @@
     <section class="card">
       <div class="toolbar">
         <button id="copy-link" class="secondary">Copy REQ Link</button>
+        <button id="copy-output" class="secondary">Copy Output</button>
+        <button id="refresh-now" class="secondary">Refresh Now</button>
         <button id="clear-selection" class="secondary">Back To List</button>
         <button id="toggle-theme" class="secondary" aria-pressed="true">Use Default Theme</button>
       </div>
@@ -38,8 +41,54 @@
   <script>
     let selectedReq = '';
     let requestIndex = [];
+    let selectedRequestData = null;
     let marketThemeEnabled = true;
     let sortMode = 'newest';
+    let refreshPauseUntil = 0;
+    let refreshInFlight = false;
+    let copyInFlight = false;
+    let lastInputPadValue = '';
+    let lastRequestListSig = '';
+    let lastDetailSigByReq = {};
+
+    function escapeRegExp(value) {
+      return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function linkifyReqIds(text) {
+      const safe = escapeHtml(text || '');
+      return safe.replace(/\bREQ-\d{8}-\d{6}\b/g, (reqId) => {
+        const encoded = encodeURIComponent(reqId);
+        return `<a href="?req=${encoded}#/${encoded}" class="req-inline-link" data-req-nav="${reqId}">${reqId}</a>`;
+      });
+    }
+
+    function highlightSelectedRequest(reqId) {
+      const selector = `a[data-req="${escapeRegExp(reqId)}"]`;
+      const node = document.querySelector(selector);
+      if (!node) return;
+      node.classList.add('req-jump-highlight');
+      setTimeout(() => node.classList.remove('req-jump-highlight'), 1200);
+    }
+
+    function highlightDetailHeader() {
+      const title = document.getElementById('detail-title');
+      if (!title) return;
+      title.classList.add('req-jump-highlight');
+      setTimeout(() => title.classList.remove('req-jump-highlight'), 1200);
+    }
+
+    function bindReqLinks(root) {
+      if (!root) return;
+      root.querySelectorAll('a[data-req-nav]').forEach((node) => {
+        node.addEventListener('click', (event) => {
+          event.preventDefault();
+          const reqId = node.getAttribute('data-req-nav') || '';
+          if (!reqId) return;
+          navigateToReq(reqId, { highlight: true });
+        });
+      });
+    }
 
     function parseSelectedReqFromLocation() {
       const params = new URLSearchParams(window.location.search);
@@ -79,7 +128,7 @@
           <li>
             <a class="request-link ${active}" href="${href}" data-req="${escapeHtml(r.request_id)}">
               <div class="req-row"><strong>${escapeHtml(r.request_id)}</strong> <span class="${statusClass(r.status)}">${escapeHtml(r.status)}</span></div>
-              <div class="meta-row">updated=${escapeHtml(r.last_updated_at || '')}</div>
+              <div class="meta-row">updated=${escapeHtml(formatUpdatedCst(r.last_updated_at || ''))}</div>
             </a>
           </li>
         `;
@@ -98,6 +147,23 @@
       return Number.isFinite(ts) ? ts : 0;
     }
 
+    function formatUpdatedCst(value) {
+      const ts = Date.parse(String(value || ''));
+      if (!Number.isFinite(ts)) return '';
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Chicago',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).formatToParts(new Date(ts));
+      const get = (type) => parts.find((p) => p.type === type)?.value || '00';
+      return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+    }
+
     function sortRequestList(requests) {
       const sorted = [...requests].sort((a, b) => {
         const diff = parseReqTimestamp(b) - parseReqTimestamp(a);
@@ -111,6 +177,7 @@
     }
 
     function setDetailEmpty(message) {
+      selectedRequestData = null;
       document.getElementById('detail-meta').textContent = message || 'Select a REQ to view details.';
       document.getElementById('detail').innerHTML = '<div class="detail-block muted">No REQ selected.</div>';
     }
@@ -120,67 +187,177 @@
         setDetailEmpty('Select a REQ to view details.');
         return;
       }
+      selectedRequestData = req;
       const objective = extractBlock(req.request_text, 'objective') || req.request_text;
       const constraints = extractBlock(req.request_text, 'constraints');
-      document.getElementById('detail-meta').innerHTML = `<strong>${escapeHtml(req.request_id)}</strong> <span class="status-chip status-${escapeHtml(String(req.status || '').toLowerCase())}">${escapeHtml(req.status || '')}</span> <span class="muted">updated ${escapeHtml(req.last_updated_at || '')}</span>`;
+      document.getElementById('detail-meta').innerHTML = `<strong>${escapeHtml(req.request_id)}</strong> <span class="status-chip status-${escapeHtml(String(req.status || '').toLowerCase())}">${escapeHtml(req.status || '')}</span> <span class="muted">updated ${escapeHtml(formatUpdatedCst(req.last_updated_at || ''))}</span>`;
       document.getElementById('detail').innerHTML = `
-        <div class="detail-block"><h3>Objective</h3><pre>${escapeHtml(objective)}</pre></div>
-        <div class="detail-block"><h3>Assumptions / Constraints</h3><pre>${escapeHtml(constraints || '(none)')}</pre></div>
-        <div class="detail-block"><h3>Plan / Ack</h3><pre>${escapeHtml(req.codex_ack_plan || '(none)')}</pre></div>
-        <div class="detail-block"><h3>Execution Log</h3><pre>${escapeHtml(req.execution_log || '(none)')}</pre></div>
-        <div class="detail-block"><h3>Outputs</h3><pre>${escapeHtml(req.outputs || '(none)')}</pre></div>
-        <div class="detail-block"><h3>Evidence</h3><pre>${escapeHtml(req.evidence || '(none)')}</pre></div>
-        <div class="detail-block"><h3>Transcript</h3><pre>${escapeHtml(req.request_text || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Objective</h3><pre>${linkifyReqIds(objective)}</pre></div>
+        <div class="detail-block"><h3>Assumptions / Constraints</h3><pre>${linkifyReqIds(constraints || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Plan / Ack</h3><pre>${linkifyReqIds(req.codex_ack_plan || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Execution Log</h3><pre>${linkifyReqIds(req.execution_log || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Outputs</h3><pre id="selected-output-block">${linkifyReqIds(req.outputs || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Evidence</h3><pre>${linkifyReqIds(req.evidence || '(none)')}</pre></div>
+        <div class="detail-block"><h3>Transcript</h3><pre>${linkifyReqIds(req.request_text || '(none)')}</pre></div>
       `;
+      bindReqLinks(document.getElementById('detail'));
       const title = document.getElementById('detail-title');
+      title.scrollIntoView({ behavior: 'smooth', block: 'start' });
       title.focus();
     }
 
     async function loadInputPad() {
       const res = await fetch('/api/thread');
+      if (!res.ok) return false;
       const data = await res.json();
-      if (data.input_pad && !data.input_pad.startsWith('Paste request text here')) {
-        document.getElementById('input').value = data.input_pad;
+      const inputPad = String(data.input_pad || '');
+      if (inputPad === lastInputPadValue) return false;
+      lastInputPadValue = inputPad;
+      const inputEl = document.getElementById('input');
+      // Preserve user typing: avoid replacing focused input.
+      if (document.activeElement !== inputEl && inputPad && !inputPad.startsWith('Paste request text here')) {
+        inputEl.value = inputPad;
       }
+      return true;
     }
 
-    async function loadRequests() {
+    function requestListSignature(requests) {
+      return JSON.stringify(
+        requests.map((r) => [r.request_id || '', r.status || '', r.last_updated_at || '', r.created_at || ''])
+      );
+    }
+
+    function detailSignature(req) {
+      if (!req) return '';
+      return JSON.stringify([
+        req.request_id || '',
+        req.status || '',
+        req.last_updated_at || '',
+        req.codex_ack_plan || '',
+        req.execution_log || '',
+        req.outputs || '',
+        req.evidence || '',
+        req.request_text || '',
+      ]);
+    }
+
+    async function loadRequests(force = false) {
       const res = await fetch('/api/requests');
+      if (!res.ok) return false;
       const data = await res.json();
-      requestIndex = sortRequestList(data.requests || []);
-      renderRequestList();
+      const sorted = sortRequestList(data.requests || []);
+      const sig = requestListSignature(sorted);
+      const changed = force || sig !== lastRequestListSig;
+      if (changed) {
+        requestIndex = sorted;
+        renderRequestList();
+        lastRequestListSig = sig;
+      }
       if (selectedReq) {
-        await loadDetail(selectedReq);
-      } else {
+        const detailChanged = await loadDetail(selectedReq, force);
+        return changed || detailChanged;
+      }
+      if (changed) {
         setDetailEmpty('Select a REQ to view details.');
       }
+      return changed;
     }
 
-    async function loadDetail(reqId) {
+    async function loadDetail(reqId, force = false) {
       if (!reqId) {
         renderDetail(null);
-        return;
+        return true;
       }
       const res = await fetch(`/api/request/${encodeURIComponent(reqId)}`);
       if (!res.ok) {
         renderDetail(null);
-        return;
+        return true;
       }
       const data = await res.json();
+      const req = data.request || null;
+      const sig = detailSignature(req);
+      if (!force && lastDetailSigByReq[reqId] === sig) {
+        return false;
+      }
+      lastDetailSigByReq[reqId] = sig;
       renderDetail(data.request);
+      return true;
     }
 
-    async function refresh() {
-      selectedReq = parseSelectedReqFromLocation();
-      await loadInputPad();
-      await loadRequests();
+    function hasActiveSelection() {
+      const selection = window.getSelection();
+      return Boolean(selection && !selection.isCollapsed && String(selection).trim());
     }
 
-    function navigateToReq(reqId) {
+    function isUserInteracting() {
+      if (copyInFlight) return true;
+      if (Date.now() < refreshPauseUntil) return true;
+      const active = document.activeElement;
+      if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) return true;
+      if (hasActiveSelection()) return true;
+      return false;
+    }
+
+    function captureUiState() {
+      const list = document.getElementById('request-list');
+      const detail = document.getElementById('detail');
+      const input = document.getElementById('input');
+      const active = document.activeElement;
+      return {
+        windowY: window.scrollY,
+        listTop: list ? list.scrollTop : 0,
+        detailTop: detail ? detail.scrollTop : 0,
+        inputFocused: active === input,
+        inputSelectionStart: active === input ? input.selectionStart : null,
+        inputSelectionEnd: active === input ? input.selectionEnd : null,
+      };
+    }
+
+    function restoreUiState(state) {
+      const list = document.getElementById('request-list');
+      const detail = document.getElementById('detail');
+      const input = document.getElementById('input');
+      if (list) list.scrollTop = state.listTop;
+      if (detail) detail.scrollTop = state.detailTop;
+      window.scrollTo(0, state.windowY);
+      if (state.inputFocused) {
+        input.focus();
+        if (state.inputSelectionStart !== null && state.inputSelectionEnd !== null) {
+          input.setSelectionRange(state.inputSelectionStart, state.inputSelectionEnd);
+        }
+      }
+    }
+
+    async function refresh(force = false) {
+      if (refreshInFlight) return;
+      if (!force && isUserInteracting()) return;
+      if (Date.now() < refreshPauseUntil) {
+        return;
+      }
+      refreshInFlight = true;
+      const uiState = captureUiState();
+      try {
+        selectedReq = parseSelectedReqFromLocation();
+        const inputChanged = await loadInputPad();
+        const requestsChanged = await loadRequests(force);
+        if (force || inputChanged || requestsChanged) {
+          restoreUiState(uiState);
+        }
+      } finally {
+        refreshInFlight = false;
+      }
+    }
+
+    function navigateToReq(reqId, opts = {}) {
       selectedReq = reqId || '';
       const url = selectedReq ? `?req=${encodeURIComponent(selectedReq)}#/${encodeURIComponent(selectedReq)}` : window.location.pathname;
       history.pushState({}, '', url);
-      refresh();
+      refresh(true).then(() => {
+        if (opts.highlight && selectedReq) {
+          highlightSelectedRequest(selectedReq);
+          highlightDetailHeader();
+        }
+      });
     }
 
     document.getElementById('submit').addEventListener('click', async () => {
@@ -202,6 +379,31 @@
       if (!selectedReq) return;
       const url = `${window.location.origin}${window.location.pathname}?req=${encodeURIComponent(selectedReq)}#/${encodeURIComponent(selectedReq)}`;
       await navigator.clipboard.writeText(url);
+    });
+
+    document.getElementById('copy-output').addEventListener('click', async () => {
+      if (!selectedReq || !selectedRequestData) return;
+      const btn = document.getElementById('copy-output');
+      const previousLabel = btn.textContent;
+      const outputText = String(selectedRequestData.outputs || '(none)');
+      // Copy uses in-memory request snapshot so it remains stable while refresh timer is active.
+      copyInFlight = true;
+      refreshPauseUntil = Date.now() + 2000;
+      try {
+        await navigator.clipboard.writeText(outputText);
+        btn.textContent = 'Copied ✓';
+      } catch (_) {
+        btn.textContent = 'Copy failed';
+      } finally {
+        copyInFlight = false;
+        setTimeout(() => {
+          btn.textContent = previousLabel;
+        }, 1500);
+      }
+    });
+
+    document.getElementById('refresh-now').addEventListener('click', () => {
+      refresh(true);
     });
 
     document.getElementById('clear-selection').addEventListener('click', () => {
@@ -229,8 +431,8 @@
     window.addEventListener('popstate', refresh);
     window.addEventListener('hashchange', refresh);
 
-    refresh();
-    setInterval(refresh, 4000);
+    refresh(true);
+    setInterval(() => refresh(false), 4000);
   </script>
 </body>
 </html>

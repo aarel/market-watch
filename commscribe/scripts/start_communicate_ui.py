@@ -15,6 +15,34 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from communicate_scan import INPUT_END, INPUT_START, _section
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+COMMSCRIBE_DIR = SCRIPT_DIR.parent
+PROJECT_ROOT = COMMSCRIBE_DIR.parent
+
+
+def _resolve_runtime_path(raw: str) -> Path:
+    """Resolve a CLI path robustly across different launch directories."""
+    candidate = Path(raw)
+    if candidate.is_absolute():
+        return candidate
+
+    cwd_candidate = (Path.cwd() / candidate).resolve()
+    if cwd_candidate.exists():
+        return cwd_candidate
+
+    project_candidate = (PROJECT_ROOT / candidate).resolve()
+    if project_candidate.exists():
+        return project_candidate
+
+    commscribe_candidate = (COMMSCRIBE_DIR / candidate).resolve()
+    if commscribe_candidate.exists():
+        return commscribe_candidate
+
+    # Keep legacy defaults under project root (e.g., "commscribe/ui/index.html").
+    if str(candidate).startswith("commscribe/"):
+        return project_candidate
+    return commscribe_candidate
+
 
 def write_input_pad_via_scan(
     scan_script: Path,
@@ -207,11 +235,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    scan_script = Path(args.scan_script) if args.scan_script else Path(__file__).with_name("communicate_scan.py")
-    Handler.ui_file = Path(args.ui)
-    Handler.communicate_file = Path(args.communicate)
-    Handler.json_file = Path(args.json)
-    Handler.failure_log_file = Path(args.failure_log)
+    scan_script = _resolve_runtime_path(args.scan_script) if args.scan_script else SCRIPT_DIR / "communicate_scan.py"
+    Handler.ui_file = _resolve_runtime_path(args.ui)
+    Handler.communicate_file = _resolve_runtime_path(args.communicate)
+    Handler.json_file = _resolve_runtime_path(args.json)
+    Handler.failure_log_file = _resolve_runtime_path(args.failure_log)
     Handler.scan_script = scan_script
     Handler.lock_timeout = args.lock_timeout
     server = ThreadingHTTPServer((args.host, args.port), Handler)

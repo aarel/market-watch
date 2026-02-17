@@ -86,7 +86,7 @@ python3 commscribe/scripts/communicate_scan.py system-status
 ## Optional Local UI
 
 ```bash
-make communicate-ui
+python3 commscribe/scripts/start_communicate_ui.py
 ```
 
 Then open `http://127.0.0.1:8765`.
@@ -103,12 +103,12 @@ UI write path guarantees:
   - `commscribe/ui/market-watch-theme.css` (optional overlay)
   - no host-project CSS imports or CDN dependencies
 
-## Make Targets
+## CLI Commands
 
 ```bash
-make communicate
-make communicate-orchestrate
-make communicate-ui
+python3 commscribe/scripts/communicate_scan.py consume
+python3 commscribe/scripts/communicate_orchestrator.py
+python3 commscribe/scripts/start_communicate_ui.py
 ```
 
 ## Drop-In Install

@@ -36,14 +36,14 @@
 - Orchestrator preflight refusal path: `commscribe/scripts/communicate_orchestrator.py`
 - Regression + behavioral tests: `commscribe/tests/test_communicate_scan.py`
 - Runtime contract docs: `commscribe/README.md`, `commscribe/CODEX_COMMUNICATE_INSTRUCTIONS.md`
-- Command entrypoints: `Makefile`
+- Command entrypoints: `commscribe/scripts/communicate_scan.py`, `commscribe/scripts/communicate_orchestrator.py`
 
 ## Minimal Reproduction Steps
 
 1. Healthy no-op determinism:
 
 ```bash
-make communicate
+python3 commscribe/scripts/communicate_scan.py consume
 ```
 
 Expected:
@@ -79,7 +79,7 @@ Expected:
 - `commscribe/tests/test_communicate_scan.py`: executable proof for transition, immutability, concurrency, parse-failure, recovery, and no-op guarantees.
 - `commscribe/README.md`: normative behavior contract for operators and auditors.
 - `commscribe/CODEX_COMMUNICATE_INSTRUCTIONS.md`: command-word contract constraining Codex operation and blocked behavior.
-- `Makefile`: stable invocation surface for reproducible verification commands.
+- `commscribe/scripts/communicate_scan.py` and `commscribe/scripts/communicate_orchestrator.py`: stable invocation surface for reproducible verification commands.
 
 ## Archive Policy
 

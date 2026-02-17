@@ -24,15 +24,15 @@ Optional components (only if local browser UI is needed):
 - `commscribe/ui/`
 - `commscribe/scripts/start_communicate_ui.py`
 
-## Makefile Merge (Do Not Overwrite)
+## Optional Task Runner Integration
 
-Merge these targets into the host repository `Makefile`:
+If the host repo uses a task runner (Make, Just, npm scripts, etc.), add wrappers for:
 
 - `communicate`
 - `communicate-orchestrate`
 - `communicate-ui` (only if UI retained)
 
-Do not replace existing host targets; only add missing target blocks.
+Do not replace existing host tasks; only add missing wrappers.
 
 ## Do Not Copy
 
@@ -45,12 +45,12 @@ Do not replace existing host targets; only add missing target blocks.
 ## Post-Copy Required Steps
 
 1. Confirm Python runtime support (Python 3.9+).
-2. Ensure `Makefile` targets point to `commscribe/scripts/...` paths.
+2. Ensure any task wrappers point to `commscribe/scripts/...` paths.
 3. Review commit policy for `commscribe/failure_log.json` (recommended: commit it for audit trail continuity).
 4. Run:
 
 ```bash
-make communicate
+python3 commscribe/scripts/communicate_scan.py consume
 ```
 
 Expected on healthy empty input:
