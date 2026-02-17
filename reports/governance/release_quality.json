@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-02-15T01:41:38.943095+00:00",
+  "totals": {
+    "deployments": 2,
+    "failures": 0
+  },
+  "lead_time_hours": {
+    "p50": 1.5,
+    "p90": 3.5,
+    "mean": 2.5
+  },
+  "change_failure_rate": {
+    "ratio": 0.0,
+    "percent": 0.0
+  },
+  "targets": {
+    "lead_time_p50_hours_max": 24,
+    "lead_time_p90_hours_max": 72,
+    "change_failure_rate_percent_max": 15
+  }
+}

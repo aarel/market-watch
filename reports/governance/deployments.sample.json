@@ -1,0 +1,20 @@
+{
+  "deployments": [
+    {
+      "id": "deploy-001",
+      "merge_time": "2026-02-14T10:00:00Z",
+      "deploy_time": "2026-02-14T11:30:00Z",
+      "failed": false,
+      "rollback": false,
+      "hotfix": false
+    },
+    {
+      "id": "deploy-002",
+      "merge_time": "2026-02-14T13:00:00Z",
+      "deploy_time": "2026-02-14T16:30:00Z",
+      "failed": false,
+      "rollback": false,
+      "hotfix": false
+    }
+  ]
+}

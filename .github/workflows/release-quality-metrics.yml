@@ -1,0 +1,35 @@
+name: Release Quality Metrics
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  release-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compute release quality metrics
+        run: |
+          python scripts/governance/calc_release_quality.py \
+            --input reports/governance/deployments.sample.json \
+            --out reports/governance/release_quality.json
+
+      - name: Enforce governance thresholds
+        run: |
+          python scripts/governance/check_release_quality_thresholds.py \
+            --input reports/governance/release_quality.json
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-quality-metrics
+          path: reports/governance/release_quality.json

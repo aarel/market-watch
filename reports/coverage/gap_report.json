@@ -1,0 +1,211 @@
+{
+  "overall": {
+    "line_percent": 79.62774465610005,
+    "branch_percent": 69.75476839237058,
+    "num_statements": 5409,
+    "missing_lines": 957
+  },
+  "top_missing_files": [
+    {
+      "path": "fake_broker.py",
+      "missing_lines": 150,
+      "line_percent": 23.44322344322344,
+      "num_statements": 207,
+      "missing_branches": 59,
+      "branch_percent": 10.606060606060606
+    },
+    {
+      "path": "backtest/data.py",
+      "missing_lines": 121,
+      "line_percent": 16.129032258064516,
+      "num_statements": 155,
+      "missing_branches": 61,
+      "branch_percent": 1.6129032258064515
+    },
+    {
+      "path": "broker.py",
+      "missing_lines": 98,
+      "line_percent": 29.885057471264368,
+      "num_statements": 144,
+      "missing_branches": 24,
+      "branch_percent": 20.0
+    },
+    {
+      "path": "server/routers/analytics.py",
+      "missing_lines": 87,
+      "line_percent": 28.387096774193548,
+      "num_statements": 129,
+      "missing_branches": 24,
+      "branch_percent": 7.6923076923076925
+    },
+    {
+      "path": "backtest/cli.py",
+      "missing_lines": 59,
+      "line_percent": 30.147058823529413,
+      "num_statements": 98,
+      "missing_branches": 36,
+      "branch_percent": 5.2631578947368425
+    },
+    {
+      "path": "server/routers/trading.py",
+      "missing_lines": 55,
+      "line_percent": 21.0,
+      "num_statements": 76,
+      "missing_branches": 24,
+      "branch_percent": 0.0
+    },
+    {
+      "path": "server/lifespan.py",
+      "missing_lines": 54,
+      "line_percent": 18.6046511627907,
+      "num_statements": 70,
+      "missing_branches": 16,
+      "branch_percent": 0.0
+    },
+    {
+      "path": "server/routers/observability.py",
+      "missing_lines": 40,
+      "line_percent": 28.767123287671232,
+      "num_statements": 61,
+      "missing_branches": 12,
+      "branch_percent": 0.0
+    },
+    {
+      "path": "monitoring/evaluator.py",
+      "missing_lines": 37,
+      "line_percent": 60.283687943262414,
+      "num_statements": 109,
+      "missing_branches": 19,
+      "branch_percent": 40.625
+    },
+    {
+      "path": "alerts/runtime.py",
+      "missing_lines": 31,
+      "line_percent": 51.02040816326531,
+      "num_statements": 76,
+      "missing_branches": 17,
+      "branch_percent": 22.727272727272727
+    },
+    {
+      "path": "backtest/results.py",
+      "missing_lines": 29,
+      "line_percent": 67.5925925925926,
+      "num_statements": 94,
+      "missing_branches": 6,
+      "branch_percent": 57.142857142857146
+    },
+    {
+      "path": "analytics/store.py",
+      "missing_lines": 20,
+      "line_percent": 85.48387096774194,
+      "num_statements": 168,
+      "missing_branches": 16,
+      "branch_percent": 80.0
+    },
+    {
+      "path": "agents/replay_recorder_agent.py",
+      "missing_lines": 15,
+      "line_percent": 72.61904761904762,
+      "num_statements": 66,
+      "missing_branches": 8,
+      "branch_percent": 55.55555555555556
+    },
+    {
+      "path": "risk/exposure_checkers.py",
+      "missing_lines": 15,
+      "line_percent": 90.04524886877829,
+      "num_statements": 161,
+      "missing_branches": 7,
+      "branch_percent": 88.33333333333333
+    },
+    {
+      "path": "monitoring/reason_codes.py",
+      "missing_lines": 14,
+      "line_percent": 66.26506024096386,
+      "num_statements": 45,
+      "missing_branches": 14,
+      "branch_percent": 63.1578947368421
+    },
+    {
+      "path": "analytics/metrics.py",
+      "missing_lines": 14,
+      "line_percent": 93.07228915662651,
+      "num_statements": 244,
+      "missing_branches": 9,
+      "branch_percent": 89.77272727272727
+    },
+    {
+      "path": "server/routers/status.py",
+      "missing_lines": 14,
+      "line_percent": 73.75,
+      "num_statements": 66,
+      "missing_branches": 7,
+      "branch_percent": 50.0
+    },
+    {
+      "path": "agents/monitor_agent.py",
+      "missing_lines": 13,
+      "line_percent": 67.79661016949153,
+      "num_statements": 49,
+      "missing_branches": 6,
+      "branch_percent": 40.0
+    },
+    {
+      "path": "agents/session_logger_agent.py",
+      "missing_lines": 12,
+      "line_percent": 65.95744680851064,
+      "num_statements": 41,
+      "missing_branches": 4,
+      "branch_percent": 33.333333333333336
+    },
+    {
+      "path": "scripts/run_test_audit.py",
+      "missing_lines": 10,
+      "line_percent": 69.84126984126983,
+      "num_statements": 45,
+      "missing_branches": 9,
+      "branch_percent": 50.0
+    }
+  ],
+  "critical_modules": {
+    "server/": {
+      "statements": 803,
+      "missing_lines": 265,
+      "line_percent": 67.0,
+      "branches": 172,
+      "missing_branches": 97,
+      "branch_percent": 43.6,
+      "measured": true,
+      "line_target": 72.0,
+      "branch_target": 55.0,
+      "line_gap": 5.0,
+      "branch_gap": 11.4
+    },
+    "scripts/governance/": {
+      "statements": 0,
+      "missing_lines": 0,
+      "line_percent": null,
+      "branches": 0,
+      "missing_branches": 0,
+      "branch_percent": null,
+      "measured": false,
+      "line_target": 80.0,
+      "branch_target": 70.0,
+      "line_gap": null,
+      "branch_gap": null
+    },
+    "commscribe/scripts/": {
+      "statements": 0,
+      "missing_lines": 0,
+      "line_percent": null,
+      "branches": 0,
+      "missing_branches": 0,
+      "branch_percent": null,
+      "measured": false,
+      "line_target": 80.0,
+      "branch_target": 70.0,
+      "line_gap": null,
+      "branch_gap": null
+    }
+  }
+}

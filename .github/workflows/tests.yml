@@ -62,13 +62,36 @@ jobs:
     - name: Run tests with coverage
       run: |
         python -m pytest tests/ --ignore=tests/test_backtest_data.py \
-          --cov --cov-report=term-missing --cov-report=json --cov-report=html \
+          --cov=. --cov-branch \
+          --cov-report=term-missing \
+          --cov-report=json:coverage.json \
+          --cov-report=xml:coverage.xml \
+          --cov-report=html:htmlcov \
+          --cov-fail-under=75 \
           --tb=short -v
 
     - name: Coverage report
       if: always()
       run: |
         coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
+
+    - name: Generate coverage gap report
+      if: always()
+      run: |
+        python scripts/governance/coverage_gap_report.py \
+          --input coverage.json \
+          --json-out reports/coverage/gap_report.json \
+          --md-out reports/coverage/gap_report.md \
+          --top 20
+
+    - name: Enforce module coverage thresholds
+      if: always()
+      run: |
+        python scripts/governance/check_coverage_thresholds.py \
+          --input coverage.json \
+          --min-line 75 \
+          --min-branch 65 \
+          --min-server-line 60
 
     - name: Upload coverage reports
       if: always()
@@ -78,25 +101,24 @@ jobs:
         path: |
           htmlcov/
           coverage.json
+          coverage.xml
+          reports/coverage/gap_report.json
+          reports/coverage/gap_report.md
           .coverage
         retention-days: 30
 
-    - name: Check coverage threshold
+    - name: Coverage summary
       if: always()
       run: |
         COVERAGE=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
+        BRANCH=$(python -c "import json; print(json.load(open('coverage.json'))['totals'].get('percent_branches_covered', 0))")
         echo "Current coverage: ${COVERAGE}%"
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Coverage Status" >> $GITHUB_STEP_SUMMARY
-        echo "- Current: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
-        echo "- Target: 85%" >> $GITHUB_STEP_SUMMARY
-        echo "- Gap: $(python -c "print(f'{85 - ${COVERAGE}:.2f}%')")" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        if (( $(echo "$COVERAGE < 85" | bc -l) )); then
-          echo "⚠️ Coverage below 85% target (not enforced yet)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "✅ Coverage meets 85% target!" >> $GITHUB_STEP_SUMMARY
-        fi
+        echo "- Overall line coverage: ${COVERAGE}% (floor: 75%)" >> $GITHUB_STEP_SUMMARY
+        echo "- Overall branch coverage: ${BRANCH}% (floor: 65%)" >> $GITHUB_STEP_SUMMARY
+        echo "- Targeted package floor: server/ line >= 60% (enforced by scripts/governance/check_coverage_thresholds.py)" >> $GITHUB_STEP_SUMMARY
+        echo "- Gap report artifact: reports/coverage/gap_report.md" >> $GITHUB_STEP_SUMMARY
 
     - name: Test Summary
       if: always()
