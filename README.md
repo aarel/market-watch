@@ -208,3 +208,13 @@ static/             - Web UI files
 docs/               - Comprehensive documentation
 .env                - Your configuration (don't commit)
 ```
+
+## Terminal LLM Startup Requirement
+
+All terminal LLM sessions must begin by reviewing:
+
+```text
+ai_runtime/STARTUP_PROTOCOL.md
+```
+
+No development work should begin until startup protocol completes successfully.
