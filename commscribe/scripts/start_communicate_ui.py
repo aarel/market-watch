@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import mimetypes
 import subprocess
@@ -13,11 +14,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from communicate_scan import INPUT_END, INPUT_START, _section
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 COMMSCRIBE_DIR = SCRIPT_DIR.parent
 PROJECT_ROOT = COMMSCRIBE_DIR.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from commscribe.api.requests_api import RequestAPI
 
 
 def _resolve_runtime_path(raw: str) -> Path:
@@ -51,6 +54,8 @@ def write_input_pad_via_scan(
     failure_log_file: Path,
     text: str,
     lock_timeout: int,
+    db_path: Path | None = None,
+    schema_path: Path | None = None,
 ) -> None:
     cmd = [
         sys.executable,
@@ -59,6 +64,13 @@ def write_input_pad_via_scan(
         str(communicate_file),
         "--json",
         str(json_file),
+    ]
+    if db_path is not None:
+        cmd.extend(["--db", str(db_path)])
+    if schema_path is not None:
+        cmd.extend(["--schema", str(schema_path)])
+    cmd.extend(
+        [
         "--failure-log",
         str(failure_log_file),
         "--lock-timeout",
@@ -66,7 +78,8 @@ def write_input_pad_via_scan(
         "set-input",
         "--text",
         text,
-    ]
+        ]
+    )
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         message = result.stderr.strip() or result.stdout.strip() or "set-input failed"
@@ -100,9 +113,7 @@ class Handler(BaseHTTPRequestHandler):
     ui_file: Path
     communicate_file: Path
     json_file: Path
-    failure_log_file: Path
-    scan_script: Path
-    lock_timeout: int
+    request_api: RequestAPI
 
     def _serve_static_asset(self, path: str) -> bool:
         if path.startswith("/api/"):
@@ -130,9 +141,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
-    def _read_communicate(self) -> str:
-        return self.communicate_file.read_text(encoding="utf-8")
-
     def do_GET(self) -> None:  # noqa: N802
         split = urlsplit(self.path)
         path = split.path
@@ -150,8 +158,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/thread":
-            text = self._read_communicate()
-            input_pad = _section(text, INPUT_START, INPUT_END).strip()
+            text = self.request_api.export_markdown()
+            input_pad = self.request_api.get_input_pad()
             self._send_json(
                 {
                     "input_pad": input_pad,
@@ -162,26 +170,47 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/requests":
-            requests = load_requests_from_json(self.json_file)
+            params = parse_qs(split.query)
+            req_date = (params.get("date", [""])[0] or "").strip()
+            source = (params.get("source", ["communicate>"])[0] or "").strip()
+            if not req_date:
+                req_date = dt.datetime.now(dt.timezone.utc).date().isoformat()
+            requests = self.request_api.get_all_requests(
+                include_archived=False,
+                created_date=req_date,
+                source=source or None,
+            )
             summary = [
                 {
-                    "request_id": r.get("request_id", ""),
+                    "id": r.get("id", ""),
+                    "request_id": r.get("id", ""),
+                    "title": r.get("title", ""),
                     "status": r.get("status", ""),
                     "created_at": r.get("created_at", ""),
-                    "last_updated_at": r.get("last_updated_at", ""),
+                    "updated_at": r.get("updated_at", ""),
+                    "last_updated_at": r.get("updated_at", ""),
                 }
                 for r in requests
             ]
-            self._send_json({"requests": summary, "selected_req": selected_req_from_url(self.path)})
+            self._send_json(
+                {
+                    "requests": summary,
+                    "selected_req": selected_req_from_url(self.path),
+                    "date": req_date,
+                    "source": source,
+                }
+            )
             return
 
         if path.startswith("/api/request/"):
             req_id = unquote(path.removeprefix("/api/request/")).strip()
-            requests = load_requests_from_json(self.json_file)
-            for req in requests:
-                if req.get("request_id") == req_id:
-                    self._send_json({"request": req, "selected_req": req_id})
-                    return
+            req = self.request_api.get_request(req_id)
+            if req is not None:
+                payload = dict(req)
+                payload.setdefault("request_id", payload.get("id", req_id))
+                payload.setdefault("last_updated_at", payload.get("updated_at", ""))
+                self._send_json({"request": payload, "selected_req": req_id})
+                return
             self._send_json({"error": f"unknown request id: {req_id}"}, status=404)
             return
 
@@ -206,16 +235,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            write_input_pad_via_scan(
-                scan_script=self.scan_script,
-                communicate_file=self.communicate_file,
-                json_file=self.json_file,
-                failure_log_file=self.failure_log_file,
-                text=text,
-                lock_timeout=self.lock_timeout,
-            )
-        except RuntimeError as exc:
-            self._send_json({"error": str(exc)}, status=409)
+            self.request_api.set_input_pad(text)
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=400)
             return
         self._send_json({"ok": True})
 
@@ -226,22 +248,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--communicate", default="commscribe/communicate.md")
     parser.add_argument("--json", default="commscribe/communicate.json")
-    parser.add_argument("--failure-log", default="commscribe/failure_log.json")
-    parser.add_argument("--lock-timeout", type=int, default=5)
-    parser.add_argument("--scan-script", default=None)
+    parser.add_argument("--db", default="commscribe/db/communicate.db")
+    parser.add_argument("--schema", default="commscribe/db/schema.sql")
     parser.add_argument("--ui", default="commscribe/ui/index.html")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    scan_script = _resolve_runtime_path(args.scan_script) if args.scan_script else SCRIPT_DIR / "communicate_scan.py"
     Handler.ui_file = _resolve_runtime_path(args.ui)
     Handler.communicate_file = _resolve_runtime_path(args.communicate)
     Handler.json_file = _resolve_runtime_path(args.json)
-    Handler.failure_log_file = _resolve_runtime_path(args.failure_log)
-    Handler.scan_script = scan_script
-    Handler.lock_timeout = args.lock_timeout
+    Handler.request_api = RequestAPI.from_env_or_args(
+        json_file=Handler.json_file,
+        db_path=_resolve_runtime_path(args.db),
+        schema_path=_resolve_runtime_path(args.schema),
+    )
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"Serving UI on http://{args.host}:{args.port}")
     server.serve_forever()

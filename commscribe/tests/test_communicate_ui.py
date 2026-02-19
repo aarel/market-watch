@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -11,7 +12,7 @@ SCRIPTS = ROOT / "commscribe" / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from communicate_scan import QUEUE_END, QUEUE_START, _section, parse_blocks_from_markdown
+from communicate_scan import QUEUE_END, QUEUE_START, _section
 from start_communicate_ui import load_requests_from_json, selected_req_from_url, write_input_pad_via_scan
 
 SCAN_SCRIPT = ROOT / "commscribe" / "scripts" / "communicate_scan.py"
@@ -26,7 +27,9 @@ class CommunicateUiTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.doc = Path(self.tmp.name) / "communicate.md"
         self.json_file = Path(self.tmp.name) / "communicate.json"
+        self.db_file = Path(self.tmp.name) / "communicate.db"
         self.failure_log = Path(self.tmp.name) / "failure_log.json"
+        self.schema = ROOT / "commscribe" / "db" / "schema.sql"
         self.doc.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
 
     def tearDown(self):
@@ -41,6 +44,10 @@ class CommunicateUiTests(unittest.TestCase):
                 str(self.doc),
                 "--json",
                 str(self.json_file),
+                "--db",
+                str(self.db_file),
+                "--schema",
+                str(self.schema),
                 "--failure-log",
                 str(self.failure_log),
                 *args,
@@ -56,11 +63,18 @@ class CommunicateUiTests(unittest.TestCase):
             communicate_file=self.doc,
             json_file=self.json_file,
             failure_log_file=self.failure_log,
-            text="UI writes through scan path",
+            text="TITLE:\nUI write path\n\nOBJECTIVE:\nUI writes through scan path",
             lock_timeout=5,
+            db_path=self.db_file,
+            schema_path=self.schema,
         )
-        body = self.doc.read_text(encoding="utf-8")
-        self.assertIn("UI writes through scan path", body)
+        consume = self.run_scan("consume")
+        self.assertEqual(consume.returncode, 0)
+        rid = consume.stdout.strip()
+        conn = sqlite3.connect(self.db_file)
+        row = conn.execute("SELECT id FROM requests WHERE id = ?", (rid,)).fetchone()
+        conn.close()
+        self.assertIsNotNone(row)
 
     def test_set_input_lock_contention_fails_closed(self):
         lock_file = self.json_file.with_suffix(self.json_file.suffix + ".lock")
@@ -73,17 +87,12 @@ class CommunicateUiTests(unittest.TestCase):
                 failure_log_file=self.failure_log,
                 text="blocked",
                 lock_timeout=1,
+                db_path=self.db_file,
+                schema_path=self.schema,
             )
 
     def test_concurrent_set_input_and_consume_no_queue_clobber(self):
-        body = self.doc.read_text(encoding="utf-8")
-        body = body.replace(
-            "Paste request text here. One request at a time. Include files/paths if relevant.",
-            "Scanner request",
-        )
-        self.doc.write_text(body, encoding="utf-8")
-        queue = _section(self.doc.read_text(encoding="utf-8"), QUEUE_START, QUEUE_END)
-        baseline_count = len(parse_blocks_from_markdown(queue))
+        baseline_count = 0
 
         ui_result = {}
 
@@ -94,8 +103,10 @@ class CommunicateUiTests(unittest.TestCase):
                     communicate_file=self.doc,
                     json_file=self.json_file,
                     failure_log_file=self.failure_log,
-                    text="UI next request",
+                    text="TITLE:\nUI next request\n\nOBJECTIVE:\nUI objective",
                     lock_timeout=5,
+                    db_path=self.db_file,
+                    schema_path=self.schema,
                 )
                 ui_result["ok"] = True
             except Exception as exc:  # pragma: no cover - defensive capture
@@ -108,10 +119,16 @@ class CommunicateUiTests(unittest.TestCase):
 
         self.assertEqual(consume.returncode, 0)
         self.assertTrue(ui_result.get("ok"), ui_result.get("error"))
-
-        state = json.loads(self.json_file.read_text(encoding="utf-8"))
-        self.assertEqual(len(state["requests"]), baseline_count + 1)
-        self.assertIn("request_text", state["requests"][0])
+        conn = sqlite3.connect(self.db_file)
+        total = conn.execute("SELECT count(*) FROM requests").fetchone()[0]
+        conn.close()
+        if total == 0:
+            consume = self.run_scan("consume")
+            self.assertEqual(consume.returncode, 0)
+            conn = sqlite3.connect(self.db_file)
+            total = conn.execute("SELECT count(*) FROM requests").fetchone()[0]
+            conn.close()
+        self.assertEqual(total, baseline_count + 1)
 
         updated = self.doc.read_text(encoding="utf-8")
         self.assertIn("<!-- REQUEST_QUEUE_START -->", updated)
@@ -157,6 +174,7 @@ class CommunicateUiTests(unittest.TestCase):
     def test_ui_status_chip_and_theme_toggle_present(self):
         html = UI_FILE.read_text(encoding="utf-8")
         self.assertIn("status-chip", html)
+        self.assertIn("req-date", html)
         self.assertIn("toggle-theme", html)
         self.assertIn("market-theme", html)
         self.assertIn("toggle-sort", html)

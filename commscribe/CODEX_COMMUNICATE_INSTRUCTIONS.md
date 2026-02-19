@@ -1,6 +1,11 @@
-# Codex Command Word: communicate
+# Codex Command Word: communicate>
 
-When user says `communicate`, follow this contract:
+When user says `communicate>`, follow this contract:
+
+Interpretation rule:
+- `communicate>` is a command-word trigger for this protocol.
+- Do not assume a shell binary named `communicate` exists on `PATH`.
+- Execute the workflow through `python3 commscribe/scripts/communicate_scan.py` commands.
 
 1. Run `python3 commscribe/scripts/communicate_scan.py consume`.
 2. If no new input, stop.

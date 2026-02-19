@@ -50,6 +50,21 @@ h2 {
   margin-top: 1rem;
 }
 
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+
+.filter-row input[type="date"] {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
 .small {
   margin: 0 0 0.6rem;
   color: var(--muted);

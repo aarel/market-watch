@@ -1,0 +1,226 @@
+ChatGPT Session Rehydration Prompt
+
+(Structured Continuity Reconstruction – Reasoning Layer Only)
+
+You are resuming an advanced structured engineering project.
+
+Your task is to reconstruct governance, architecture, and execution posture using only verifiable evidence present in this session.
+
+If required information is not present in this session, explicitly mark:
+
+STATE: UNKNOWN — NOT IN CURRENT CONTEXT
+
+Do not infer historical facts.
+Do not assume prior implementation status.
+Do not fabricate file paths, enforcement states, CI status, roadmap phase, schema guarantees, or runtime authority.
+
+Cross-section inference is prohibited.
+Each section must rely only on direct evidence visible in this session.
+Statements in one section may not be used as implicit evidence in another.
+
+If more than 40% of required fields across all sections are UNKNOWN, terminate with:
+
+REHYDRATION FAILURE — INSUFFICIENT CONTEXT
+
+Output must be structured only.
+No narrative commentary.
+No motivational language.
+No explanation of this prompt.
+
+SECTION 1 — PREFIX MODEL
+
+Reconstruct operational semantics for:
+
+boost>
+
+dra>
+
+se_agent>
+
+boost> dra>
+
+boost> se_agent>
+
+dra> se_agent>
+
+For each, explicitly state:
+
+Reasoning Layer Owner
+
+Structural Audit Layer
+
+Execution Layer
+
+Output Contract Type
+
+Forbidden Behaviors
+
+Drift Risks
+
+If semantics are not present in current context, mark UNKNOWN.
+
+SECTION 2 — COMMUNICATE ENGINE STATE
+
+Determine current authoritative posture:
+
+Storage Model (File-based / DB-backed / Hybrid / UNKNOWN)
+
+SQLite Authority Status (Authoritative / Secondary / UNKNOWN)
+
+File REQ Deprecation Status (YES/NO/UNKNOWN)
+
+Lifecycle Enforcement (ON/OFF/UNKNOWN)
+
+Verification Required Before DONE (YES/NO/UNKNOWN)
+
+Dual-write Eliminated (YES/NO/UNKNOWN)
+
+UI Read Path (DB / File / Hybrid / UNKNOWN)
+
+No inference allowed.
+
+SECTION 3 — REALISM PIPELINE STATUS
+
+Report status for:
+
+Tier A
+
+CorporateAction
+
+CostBasis
+
+Settlement
+
+CostModel
+
+TaxModel
+
+Tier B
+
+Margin
+
+FX
+
+For each component:
+
+Exists (YES/NO/UNKNOWN)
+
+Runtime Authority (Primary/Secondary/UNKNOWN)
+
+Invariant Enforcement (YES/NO/UNKNOWN)
+
+Also report:
+
+Duplicate PnL Path Eliminated (YES/NO/UNKNOWN)
+
+Remaining Realism Gaps (Explicit list or UNKNOWN)
+
+SECTION 4 — ROADMAP ALIGNMENT
+
+Report:
+
+Canonical Roadmap Path (or UNKNOWN)
+
+Phase Model Defined (YES/NO/UNKNOWN)
+
+Current Phase (or UNKNOWN)
+
+Phase R Exists (YES/NO/UNKNOWN)
+
+Realism Reflected in Roadmap (YES/NO/UNKNOWN)
+
+Governance Drift Detected (YES/NO/UNKNOWN)
+
+Drift = roadmap and architecture contradict based only on visible session evidence.
+
+SECTION 5 — GOVERNANCE & CI
+
+Report:
+
+Test Coverage Threshold (value or UNKNOWN)
+
+CI Enforcement Active (YES/NO/UNKNOWN)
+
+Schema Enforcement (YES/NO/UNKNOWN)
+
+Communicate Verification Enforcement (YES/NO/UNKNOWN)
+
+Invariant Tests Present (YES/NO/UNKNOWN)
+
+Known Weak Spots (Explicit list or UNKNOWN)
+
+Do not use “NONE” unless explicitly proven in-session.
+
+SECTION 6 — ARCHITECTURAL INVARIANTS
+
+For each invariant, mark exactly one:
+
+CONFIRMED
+
+VIOLATED
+
+UNKNOWN
+
+Invariants:
+
+Single source of truth for PnL
+
+No file-based REQ storage
+
+Verification required before DONE
+
+No duplicate trade math
+
+Gate ON behavior deterministic
+
+DB schema authoritative
+
+No partial confirmations.
+No inferred validation.
+
+SECTION 7 — RISK SNAPSHOT
+
+List:
+
+Top 5 Structural Risks
+Top 5 Governance Risks
+Top 5 Operational Risks
+
+If insufficient evidence, state UNKNOWN.
+Do not state NONE unless explicitly proven in-session.
+
+SECTION 8 — NEXT 3 ACTIONS
+
+Rank next 3 actions by:
+
+Architectural Leverage
+
+Risk Reduction
+
+Realism Advancement
+
+Roadmap Alignment
+
+Each action must include:
+
+Action Statement
+
+Risk Addressed
+
+Architectural Impact
+
+Governance Impact
+
+Actions must not rely on unverified assumptions.
+
+Structural Status:
+
+Cross-section inference blocked
+
+Hallucinated continuity constrained
+
+Risk suppression eliminated
+
+Hard failure guard added
+
+UNKNOWN discipline enforced

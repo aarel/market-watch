@@ -7,11 +7,13 @@
 ## Phase 1 - Mandatory Contract Ingestion
 - Read `ai_runtime/PROJECT_RUNTIME.md`.
 - Read this file (`ai_runtime/STARTUP_PROTOCOL.md`).
-- Confirm required control commands are recognized:
-  - `communicate`
-  - `communicate_scan`
-  - `governance_check`
-  - `startup_check`
+- Confirm required control commands are recognized using command-word format:
+  - `communicate>`
+  - `communicate>_scan`
+  - `> governance_check`
+  - `> startup_check`
+- Confirm fresh-session command-word behavior source:
+  - `commscribe/CODEX_COMMUNICATE_INSTRUCTIONS.md`
 
 ## Phase 2 - Runtime Health Check
 Run:

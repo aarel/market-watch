@@ -36,7 +36,7 @@ SECTION 2 — AUTHORIZED COMMANDS
 
 The following commands are operational protocols, not conversational text.
 
-1) communicate
+1) communicate>
    Purpose:
      - Log request lifecycle.
      - Update commscribe/communicate.md
@@ -60,7 +60,7 @@ The following commands are operational protocols, not conversational text.
    No code modifications may occur without communicate entry unless:
      - Explicitly instructed: "execute without logging"
 
-2) communicate_scan
+2) communicate>_scan
    Purpose:
      - Validate commscribe integrity.
 
@@ -72,12 +72,12 @@ The following commands are operational protocols, not conversational text.
      - Block further work.
      - Report failure cause.
 
-3) governance_check
+3) > governance_check
    Purpose:
      - Run coverage + KPI validation.
      - Report pass/fail against thresholds.
 
-4) startup_check
+4) > startup_check
    Purpose:
      - Confirm runtime contract loaded.
      - Confirm communicate schema valid.
@@ -97,11 +97,14 @@ Step 2:
 
   - Runtime contract loaded.
   - Commands recognized:
-      - communicate
-      - communicate_scan
-      - governance_check
-      - startup_check
+      - communicate>
+      - communicate>_scan
+      - > governance_check
+      - > startup_check
   - Enforcement mode: ACTIVE
+
+  - communicate> behavior source:
+      - commscribe/CODEX_COMMUNICATE_INSTRUCTIONS.md
 
 Step 3:
   Execute:

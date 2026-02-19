@@ -58,6 +58,12 @@ python3 commscribe/scripts/communicate_scan.py complete --id <REQUEST_ID> --resu
 python3 commscribe/scripts/communicate_scan.py block --id <REQUEST_ID> --reason "..." --next-steps "..."
 ```
 
+## Command Words
+
+- Use `communicate>` as the command-word trigger for Codex lifecycle execution.
+- `communicate>` is a protocol trigger and may map to `python3 commscribe/scripts/communicate_scan.py` commands, not a shell binary named `communicate`.
+- Authoritative `communicate>` behavior is defined in `commscribe/CODEX_COMMUNICATE_INSTRUCTIONS.md`.
+
 ## Orchestrator Boundary
 
 - Orchestrator (`communicate_orchestrator.py`) may call core CLI transitions.

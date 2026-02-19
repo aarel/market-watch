@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "canonical_store": "sqlite",
+  "notes": "SQLite is authoritative for REQ persistence. This file is retained for compatibility and lock path only.",
+  "requests": []
+}

@@ -43,10 +43,11 @@ class CommunicateScanTests(unittest.TestCase):
 
     def _put_input(self, text):
         body = self.doc.read_text(encoding="utf-8")
-        body = body.replace(
-            "Paste request text here. One request at a time. Include files/paths if relevant.",
-            text,
-        )
+        start = "<!-- INPUT_PAD_START -->"
+        end = "<!-- INPUT_PAD_END -->"
+        pattern = re.compile(re.escape(start) + r"\n?(.*?)\n?" + re.escape(end), re.DOTALL)
+        body, count = pattern.subn(f"{start}\n{text}\n{end}", body, count=1)
+        self.assertEqual(count, 1, "INPUT PAD markers missing in template")
         self.doc.write_text(body, encoding="utf-8")
 
     def _break_queue_end_marker(self):
@@ -191,6 +192,7 @@ class CommunicateScanTests(unittest.TestCase):
         self.assertEqual(len(blocked_events), 1)
 
     def test_empty_input_not_blocked_is_deterministic_noop(self):
+        self._put_input("Paste request text here. One request at a time. Include files/paths if relevant.")
         result = self.run_cmd("consume")
         self.assertEqual(result.returncode, 0)
         self.assertIn("No new INPUT PAD content. Nothing to do.", result.stdout)
@@ -256,6 +258,26 @@ class CommunicateScanTests(unittest.TestCase):
         self.assertIn("No new INPUT PAD content. Nothing to do.", noop.stdout)
         self.assertEqual(before, after)
         self.assertEqual(after.count(f"[{rid}](#{rid})"), 1)
+
+    def test_consume_accepts_multi_requirement_objective_block(self):
+        self._put_input(
+            "REQ ENTRY\n"
+            "TITLE: Objective list acceptance\n"
+            "OBJECTIVE:\n"
+            "1) Validate multi-item objective parsing.\n"
+            "2) Preserve intent for all required checks.\n"
+            "3) Prevent false invalid-objective failures.\n"
+            "4) Keep consume lifecycle deterministic.\n"
+            "5) Record objective text in canonical state.\n"
+            "STATUS: IN_PROGRESS"
+        )
+        result = self.run_cmd("consume")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rid = result.stdout.strip()
+        state = json.loads(self.json_file.read_text(encoding="utf-8"))
+        req = [r for r in state["requests"] if r["request_id"] == rid][0]
+        self.assertIn("Validate multi-item objective parsing.", req["objective"])
+        self.assertIn("Record objective text in canonical state.", req["objective"])
 
     def test_markdown_queue_and_index_render_newest_first_without_mutating_json_order(self):
         self._put_input("Req one")

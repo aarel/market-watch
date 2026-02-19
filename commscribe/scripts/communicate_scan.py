@@ -8,6 +8,8 @@ import datetime as dt
 import hashlib
 import json
 import re
+import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -29,6 +31,7 @@ TERMINAL_STATUS = {"BLOCKED", "DONE"}
 SYSTEM_BLOCKED = "SYSTEM_BLOCKED"
 SYSTEM_RECOVERED = "SYSTEM_RECOVERED"
 RUNTIME_VERSION = "1.1.0"
+OBJECTIVE_REPORT_PATH = Path("REQ_LOG_NORMALIZATION_REPORT.md")
 TRANSITIONS = {
     "NEW": {"ACKED", "BLOCKED"},
     "ACKED": {"IN_PROGRESS", "DONE", "BLOCKED"},
@@ -36,6 +39,160 @@ TRANSITIONS = {
     "BLOCKED": set(),
     "DONE": set(),
 }
+INPUT_PAD_KEY = "input_pad"
+
+
+def _db_connect(db_path: Path) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, timeout=5.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
+
+
+def _init_db(db_path: Path, schema_path: Path) -> None:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    schema = schema_path.read_text(encoding="utf-8")
+    with _db_connect(db_path) as conn:
+        conn.executescript(schema)
+        conn.commit()
+
+
+def _db_get_request(db_path: Path, request_id: str) -> sqlite3.Row | None:
+    with _db_connect(db_path) as conn:
+        return conn.execute("SELECT * FROM requests WHERE id = ?", (request_id,)).fetchone()
+
+
+def _extract_title(request_text: str) -> str:
+    lines = request_text.splitlines()
+    for i, line in enumerate(lines):
+        token = line.strip()
+        if token in {"TITLE", "TITLE:"}:
+            for nxt in lines[i + 1 :]:
+                if nxt.strip():
+                    return nxt.strip()[:200]
+    return (_first_request_line(request_text) or "Untitled request")[:200]
+
+
+def _ensure_request_in_db_from_json(db_path: Path, schema_path: Path, request_id: str, json_path: Path) -> None:
+    if _db_get_request(db_path, request_id) is not None:
+        return
+    if not json_path.exists():
+        raise ValueError(f"Unknown request id: {request_id}")
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    requests = payload.get("requests", [])
+    req = next((r for r in requests if r.get("request_id") == request_id), None)
+    if req is None:
+        raise ValueError(f"Unknown request id: {request_id}")
+
+    _init_db(db_path, schema_path)
+    created_at = req.get("created_at") or _now_iso()
+    updated_at = req.get("last_updated_at") or created_at
+    title = _extract_title(req.get("request_text", ""))
+    objective = req.get("objective") or extract_objective(req.get("request_text", ""))
+    status = req.get("status") or "NEW"
+    with _db_connect(db_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO requests(id, title, objective, status, created_at, updated_at, archived_flag)
+            VALUES(?, ?, ?, ?, ?, ?, 0)
+            """,
+            (request_id, title, objective, status, created_at, updated_at),
+        )
+        raw_log = (req.get("execution_log") or "").strip()
+        if raw_log:
+            for line in raw_log.splitlines():
+                if line.strip():
+                    conn.execute(
+                        "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                        (request_id, line.strip(), _now_iso()),
+                    )
+        _db_upsert_communicate_req(
+            conn,
+            req_id=request_id,
+            title=title,
+            status=status,
+            created_at=created_at,
+            updated_at=updated_at,
+            source="communicate>",
+            structured_payload=req.get("request_text", ""),
+        )
+        conn.commit()
+
+
+def _next_id_from_db(db_path: Path) -> str:
+    base = dt.datetime.now().strftime("REQ-%Y%m%d-%H%M%S")
+    with _db_connect(db_path) as conn:
+        rows = conn.execute("SELECT id FROM requests WHERE id LIKE ?", (f"{base}%",)).fetchall()
+    existing = {r["id"] for r in rows}
+    if base not in existing:
+        return base
+    i = 2
+    while f"{base}-{i}" in existing:
+        i += 1
+    return f"{base}-{i}"
+
+
+def _transition_status_value(current: str, target_status: str) -> str:
+    if current in TERMINAL_STATUS:
+        raise ValueError(f"Terminal state is immutable: {current}")
+    if target_status not in TRANSITIONS.get(current, set()):
+        raise ValueError(f"Invalid status transition: {current} -> {target_status}")
+    return target_status
+
+
+def _db_upsert_communicate_req(
+    conn: sqlite3.Connection,
+    req_id: str,
+    title: str,
+    status: str,
+    created_at: str,
+    updated_at: str,
+    source: str,
+    structured_payload: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO communicate_reqs(req_id, title, status, created_at, updated_at, source, structured_payload)
+        VALUES(?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(req_id) DO UPDATE SET
+          title=excluded.title,
+          status=excluded.status,
+          updated_at=excluded.updated_at,
+          source=excluded.source,
+          structured_payload=excluded.structured_payload
+        """,
+        (req_id, title, status, created_at, updated_at, source, structured_payload),
+    )
+
+
+def _db_get_input_text(db_path: Path) -> str:
+    with _db_connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT text_value FROM runtime_input_pad WHERE pad_key = ?",
+            (INPUT_PAD_KEY,),
+        ).fetchone()
+    if row is None:
+        return ""
+    return str(row["text_value"] or "").strip()
+
+
+def _db_set_input_text(db_path: Path, text: str) -> None:
+    ts = _now_iso()
+    with _db_connect(db_path) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            INSERT INTO runtime_input_pad(pad_key, text_value, updated_at)
+            VALUES(?, ?, ?)
+            ON CONFLICT(pad_key) DO UPDATE SET
+              text_value=excluded.text_value,
+              updated_at=excluded.updated_at
+            """,
+            (INPUT_PAD_KEY, text.strip(), ts),
+        )
+        conn.commit()
 
 
 def _now_iso() -> str:
@@ -133,6 +290,7 @@ def parse_blocks_from_markdown(queue_section: str) -> List[Dict[str, str]]:
                 "created_at": _extract_field(raw, "created_at") or _now_iso(),
                 "last_updated_at": _extract_field(raw, "last_updated_at") or _now_iso(),
                 "request_text": _extract_field(raw, "request_text"),
+                "objective": _extract_field(raw, "objective"),
                 "codex_ack_plan": _extract_field(raw, "codex_ack_plan"),
                 "execution_log": _extract_field(raw, "execution_log"),
                 "outputs": _extract_field(raw, "outputs"),
@@ -153,6 +311,7 @@ def _render_block(block: Dict[str, str]) -> str:
         f"### created_at\n{block['created_at']}\n"
         f"### last_updated_at\n{block['last_updated_at']}\n"
         f"### request_text\n{block['request_text']}\n"
+        f"### objective\n{block.get('objective', '')}\n"
         f"### codex_ack_plan\n{block['codex_ack_plan']}\n"
         f"### execution_log\n{block['execution_log']}\n"
         f"### outputs\n{block['outputs']}\n"
@@ -186,10 +345,129 @@ def _first_request_line(text: str) -> str:
     return ""
 
 
+def _is_all_caps_header(line: str) -> bool:
+    token = line.strip().rstrip(":")
+    if not token:
+        return False
+    return bool(re.fullmatch(r"[A-Z][A-Z0-9 _-]*", token))
+
+
+def _is_objective_stop_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if stripped.startswith("#"):
+        return True
+    if _is_all_caps_header(stripped):
+        return True
+    if re.match(r"^[A-Z _-]+:$", stripped):
+        return True
+    return False
+
+
+def _sentence_count(text: str) -> int:
+    parts = [p for p in re.split(r"[.!?]+(?:\s+|$)", text.strip()) if p.strip()]
+    return len(parts)
+
+
+def validate_objective(text: str) -> bool:
+    content = text.strip()
+    if not content:
+        return False
+    if len(content) > 4000:
+        return False
+    upper = content.upper()
+    if "SECTION" in upper or "REQUIRED ACTIONS" in upper:
+        return False
+    if "```" in content:
+        return False
+    return True
+
+
+def extract_objective(request_text: str) -> str:
+    lines = request_text.splitlines()
+    objective_idx = None
+    for i, line in enumerate(lines):
+        token = line.strip()
+        if token == "OBJECTIVE" or token == "OBJECTIVE:":
+            objective_idx = i
+            break
+    if objective_idx is None:
+        raise ValueError("OBJECTIVE section missing — REQ entry not recorded.")
+
+    captured: List[str] = []
+    for line in lines[objective_idx + 1 :]:
+        if _is_objective_stop_line(line):
+            break
+        captured.append(line.strip())
+    objective = " ".join(part for part in captured if part).strip()
+    if not validate_objective(objective):
+        raise ValueError("OBJECTIVE field invalid — contains non-objective content.")
+    return objective
+
+
+def _sanitize_objective_fallback(text: str) -> str:
+    cleaned: List[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            break
+        if _is_all_caps_header(line) or re.match(r"^[A-Z _-]+:$", line) or line.startswith("#"):
+            continue
+        cleaned.append(line)
+    candidate = " ".join(cleaned).strip()
+    sentences = re.split(r"(?<=[.!?])\s+", candidate)
+    candidate = " ".join(sentences[:3]).strip()
+    return candidate[:500].strip()
+
+
+def _normalize_objectives(state: Dict, report_path: Path) -> int:
+    fixed = 0
+    examples: List[Tuple[str, str, str]] = []
+    for req in state.get("requests", []):
+        before = (req.get("objective") or "").strip()
+        if validate_objective(before):
+            continue
+
+        source = (req.get("request_text") or "").strip()
+        after = ""
+        if source:
+            try:
+                after = extract_objective(source)
+            except ValueError:
+                after = _sanitize_objective_fallback(before or source)
+        else:
+            after = _sanitize_objective_fallback(before)
+        if not validate_objective(after):
+            continue
+
+        req["objective"] = after
+        fixed += 1
+        examples.append((req.get("request_id", "UNKNOWN"), before, after))
+
+    lines = [
+        "# REQ_LOG_NORMALIZATION_REPORT",
+        "",
+        f"- Generated at: {_now_iso()}",
+        f"- Malformed entries fixed: {fixed}",
+        "",
+    ]
+    if examples:
+        lines.append("## Example Before/After")
+        for rid, before, after in examples[:5]:
+            lines.append(f"- {rid}")
+            lines.append(f"  - before: {(before or '(empty)')[:180]}")
+            lines.append(f"  - after: {after[:180]}")
+    else:
+        lines.append("No malformed entries required normalization.")
+    atomic_write_text(report_path, "\n".join(lines) + "\n")
+    return fixed
+
+
 def _render_request_index(requests: List[Dict[str, str]]) -> str:
     lines = ["<!-- Auto-generated by scripts/communicate_scan.py -->"]
     for req in _render_ordered_requests(requests):
-        summary = _first_request_line(req.get("request_text", ""))
+        summary = (req.get("objective") or "").strip() or _first_request_line(req.get("request_text", ""))
         if len(summary) > 120:
             summary = summary[:117].rstrip() + "..."
         lines.append(f"- [{req['request_id']}](#{req['request_id']}) — {req['status']} — {summary}")
@@ -254,9 +532,13 @@ def _load_state(json_path: Path, md_path: Path) -> Dict:
                 "Repair: fix JSON syntax before rerun."
             ) from exc
         _validate_state(state)
+        fixed = _normalize_objectives(state, OBJECTIVE_REPORT_PATH)
+        if fixed:
+            atomic_write_json(json_path, state)
         return state
 
     state = _bootstrap_state_from_markdown(md_path)
+    _normalize_objectives(state, OBJECTIVE_REPORT_PATH)
     atomic_write_json(json_path, state)
     return state
 
@@ -455,122 +737,252 @@ def _sync_markdown(md_path: Path, requests: List[Dict[str, str]], input_pad_cont
     atomic_write_text(md_path, text)
 
 
-def consume(md_path: Path, json_path: Path, lock_timeout: int) -> int:
+def consume(md_path: Path, json_path: Path, db_path: Path, schema_path: Path, lock_timeout: int) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
-        md_text = _load_text(md_path)
-        # Preflight canonical integrity even for empty INPUT PAD so blocked/system failures
-        # are always surfaced and never masked by a no-op return.
-        state = _load_state(json_path, md_path)
-        input_text = _section(md_text, INPUT_START, INPUT_END).strip()
+        _init_db(db_path, schema_path)
+        input_text = _db_get_input_text(db_path)
         if not input_text or input_text == PLACEHOLDER:
             print("No new INPUT PAD content. Nothing to do.")
             return 0
-
-        req_id = _next_id(state["requests"])
+        objective = extract_objective(input_text)
+        req_id = _next_id_from_db(db_path)
         created = _now_iso()
-        state["requests"].append(
-            {
-                "request_id": req_id,
-                "status": "NEW",
-                "author": "USER",
-                "created_at": created,
-                "last_updated_at": created,
-                "request_text": input_text,
-                "codex_ack_plan": "",
-                "execution_log": "",
-                "outputs": "",
-                "evidence": "",
-                "next_steps_if_blocked": "",
-            }
-        )
-        _validate_state(state)
-        atomic_write_json(json_path, state)
-        _sync_markdown(md_path, state["requests"], input_pad_content=PLACEHOLDER)
+        title = _extract_title(input_text)
+        with _db_connect(db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                """
+                INSERT INTO requests(id, title, objective, status, created_at, updated_at, archived_flag)
+                VALUES(?, ?, ?, ?, ?, ?, 0)
+                """,
+                (req_id, title, objective, "NEW", created, created),
+            )
+            conn.execute(
+                "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                (req_id, f"REQUEST_TEXT::{input_text}", created),
+            )
+            _db_upsert_communicate_req(
+                conn,
+                req_id=req_id,
+                title=title,
+                status="NEW",
+                created_at=created,
+                updated_at=created,
+                source="communicate>",
+                structured_payload=input_text,
+            )
+            conn.commit()
+        _db_set_input_text(db_path, PLACEHOLDER)
         print(req_id)
         return 0
 
 
-def ack(md_path: Path, json_path: Path, request_id: str, plan: str, lock_timeout: int) -> int:
+def ack(md_path: Path, json_path: Path, db_path: Path, schema_path: Path, request_id: str, plan: str, lock_timeout: int) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
-        state = _load_state(json_path, md_path)
-        req = _find_request(state, request_id)
-        _transition(req, "ACKED")
-        req["codex_ack_plan"] = (req["codex_ack_plan"] + "\n" + plan).strip()
-        _validate_state(state)
-        atomic_write_json(json_path, state)
-        _sync_markdown(md_path, state["requests"])
+        _init_db(db_path, schema_path)
+        _ensure_request_in_db_from_json(db_path, schema_path, request_id, json_path)
+        row = _db_get_request(db_path, request_id)
+        if row is None:
+            raise ValueError(f"Unknown request id: {request_id}")
+        next_status = _transition_status_value(str(row["status"]), "ACKED")
+        ts = _monotonic_iso(str(row["updated_at"]))
+        with _db_connect(db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("UPDATE requests SET status = ?, updated_at = ? WHERE id = ?", (next_status, ts, request_id))
+            conn.execute(
+                "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                (request_id, f"ACK_PLAN::{plan}", ts),
+            )
+            title = str(row["title"])
+            payload_row = conn.execute(
+                "SELECT structured_payload, created_at FROM communicate_reqs WHERE req_id = ?",
+                (request_id,),
+            ).fetchone()
+            structured_payload = str(payload_row["structured_payload"]) if payload_row else ""
+            created_at = str(payload_row["created_at"]) if payload_row else str(row["created_at"])
+            _db_upsert_communicate_req(
+                conn,
+                req_id=request_id,
+                title=title,
+                status=next_status,
+                created_at=created_at,
+                updated_at=ts,
+                source="communicate>",
+                structured_payload=structured_payload,
+            )
+            conn.commit()
         return 0
 
 
-def log(md_path: Path, json_path: Path, request_id: str, message: str, lock_timeout: int) -> int:
+def log(md_path: Path, json_path: Path, db_path: Path, schema_path: Path, request_id: str, message: str, lock_timeout: int) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
-        state = _load_state(json_path, md_path)
-        req = _find_request(state, request_id)
-        if req["status"] == "ACKED":
-            _transition(req, "IN_PROGRESS")
-        elif req["status"] == "IN_PROGRESS":
-            req["last_updated_at"] = _monotonic_iso(req.get("last_updated_at"))
+        _init_db(db_path, schema_path)
+        _ensure_request_in_db_from_json(db_path, schema_path, request_id, json_path)
+        row = _db_get_request(db_path, request_id)
+        if row is None:
+            raise ValueError(f"Unknown request id: {request_id}")
+        current = str(row["status"])
+        if current == "ACKED":
+            next_status = "IN_PROGRESS"
+        elif current == "IN_PROGRESS":
+            next_status = "IN_PROGRESS"
         else:
-            raise ValueError(f"Cannot append log while status is {req['status']}")
-        entry = f"- {_now_iso()} {message}"
-        req["execution_log"] = (req["execution_log"] + "\n" + entry).strip()
-        _validate_state(state)
-        atomic_write_json(json_path, state)
-        _sync_markdown(md_path, state["requests"])
+            raise ValueError(f"Cannot append log while status is {current}")
+        ts = _monotonic_iso(str(row["updated_at"]))
+        with _db_connect(db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("UPDATE requests SET status = ?, updated_at = ? WHERE id = ?", (next_status, ts, request_id))
+            conn.execute(
+                "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                (request_id, message, ts),
+            )
+            payload_row = conn.execute(
+                "SELECT structured_payload, created_at FROM communicate_reqs WHERE req_id = ?",
+                (request_id,),
+            ).fetchone()
+            structured_payload = str(payload_row["structured_payload"]) if payload_row else ""
+            created_at = str(payload_row["created_at"]) if payload_row else str(row["created_at"])
+            _db_upsert_communicate_req(
+                conn,
+                req_id=request_id,
+                title=str(row["title"]),
+                status=next_status,
+                created_at=created_at,
+                updated_at=ts,
+                source="communicate>",
+                structured_payload=structured_payload,
+            )
+            conn.commit()
         return 0
 
 
 def complete(
     md_path: Path,
     json_path: Path,
+    db_path: Path,
+    schema_path: Path,
     request_id: str,
     result: str,
     evidence: str,
     lock_timeout: int,
 ) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
-        state = _load_state(json_path, md_path)
-        req = _find_request(state, request_id)
-        if req["status"] in {"ACKED", "IN_PROGRESS"}:
-            _transition(req, "DONE")
-        else:
-            raise ValueError(f"Cannot complete while status is {req['status']}")
-        req["outputs"] = (req["outputs"] + "\n" + result).strip()
-        req["evidence"] = (req["evidence"] + "\n" + evidence).strip()
-        _validate_state(state)
-        atomic_write_json(json_path, state)
-        _sync_markdown(md_path, state["requests"])
+        _init_db(db_path, schema_path)
+        _ensure_request_in_db_from_json(db_path, schema_path, request_id, json_path)
+        row = _db_get_request(db_path, request_id)
+        if row is None:
+            raise ValueError(f"Unknown request id: {request_id}")
+        current = str(row["status"])
+        if current not in {"ACKED", "IN_PROGRESS"}:
+            raise ValueError(f"Cannot complete while status is {current}")
+        ts = _monotonic_iso(str(row["updated_at"]))
+        with _db_connect(db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                """
+                INSERT INTO verification_blocks(request_id, objectives_addressed, quality_checks, risks, final_status)
+                VALUES(?, ?, ?, ?, ?)
+                ON CONFLICT(request_id) DO UPDATE SET
+                  objectives_addressed=excluded.objectives_addressed,
+                  quality_checks=excluded.quality_checks,
+                  risks=excluded.risks,
+                  final_status=excluded.final_status
+                """,
+                (request_id, result.strip(), evidence.strip(), "N/A", "DONE"),
+            )
+            conn.execute("UPDATE requests SET status = ?, updated_at = ? WHERE id = ?", ("DONE", ts, request_id))
+            conn.execute(
+                "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                (request_id, f"RESULT::{result}", ts),
+            )
+            conn.execute(
+                "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                (request_id, f"EVIDENCE::{evidence}", ts),
+            )
+            payload_row = conn.execute(
+                "SELECT structured_payload, created_at FROM communicate_reqs WHERE req_id = ?",
+                (request_id,),
+            ).fetchone()
+            structured_payload = str(payload_row["structured_payload"]) if payload_row else ""
+            created_at = str(payload_row["created_at"]) if payload_row else str(row["created_at"])
+            _db_upsert_communicate_req(
+                conn,
+                req_id=request_id,
+                title=str(row["title"]),
+                status="DONE",
+                created_at=created_at,
+                updated_at=ts,
+                source="communicate>",
+                structured_payload=structured_payload,
+            )
+            conn.commit()
         return 0
 
 
 def block(
     md_path: Path,
     json_path: Path,
+    db_path: Path,
+    schema_path: Path,
     request_id: str,
     reason: str,
     next_steps: str,
     lock_timeout: int,
 ) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
-        state = _load_state(json_path, md_path)
-        req = _find_request(state, request_id)
-        if req["status"] in TERMINAL_STATUS:
-            raise ValueError(f"Terminal state is immutable: {req['status']}")
-        _transition(req, "BLOCKED")
-        req["outputs"] = (req["outputs"] + "\nBLOCKED: " + reason).strip()
-        req["next_steps_if_blocked"] = (req["next_steps_if_blocked"] + "\n" + next_steps).strip()
-        _validate_state(state)
-        atomic_write_json(json_path, state)
-        _sync_markdown(md_path, state["requests"])
+        _init_db(db_path, schema_path)
+        _ensure_request_in_db_from_json(db_path, schema_path, request_id, json_path)
+        row = _db_get_request(db_path, request_id)
+        if row is None:
+            raise ValueError(f"Unknown request id: {request_id}")
+        current = str(row["status"])
+        if current in TERMINAL_STATUS:
+            raise ValueError(f"Terminal state is immutable: {current}")
+        next_status = _transition_status_value(current, "BLOCKED")
+        ts = _monotonic_iso(str(row["updated_at"]))
+        with _db_connect(db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("UPDATE requests SET status = ?, updated_at = ? WHERE id = ?", (next_status, ts, request_id))
+            conn.execute(
+                "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                (request_id, f"BLOCKED::{reason}", ts),
+            )
+            conn.execute(
+                "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                (request_id, f"NEXT_STEPS::{next_steps}", ts),
+            )
+            payload_row = conn.execute(
+                "SELECT structured_payload, created_at FROM communicate_reqs WHERE req_id = ?",
+                (request_id,),
+            ).fetchone()
+            structured_payload = str(payload_row["structured_payload"]) if payload_row else ""
+            created_at = str(payload_row["created_at"]) if payload_row else str(row["created_at"])
+            _db_upsert_communicate_req(
+                conn,
+                req_id=request_id,
+                title=str(row["title"]),
+                status=next_status,
+                created_at=created_at,
+                updated_at=ts,
+                source="communicate>",
+                structured_payload=structured_payload,
+            )
+            conn.commit()
         return 0
 
 
-def set_input(md_path: Path, json_path: Path, text: str, lock_timeout: int) -> int:
+def set_input(
+    md_path: Path,
+    json_path: Path,
+    db_path: Path,
+    schema_path: Path,
+    text: str,
+    lock_timeout: int,
+) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
-        full = _load_text(md_path)
-        _section(full, INPUT_START, INPUT_END)
-        full = _replace_section(full, INPUT_START, INPUT_END, text.strip())
-        atomic_write_text(md_path, full)
+        del md_path
+        _init_db(db_path, schema_path)
+        _db_set_input_text(db_path, text.strip())
         return 0
 
 
@@ -578,6 +990,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--file", default="commscribe/communicate.md", help="Path to communicate.md")
     parser.add_argument("--json", default=None, help="Path to canonical communicate.json")
+    parser.add_argument("--db", default="commscribe/db/communicate.db", help="Path to SQLite communicate.db")
+    parser.add_argument("--schema", default="commscribe/db/schema.sql", help="Path to SQLite schema.sql")
     parser.add_argument("--failure-log", default=None, help="Path to append-only failure_log.json")
     parser.add_argument("--lock-timeout", type=int, default=5, help="Lock acquisition timeout in seconds")
 
@@ -605,6 +1019,25 @@ def parse_args() -> argparse.Namespace:
 
     p_set_input = sub.add_parser("set-input")
     p_set_input.add_argument("--text", required=True)
+
+    p_sql_init = sub.add_parser("sqlite-init")
+    p_sql_init.add_argument("--db", default=None)
+    p_sql_init.add_argument("--schema", default=None)
+
+    p_sql_status = sub.add_parser("sqlite-status")
+    p_sql_status.add_argument("--id")
+    p_sql_status.add_argument("--db", default=None)
+    p_sql_status.add_argument("--schema", default=None)
+
+    p_sql_export = sub.add_parser("sqlite-export-md")
+    p_sql_export.add_argument("--output", required=True)
+    p_sql_export.add_argument("--db", default=None)
+    p_sql_export.add_argument("--schema", default=None)
+
+    p_sql_migrate = sub.add_parser("sqlite-migrate-from-md")
+    p_sql_migrate.add_argument("--db", default=None)
+    p_sql_migrate.add_argument("--schema", default=None)
+    p_sql_migrate.add_argument("--report", default="commscribe/docs/SQLITE_ENGINE_MIGRATION_REPORT.md")
     return parser.parse_args()
 
 
@@ -612,25 +1045,77 @@ def main() -> int:
     args = parse_args()
     md_path = Path(args.file)
     json_path = Path(args.json) if args.json else _default_json_path(md_path)
+    db_path = Path(args.db)
+    schema_path = Path(args.schema)
     failure_log_path = Path(args.failure_log) if args.failure_log else _default_failure_log_path(json_path)
     cmd = args.cmd or "consume"
 
     try:
+        if cmd in {"sqlite-init", "sqlite-status", "sqlite-export-md", "sqlite-migrate-from-md"}:
+            root = Path(__file__).resolve().parents[1]
+            cli_script = root / "cli" / "communicate.py"
+            mig_script = root / "db" / "migrate_from_md.py"
+            db_path = getattr(args, "db", None) or "commscribe/db/communicate.db"
+            schema_path = getattr(args, "schema", None) or "commscribe/db/schema.sql"
+            base = [sys.executable, str(cli_script), "--db", str(db_path), "--schema", str(schema_path)]
+            if cmd == "sqlite-init":
+                subprocess.run(base + ["status"], check=False, capture_output=True, text=True)
+                print(str(db_path))
+                return 0
+            if cmd == "sqlite-status":
+                c = base + ["status"]
+                if args.id:
+                    c += ["--id", args.id]
+                out = subprocess.run(c, check=True, capture_output=True, text=True)
+                print(out.stdout.strip())
+                return 0
+            if cmd == "sqlite-export-md":
+                out = subprocess.run(
+                    base + ["export-md", "--output", args.output],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                print(out.stdout.strip())
+                return 0
+            if cmd == "sqlite-migrate-from-md":
+                out = subprocess.run(
+                    [
+                        sys.executable,
+                        str(mig_script),
+                        "--md",
+                        str(md_path),
+                        "--json",
+                        str(json_path),
+                        "--db",
+                        str(db_path),
+                        "--schema",
+                        str(schema_path),
+                        "--report",
+                        str(args.report),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                print(out.stdout.strip())
+                return 0
+
         if cmd == "system-status":
             return system_status(md_path, json_path, failure_log_path)
         _maybe_clear_system_block(failure_log_path, json_path, md_path)
         if cmd == "consume":
-            return consume(md_path, json_path, args.lock_timeout)
+            return consume(md_path, json_path, db_path, schema_path, args.lock_timeout)
         if cmd == "ack":
-            return ack(md_path, json_path, args.id, args.plan, args.lock_timeout)
+            return ack(md_path, json_path, db_path, schema_path, args.id, args.plan, args.lock_timeout)
         if cmd == "log":
-            return log(md_path, json_path, args.id, args.message, args.lock_timeout)
+            return log(md_path, json_path, db_path, schema_path, args.id, args.message, args.lock_timeout)
         if cmd == "complete":
-            return complete(md_path, json_path, args.id, args.result, args.evidence, args.lock_timeout)
+            return complete(md_path, json_path, db_path, schema_path, args.id, args.result, args.evidence, args.lock_timeout)
         if cmd == "block":
-            return block(md_path, json_path, args.id, args.reason, args.next_steps, args.lock_timeout)
+            return block(md_path, json_path, db_path, schema_path, args.id, args.reason, args.next_steps, args.lock_timeout)
         if cmd == "set-input":
-            return set_input(md_path, json_path, args.text, args.lock_timeout)
+            return set_input(md_path, json_path, db_path, schema_path, args.text, args.lock_timeout)
     except Exception as exc:
         if _is_structural_error(exc):
             failure_scope, source_path = _classify_structural_failure(exc, json_path, md_path)

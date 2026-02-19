@@ -11,6 +11,16 @@ Allowed session control commands:
 - `governance_check`
 - `startup_check`
 
+## Command-Word Format (Required)
+- In terminal LLM conversations, command words must be written with a leading `>` to avoid ambiguity with plain language.
+- Required format examples:
+  - `communicate>`
+  - `communicate>_scan`
+  - `> governance_check`
+  - `> startup_check`
+- `communicate>` is a workflow trigger command word. It may map to `python3 commscribe/scripts/communicate_scan.py` lifecycle commands rather than a shell binary named `communicate`.
+- Authoritative behavior for `communicate>` is defined in `commscribe/CODEX_COMMUNICATE_INSTRUCTIONS.md`.
+
 ## Startup Handshake Requirements
 Before any code, docs, or command work:
 1. Read `ai_runtime/STARTUP_PROTOCOL.md`.

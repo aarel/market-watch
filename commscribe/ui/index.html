@@ -18,6 +18,10 @@
         <p class="small">Deep link format: <code>?req=REQ-YYYYMMDD-HHMMSS</code> or <code>#/REQ-...</code></p>
       </div>
       <h2 class="section-title">Requests</h2>
+      <div class="filter-row">
+        <label for="req-date" class="small">Date</label>
+        <input id="req-date" type="date" />
+      </div>
       <button id="toggle-sort" class="secondary">Sort: Newest</button>
       <ul id="request-list" class="request-list">
         <li class="request-link muted">Loading requests...</li>
@@ -50,6 +54,7 @@
     let lastInputPadValue = '';
     let lastRequestListSig = '';
     let lastDetailSigByReq = {};
+    let selectedDate = '';
 
     function escapeRegExp(value) {
       return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -192,7 +197,7 @@
       const constraints = extractBlock(req.request_text, 'constraints');
       document.getElementById('detail-meta').innerHTML = `<strong>${escapeHtml(req.request_id)}</strong> <span class="status-chip status-${escapeHtml(String(req.status || '').toLowerCase())}">${escapeHtml(req.status || '')}</span> <span class="muted">updated ${escapeHtml(formatUpdatedCst(req.last_updated_at || ''))}</span>`;
       document.getElementById('detail').innerHTML = `
-        <div class="detail-block"><h3>Objective</h3><pre>${linkifyReqIds(objective)}</pre></div>
+        <div class="detail-block"><h3>Objective</h3><pre>${linkifyReqIds(objective || '(none)')}</pre></div>
         <div class="detail-block"><h3>Assumptions / Constraints</h3><pre>${linkifyReqIds(constraints || '(none)')}</pre></div>
         <div class="detail-block"><h3>Plan / Ack</h3><pre>${linkifyReqIds(req.codex_ack_plan || '(none)')}</pre></div>
         <div class="detail-block"><h3>Execution Log</h3><pre>${linkifyReqIds(req.execution_log || '(none)')}</pre></div>
@@ -242,7 +247,9 @@
     }
 
     async function loadRequests(force = false) {
-      const res = await fetch('/api/requests');
+      const source = encodeURIComponent('communicate>');
+      const dateParam = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : '';
+      const res = await fetch(`/api/requests?source=${source}${dateParam}`);
       if (!res.ok) return false;
       const data = await res.json();
       const sorted = sortRequestList(data.requests || []);
@@ -338,6 +345,11 @@
       const uiState = captureUiState();
       try {
         selectedReq = parseSelectedReqFromLocation();
+        if (!selectedDate) {
+          const d = new Date();
+          selectedDate = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+          document.getElementById('req-date').value = selectedDate;
+        }
         const inputChanged = await loadInputPad();
         const requestsChanged = await loadRequests(force);
         if (force || inputChanged || requestsChanged) {
@@ -363,6 +375,8 @@
     document.getElementById('submit').addEventListener('click', async () => {
       const text = document.getElementById('input').value.trim();
       if (!text) return;
+      const btn = document.getElementById('submit');
+      const prior = btn.textContent;
       const res = await fetch('/api/input', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -372,7 +386,12 @@
         alert('Failed to write INPUT PAD');
         return;
       }
-      await refresh();
+      document.getElementById('input').value = '';
+      btn.textContent = 'Saved To INPUT PAD';
+      setTimeout(() => {
+        btn.textContent = prior;
+      }, 1400);
+      await refresh(true);
     });
 
     document.getElementById('copy-link').addEventListener('click', async () => {
@@ -410,6 +429,12 @@
       history.pushState({}, '', window.location.pathname);
       selectedReq = '';
       refresh();
+    });
+
+    document.getElementById('req-date').addEventListener('change', (event) => {
+      selectedDate = String(event.target.value || '').trim();
+      selectedReq = '';
+      refresh(true);
     });
 
     document.getElementById('toggle-theme').addEventListener('click', () => {
