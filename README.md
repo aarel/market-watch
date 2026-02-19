@@ -218,3 +218,8 @@ ai_runtime/STARTUP_PROTOCOL.md
 ```
 
 No development work should begin until startup protocol completes successfully.
+
+Fresh-session command-word direction:
+- Use `communicate>` to trigger the commscribe lifecycle workflow.
+- Command-word behavior is defined in `commscribe/CODEX_COMMUNICATE_INSTRUCTIONS.md`.
+- `communicate>` is a protocol trigger and may map to `communicate_scan` commands rather than a shell command named `communicate`.

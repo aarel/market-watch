@@ -1,0 +1,129 @@
+SECTION 1 — Phase R2 Task Breakdown
+1. Define runtime authority boundary for realism pipeline.
+- Output: explicit gate-on authoritative source definition for gross/net/after-tax/settlement fields.
+
+2. Wire executed-trade processing to unified realism path under gate.
+- Output: one canonical transformation path for executed trades with legacy fallback retained.
+
+3. Add replay ingestion seam for fill/fee payload normalization.
+- Output: adapter contract mapping replay payloads to realism pipeline input shape.
+
+4. Standardize persisted analytics output fields for parity reporting.
+- Output: deterministic field set (gross_pnl, net_pnl, after_tax_pnl, fee_breakdown, settlement_date, realism_pipeline_enabled).
+
+5. Implement gate-on/gate-off parity comparator utility for test assertions.
+- Output: deterministic diff report for output deltas and field presence.
+
+6. Add regression guards for legacy path invariants.
+- Output: tests proving legacy behavior unchanged when gate is off.
+
+7. Add roadmap normalization artifact update for R2 lifecycle state.
+- Output: Phase R2 status entry + H-vs-R2 boundary rule text.
+
+SECTION 2 — Dependency-Ordered Execution Plan
+1. Task 1 (authority boundary)
+- Justification: prevents ambiguous dual-source outputs before integration work.
+
+2. Task 4 (target field contract)
+- Justification: establishes stable output schema before wiring and tests.
+
+3. Task 2 (runtime wiring under gate)
+- Justification: core integration step; depends on authority and field contract.
+
+4. Task 3 (replay ingestion seam)
+- Justification: uses same canonical input/output contract as runtime wiring.
+
+5. Task 5 (parity comparator)
+- Justification: requires gate and output contracts in place.
+
+6. Task 6 (regression guards)
+- Justification: validates no fallback regression after integration changes.
+
+7. Task 7 (roadmap normalization update)
+- Justification: finalize classification and reporting after execution semantics are fixed.
+
+SECTION 3 — Integration Touchpoints
+- Runtime execution/events:
+  - `agents/execution_agent.py`
+  - `agents/analytics_agent.py`
+  - `agents/events.py`
+- Realism pipeline domain:
+  - `server/domain/performance.py`
+  - `server/domain/cost_model.py`
+  - `server/domain/tax.py`
+  - `server/domain/settlement.py`
+  - `server/domain/cost_basis.py`
+- Persistence/reporting:
+  - `analytics/store.py`
+- Replay seam:
+  - `scripts/replay_recorder.py` and/or replay ingestion adapter module boundary
+- Config/gates:
+  - `config.py`
+- Roadmap normalization:
+  - canonical roadmap artifact (root entrypoint + canonical dated snapshot)
+
+SECTION 4 — Test Specification
+1. Runtime gate parity test (on/off)
+- Case: identical executed trade sequence under gate=false then gate=true.
+- Expected outputs:
+  - gate=false preserves legacy fields/values.
+  - gate=true includes realism fields and deterministic computed values.
+
+2. Runtime buy/split/sell realism chain test
+- Case: buy -> corporate action split -> sell.
+- Expected outputs:
+  - realized gain from lot accounting,
+  - non-zero fee component aggregation,
+  - tax estimate present,
+  - settlement date populated.
+
+3. Replay ingestion normalization test
+- Case: replay payload with fill + fee attributes.
+- Expected outputs:
+  - normalized payload accepted by realism path,
+  - parity fields persisted,
+  - no schema-breaking output.
+
+4. Legacy regression test (gate off)
+- Case: existing analytics trade capture scenario set.
+- Expected outputs:
+  - unchanged pass behavior for legacy path,
+  - no mandatory new-field failures.
+
+5. Determinism test
+- Case: same input trade stream run twice.
+- Expected outputs:
+  - identical computed fee/tax/settlement outputs,
+  - no stochastic variance.
+
+SECTION 5 — Verification Requirements
+Required Commands
+1. `python3 -m pytest -q tests/domain tests/test_analytics_agent_trade_capture.py`
+2. Targeted replay seam tests (new test module command)
+3. Optional focused regression suite for existing analytics/trade flow tests
+
+Required Observable Outputs
+- All required tests pass.
+- Gate on/off parity report artifact generated (text/JSON diff summary).
+- Evidence of persisted fields in trade records:
+  - `gross_pnl`, `net_pnl`, `after_tax_pnl`, `fee_breakdown`, `settlement_date`, `realism_pipeline_enabled`.
+
+Required Artifacts
+- Test report lines with pass counts.
+- Parity diff artifact path.
+- Updated roadmap normalization entry with explicit R2 status and H boundary.
+
+SECTION 6 — Roadmap Normalization Entry
+Phase R2 — Runtime Integration Closure and Replay-Parity Hardening
+- Status: IN_PROGRESS (until gate-on authoritative path + replay seam + regression tests pass)
+- Scope Boundaries:
+  - Includes runtime executed-trade realism authority, replay parity seam, gate parity verification, legacy fallback regression protection.
+  - Excludes UI redesign, ML phases, full international execution semantics.
+- Phase H Boundary Rule:
+  - Phase H remains backtesting-focused (simulation/backtest UX/optimization).
+  - Phase R2 owns operational realism runtime authority and replay parity for live/paper execution outputs.
+- Completion Criteria:
+  1. Authoritative runtime realism path active under gate.
+  2. Replay normalization seam validated.
+  3. Gate on/off deterministic parity evidence produced.
+  4. Legacy fallback regression suite passes.

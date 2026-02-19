@@ -1,0 +1,94 @@
+Roadmap Phase Snapshot
+- Phase E (Market Awareness): Not started, 0/5 done.
+- Phase F (Testing & CI): In progress, 2/4 done; blockers include coverage gate and missing broker-failure/backtest-regression tests.
+- Phase H (Backtesting Enhancement): 40% complete (foundation complete; UI/optimizer/validation work pending).
+- Phase L (Production Readiness): Not started, 0/6 done.
+- Phase M (Compliance & Auditability): Not started, 0/5 done.
+- Phase R (Multi-Market Realism Track):
+  - R1: ~90% module-level complete.
+  - R2: NOT COMPLETE.
+  - R3: PARTIAL.
+  - R4: NOT STARTED.
+  - R5: NOT STARTED.
+
+Realism Phase Snapshot
+- Phase 1 (Structural Accuracy Layer):
+  - Scope: CorporateActionModel, CostBasisEngine, SettlementEngine.
+  - Repository state: Implemented in `server/domain/*`; integration test exists (`tests/domain/test_phase1_integration.py`).
+  - Runtime integration status: Partial (wired through analytics path; not yet authoritative execution-path integration).
+- Phase 2 (Enhanced Financial Realism):
+  - Scope: Enhanced MarginModel, FX timing refinement.
+  - Repository state: Models/toggles exist (`server/domain/performance.py`, `server/domain/fx_timing.py`, `server/domain/margin.py`, Tier-B skeleton tests).
+  - Runtime integration status: Partial-to-limited (available in performance path, but invocation surface is still constrained).
+- Phase 3 (Advanced Tax Extensions):
+  - Scope: Wash-sale modeling, dividend qualification, foreign tax credit placeholder.
+  - Repository state: Basic tax profile + foreign credit fields present; wash-sale/dividend-qualification logic not present.
+  - Runtime integration status: Partial (tax estimate present, advanced extensions incomplete).
+- Phase 4 (Broker-Grade Replay Hardening):
+  - Scope: Broker fill ingestion hardening, broker fee ingestion hardening, reconciliation-only realism mode.
+  - Repository state: Not evidenced as implemented.
+  - Runtime integration status: Not started.
+- Acceptance criteria status:
+  - Structural modules + core dependencies: substantially present.
+  - "Phased roadmap updated" criterion: present via Roadmap Phase R.
+  - Full operational integration criterion: not complete (R2 still open).
+
+Alignment Matrix
+| Realism Phase | Roadmap Phase Candidate | Implementation Status | Integration Status | Gap Type |
+|---|---|---|---|---|
+| Phase 1 (Structural Accuracy) | R1 primary, R2 for authoritative wiring | Mostly implemented (domain modules + tests) | Partial (analytics-driven wiring, not full authoritative execution-plane wiring) | Runtime integration missing |
+| Phase 2 (Margin/FX) | R4 primary | Partial (engines/toggles exist) | Limited/partial invocation | Documentation drift |
+| Phase 3 (Advanced Tax Extensions) | R3 primary, M secondary for audit-facing compliance outputs | Partial (basic tax + placeholder fields; major extensions absent) | Partial | Feature not started |
+| Phase 4 (Broker-Grade Replay Hardening) | R2 + H intersection; M adjacency for reconciliation evidence | Not evidenced | Not started | Phase misclassified |
+
+Drift Summary
+- Structural drift 1: Roadmap marks R4 "NOT STARTED" while repository contains Tier-B code surfaces (margin/fx models and toggles) -> implementation/docs mismatch.
+- Structural drift 2: Realism pipeline invocation is concentrated in analytics/post-execution handling (`agents/analytics_agent.py`), while authoritative execution-path integration remains incomplete -> confirms R2 status gap.
+- Structural drift 3: Spec Phase 4 (broker-grade replay hardening) has no clear executed mapping in current runtime; roadmap alignment exists conceptually in R2 but operational artifacts are not evidenced.
+- Structural drift 4: Phase H contains backtest realism subitems (transaction cost modeling, realistic execution), creating overlap with Realism R-track unless explicitly split by ownership boundary.
+
+Deterministic Next Phase
+- Authoritative next milestone: Phase R2 — Authoritative runtime integration of realism pipeline in execution-critical flow.
+- Placement decision: New Phase R (existing realism track), not Phase H/F/M.
+- Deterministic rationale:
+  - Dependency order: R2 unblocks trustworthy use of Phase 1 assets and makes R3/R4 outcomes operationally meaningful.
+  - Architectural leverage: Converts module-level realism into runtime truth path.
+  - Risk: Current partial wiring can produce analytics enrichment without full execution-governed realism guarantees.
+  - Acceptance alignment: Directly addresses spec/roadmap requirement that module completion is insufficient without runtime wiring.
+
+Execution Contract
+- Title: Phase R2 — Authoritative Runtime Realism Integration
+- Problem Type: prescriptive (integration contract)
+- Objective: Route executed trades through a single authoritative realism pipeline path before persistence/reporting so cost/tax/settlement outputs are deterministically produced and auditable.
+- Scope:
+  - Included:
+    - Define and enforce one runtime invocation boundary for `PerformanceEngine.process_trade` on executed trades.
+    - Ensure persistence includes realism provenance flag and computed realism outputs when enabled.
+    - Preserve gate-off behavior with deterministic fallback fields.
+    - Align analytics outputs to same authoritative trade record.
+  - Excluded:
+    - New Tier-B/Tier-C feature expansion.
+    - Roadmap document edits.
+    - UI redesign.
+- Constraints:
+  - No backend architecture redesign.
+  - No REQ ID / logging backend changes.
+  - Maintain backward compatibility for non-realism trade flow.
+- Required integration points:
+  - Execution event emission path (`agents/execution_agent.py` -> `OrderExecuted`).
+  - Realism processing boundary (`server/domain/performance.py`).
+  - Persistence sink (`analytics/store.py`) and trade schema continuity.
+  - Config gates (`ENABLE_REALISM_PIPELINE`, settlement/cost/tax toggles).
+- Tests required:
+  - Integration: executed buy/sell lifecycle with realism ON/OFF across event->processing->persistence.
+  - Regression: no mutation of legacy required fields when realism metadata added.
+  - Determinism: same input event stream yields identical realism outputs under fixed config.
+  - Negative path: processing failure sets explicit provenance/error flags without breaking trade recording.
+- Verification requirements:
+  - Targeted pytest suite for domain + analytics capture + persistence assertions.
+  - Evidence artifact: persisted trade examples for gate OFF/ON with required legacy fields intact.
+  - Explicit pass/fail matrix for R2 acceptance checks.
+- Deliverables:
+  - R2 implementation diff (scoped integration only).
+  - Test additions and passing summaries.
+  - Runtime evidence samples proving authoritative wiring and fallback behavior.
