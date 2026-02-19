@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Market Watch Trading Bot</title>
-    <link rel="icon" type="image/png" href="/img/favicon.png?v=1.0.0">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="alternate icon" href="/favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Cache-busting token for static assets
@@ -904,6 +905,37 @@
             overflow-y: auto;
             overflow-x: visible;
         }
+        .chart-frame {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        .chart-frame canvas {
+            display: block;
+            width: 100% !important;
+            max-width: 100%;
+            height: auto !important;
+        }
+        .collapsible-card .card-header {
+            justify-content: space-between;
+        }
+        .collapse-toggle {
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-dim);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .collapse-toggle:hover {
+            border-color: var(--blue);
+            color: var(--text);
+        }
+        .collapsible-card.collapsed .collapse-content {
+            display: none;
+        }
 
         @keyframes ticker-scroll {
             from { transform: translateX(0); }
@@ -938,9 +970,29 @@
             .tooltip .tooltip-text { width: 220px; }
             .modal { min-width: 90vw; }
         }
+        @media (orientation: landscape) and (max-width: 980px) {
+            body { padding: 10px; }
+            .grid {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+            .grid .card {
+                min-width: 0;
+            }
+            .analytics-summary {
+                grid-template-columns: repeat(2, minmax(140px, 1fr)) !important;
+            }
+            .log-container {
+                height: 220px;
+            }
+            .trade-history-scroll {
+                max-height: 320px;
+            }
+        }
     </style>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="alternate icon" href="/favicon.svg">
+    <link rel="alternate icon" href="/favicon.ico">
     </head><body>
     <div class="container">
         <header>
@@ -1051,10 +1103,12 @@
                     <button class="pill-btn" data-period="ytd">YTD</button>
                     <button class="pill-btn" data-period="all">ALL</button>
                 </div>
-            </div>
-            <div class="analytics-grid" style="grid-template-columns: 1fr; row-gap: 16px;">
-                <div>
-                    <canvas id="equity-chart" height="180"></canvas>
+                </div>
+                <div class="analytics-grid" style="grid-template-columns: 1fr; row-gap: 16px;">
+                    <div>
+                    <div class="chart-frame">
+                        <canvas id="equity-chart" height="180"></canvas>
+                    </div>
                 </div>
                 <div class="analytics-summary" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
                     <div class="metric-card">
@@ -1190,7 +1244,7 @@
                     </div>
                     <div class="help-text">Portfolio allocation by position (green = profit, red = loss, blue = flat)</div>
                 </div>
-                <div style="max-width: 700px; margin: 0 auto;">
+                <div class="chart-frame" style="max-width: 700px; margin: 0 auto;">
                     <canvas id="position-pie-chart" height="400"></canvas>
                 </div>
                 <div id="position-pie-empty" class="empty-state" style="display: none;">No positions to display</div>
@@ -1426,58 +1480,77 @@
                 </div>
             </div>
             <!-- Observability Warnings -->
-            <div class="card">
+            <div class="card collapsible-card" id="risk-obs-card" data-collapse-mobile="true">
                 <div class="card-header">
-                    <h2>Risk & Observability Alerts</h2>
-                    <span class="tooltip">
-                        <i class="info-icon">?</i>
-                        <span class="tooltip-text">Today's WARN/FAIL events from agent activity. Shows why trades were blocked or flagged. Also logged daily to logs/risk-and-obs-alerts/.</span>
-                    </span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <h2>Risk & Observability Alerts</h2>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Today's WARN/FAIL events from agent activity. Shows why trades were blocked or flagged. Also logged daily to logs/risk-and-obs-alerts/.</span>
+                        </span>
+                    </div>
+                    <button class="collapse-toggle" data-target="risk-obs-card" aria-expanded="true" onclick="toggleCardCollapse('risk-obs-card', this)">Collapse</button>
                 </div>
-                <div class="log-container obs-log-container" id="obs-log-container">
-                    <div class="empty-state">No warnings yet</div>
+                <div class="collapse-content">
+                    <div class="log-container obs-log-container" id="obs-log-container">
+                        <div class="empty-state">No warnings yet</div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="grid" style="margin-bottom: 20px;">
             <!-- Activity Log -->
-            <div class="card">
+            <div class="card collapsible-card" id="activity-log-card" data-collapse-mobile="true">
                 <div class="card-header">
-                    <h2>Activity Log</h2>
-                    <span class="tooltip">
-                        <i class="info-icon">?</i>
-                        <span class="tooltip-text">Real-time log of bot activity. Shows trades executed, errors, market status, and system events. Newest entries appear at the top.</span>
-                    </span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <h2>Activity Log</h2>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Real-time log of bot activity. Shows trades executed, errors, market status, and system events. Newest entries appear at the top.</span>
+                        </span>
+                    </div>
+                    <button class="collapse-toggle" data-target="activity-log-card" aria-expanded="true" onclick="toggleCardCollapse('activity-log-card', this)">Collapse</button>
                 </div>
-                <div class="log-container" id="log-container">
-                    <div class="empty-state">No activity yet</div>
+                <div class="collapse-content">
+                    <div class="log-container" id="log-container">
+                        <div class="empty-state">No activity yet</div>
+                    </div>
                 </div>
             </div>
 
             <!-- Alert History -->
-            <div class="card">
+            <div class="card collapsible-card" id="alert-history-card" data-collapse-mobile="true">
                 <div class="card-header">
-                    <h2>Alert History</h2>
-                    <span class="tooltip">
-                        <i class="info-icon">?</i>
-                        <span class="tooltip-text">Recent alerts sent via email or webhook. Shows alert type, severity, timestamp, and delivery status.</span>
-                    </span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <h2>Alert History</h2>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Recent alerts sent via email or webhook. Shows alert type, severity, timestamp, and delivery status.</span>
+                        </span>
+                    </div>
+                    <button class="collapse-toggle" data-target="alert-history-card" aria-expanded="true" onclick="toggleCardCollapse('alert-history-card', this)">Collapse</button>
                 </div>
-                <div class="log-container" id="alert-history-container">
-                    <div class="empty-state">No alerts yet</div>
+                <div class="collapse-content">
+                    <div class="log-container" id="alert-history-container">
+                        <div class="empty-state">No alerts yet</div>
+                    </div>
                 </div>
             </div>
 
             <!-- Alert Settings -->
-            <div class="card">
+            <div class="card collapsible-card" id="alert-settings-card" data-collapse-mobile="true">
                 <div class="card-header">
-                    <h2>Alert Settings</h2>
-                    <span class="tooltip">
-                        <i class="info-icon">?</i>
-                        <span class="tooltip-text">Configure alert channels and send test notifications.</span>
-                    </span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <h2>Alert Settings</h2>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Configure alert channels and send test notifications.</span>
+                        </span>
+                    </div>
+                    <button class="collapse-toggle" data-target="alert-settings-card" aria-expanded="true" onclick="toggleCardCollapse('alert-settings-card', this)">Collapse</button>
                 </div>
+                <div class="collapse-content">
                 <div class="config-row">
                     <span class="config-label">
                         Alerts Enabled
@@ -1524,6 +1597,7 @@
                     </div>
                 </div>
                 <div id="alert-test-message" style="margin-top: 10px; padding: 8px; border-radius: 4px; display: none;"></div>
+                </div>
             </div>
         </div>
 
@@ -3505,7 +3579,12 @@
                     return;
                 }
                 const data = await res.json();
-                alert(`Trade executed! Order ID: ${data.order_id}`);
+                if (!data.success) {
+                    alert(`Trade failed: ${data.error || 'Unknown error'}`);
+                    return;
+                }
+                const orderId = data.order_id || data.orderId || data.id || data.client_order_id || '';
+                alert(orderId ? `Trade executed! Order ID: ${orderId}` : 'Trade executed!');
             } catch (err) {
                 alert('Trade failed: ' + err);
             }
@@ -4415,6 +4494,33 @@
             }, 10000);
         }
 
+        function toggleCardCollapse(cardId, trigger) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            const isCollapsed = card.classList.toggle('collapsed');
+            if (trigger) {
+                trigger.textContent = isCollapsed ? 'Expand' : 'Collapse';
+                trigger.setAttribute('aria-expanded', String(!isCollapsed));
+            }
+        }
+
+        function applyMobileCollapseDefaults() {
+            const compactLandscape = window.matchMedia('(orientation: landscape) and (max-width: 980px)').matches;
+            document.querySelectorAll('.collapsible-card[data-collapse-mobile=\"true\"]').forEach((card) => {
+                const btn = card.querySelector('.collapse-toggle');
+                if (!btn) return;
+                if (compactLandscape) {
+                    card.classList.add('collapsed');
+                    btn.textContent = 'Expand';
+                    btn.setAttribute('aria-expanded', 'false');
+                } else {
+                    card.classList.remove('collapsed');
+                    btn.textContent = 'Collapse';
+                    btn.setAttribute('aria-expanded', 'true');
+                }
+            });
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             connectWebSocket();
@@ -4432,6 +4538,7 @@
             fetchTrades();
             setInterval(fetchTrades, 20000);
             fetchAnalytics('30d');
+            applyMobileCollapseDefaults();
             document.querySelectorAll('#analytics-period .pill-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('#analytics-period .pill-btn').forEach(b => b.classList.remove('active'));
@@ -4450,6 +4557,7 @@
         window.addEventListener('resize', () => {
             updateTopGainers(currentTopGainers);
             updateMarketIndices(currentMarketIndices);
+            applyMobileCollapseDefaults();
         });
     </script>
 </body>

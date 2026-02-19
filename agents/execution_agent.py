@@ -138,11 +138,12 @@ class ExecutionAgent(BaseAgent):
 
             if order:
                 order = await self._await_fill(order)
+                resolved_order_id = self._extract_order_id(order, fallback=client_order_id)
                 self._orders_executed += 1
                 self._recent_orders.append({
                     "symbol": symbol,
                     "action": action,
-                    "order_id": order.id,
+                    "order_id": resolved_order_id,
                     "manual": True,
                 })
                 if self.risk_agent:
@@ -157,12 +158,12 @@ class ExecutionAgent(BaseAgent):
                     action=action,
                     notional=notional if action == "buy" else None,
                     qty=qty if mode == "qty" else getattr(order, "qty", None),
-                    order_id=order.id,
+                    order_id=resolved_order_id,
                     **self._order_fields(order),
                 )
                 await self.event_bus.publish(event)
 
-                return {"success": True, "order_id": order.id}
+                return {"success": True, "order_id": resolved_order_id}
             return {"success": False, "error": "Order failed"}
 
         except Exception as e:
@@ -229,7 +230,10 @@ class ExecutionAgent(BaseAgent):
         for attempt in range(5):
             await asyncio.sleep(0.5 * (2 ** attempt))  # 0.5s, 1s, 2s, 4s, 8s
             try:
-                refreshed = await asyncio.to_thread(self.broker.get_order, order.id)
+                order_id = self._extract_order_id(order)
+                if not order_id:
+                    return order
+                refreshed = await asyncio.to_thread(self.broker.get_order, order_id)
                 if refreshed:
                     status = getattr(refreshed, 'status', '').lower()
                     # Stop polling if filled or terminal state
@@ -241,6 +245,18 @@ class ExecutionAgent(BaseAgent):
                 pass  # Continue trying
 
         return order  # Return last known state
+
+    @staticmethod
+    def _extract_order_id(order, fallback: str | None = None) -> str:
+        """Extract an order identifier from common broker response shapes."""
+        if order is None:
+            return fallback or ""
+        order_id = getattr(order, "id", None) or getattr(order, "order_id", None)
+        if isinstance(order, dict):
+            order_id = order.get("id") or order.get("order_id") or order.get("orderId")
+        if order_id is None:
+            order_id = fallback
+        return str(order_id) if order_id is not None else ""
 
     def _order_fields(self, order) -> dict:
         """Extract common fields from an order object for analytics/logging."""

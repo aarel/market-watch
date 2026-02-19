@@ -339,6 +339,16 @@ class TestExecutionAgentHelpers(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.agent._round_notional(1000.567), 1000.57)
         self.assertEqual(self.agent._round_notional(None), 0.0)
 
+    async def test_extract_order_id_fallback(self):
+        """Test order-id extraction fallback for broker objects without id."""
+        order = SimpleNamespace(order_id="broker_order_123")
+        extracted = self.agent._extract_order_id(order, fallback="manual-AAPL-1")
+        self.assertEqual(extracted, "broker_order_123")
+
+        no_id_order = SimpleNamespace(status="filled")
+        fallback_only = self.agent._extract_order_id(no_id_order, fallback="manual-AAPL-2")
+        self.assertEqual(fallback_only, "manual-AAPL-2")
+
     async def test_status(self):
         """Test status reporting."""
         status = self.agent.status()

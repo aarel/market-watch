@@ -40,6 +40,8 @@ async def manual_trade(symbol: str, action: str, amount: float = None, qty: floa
     if not state.coordinator:
         raise HTTPException(status_code=503, detail="Bot not initialized")
     result = await state.coordinator.manual_trade(symbol, action, amount, qty, mode)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Manual trade failed"))
     return result
 
 
