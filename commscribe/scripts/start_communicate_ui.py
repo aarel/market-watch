@@ -113,6 +113,11 @@ class Handler(BaseHTTPRequestHandler):
     ui_file: Path
     communicate_file: Path
     json_file: Path
+    scan_script: Path
+    failure_log_file: Path
+    db_path: Path
+    schema_path: Path
+    lock_timeout: int
     request_api: RequestAPI
 
     def _serve_static_asset(self, path: str) -> bool:
@@ -173,6 +178,7 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(split.query)
             req_date = (params.get("date", [""])[0] or "").strip()
             source = (params.get("source", ["communicate>"])[0] or "").strip()
+            diagnostics_on = (params.get("diagnostics", ["0"])[0] or "").strip().lower() in {"1", "true", "yes"}
             if not req_date:
                 req_date = dt.datetime.now(dt.timezone.utc).date().isoformat()
             requests = self.request_api.get_all_requests(
@@ -192,12 +198,27 @@ class Handler(BaseHTTPRequestHandler):
                 }
                 for r in requests
             ]
+            diagnostics = None
+            if diagnostics_on:
+                source_rows = self.request_api.get_all_requests(
+                    include_archived=True,
+                    created_date=None,
+                    source=source or None,
+                )
+                diagnostics = {
+                    "db_path": str(self.db_path),
+                    "source_filter": source,
+                    "filtered_row_count": len(summary),
+                    "source_row_count": len(source_rows),
+                    "latest_request_ids": [r.get("id", "") for r in source_rows[:5]],
+                }
             self._send_json(
                 {
                     "requests": summary,
                     "selected_req": selected_req_from_url(self.path),
                     "date": req_date,
                     "source": source,
+                    "diagnostics": diagnostics,
                 }
             )
             return
@@ -235,7 +256,16 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            self.request_api.set_input_pad(text)
+            write_input_pad_via_scan(
+                scan_script=self.scan_script,
+                communicate_file=self.communicate_file,
+                json_file=self.json_file,
+                failure_log_file=self.failure_log_file,
+                text=text,
+                lock_timeout=self.lock_timeout,
+                db_path=self.db_path,
+                schema_path=self.schema_path,
+            )
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=400)
             return
@@ -250,6 +280,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--json", default="commscribe/communicate.json")
     parser.add_argument("--db", default="commscribe/db/communicate.db")
     parser.add_argument("--schema", default="commscribe/db/schema.sql")
+    parser.add_argument("--failure-log", default="commscribe/failure_log.json")
+    parser.add_argument("--lock-timeout", type=int, default=5)
     parser.add_argument("--ui", default="commscribe/ui/index.html")
     return parser.parse_args()
 
@@ -259,10 +291,15 @@ def main() -> int:
     Handler.ui_file = _resolve_runtime_path(args.ui)
     Handler.communicate_file = _resolve_runtime_path(args.communicate)
     Handler.json_file = _resolve_runtime_path(args.json)
+    Handler.scan_script = (SCRIPT_DIR / "communicate_scan.py").resolve()
+    Handler.failure_log_file = _resolve_runtime_path(args.failure_log)
+    Handler.db_path = _resolve_runtime_path(args.db)
+    Handler.schema_path = _resolve_runtime_path(args.schema)
+    Handler.lock_timeout = int(args.lock_timeout)
     Handler.request_api = RequestAPI.from_env_or_args(
         json_file=Handler.json_file,
-        db_path=_resolve_runtime_path(args.db),
-        schema_path=_resolve_runtime_path(args.schema),
+        db_path=Handler.db_path,
+        schema_path=Handler.schema_path,
     )
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"Serving UI on http://{args.host}:{args.port}")

@@ -195,6 +195,59 @@ def _db_set_input_text(db_path: Path, text: str) -> None:
         conn.commit()
 
 
+def _normalize_input_pad_text(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def _read_markdown_input_pad(md_path: Path) -> tuple[str, str]:
+    """Best-effort read of INPUT PAD from markdown markers.
+
+    Returns (text, diagnostic). diagnostic is empty when markers are present.
+    """
+    if not md_path.exists():
+        return "", f"INPUT_PAD_DIAGNOSTIC: markdown file missing at {md_path}"
+    body = _load_text(md_path)
+    try:
+        section = _section(body, INPUT_START, INPUT_END)
+    except ValueError:
+        # Failsafe second-pass parse for marker drift and line-ending irregularities.
+        if INPUT_START in body and INPUT_END in body:
+            start_idx = body.find(INPUT_START) + len(INPUT_START)
+            end_idx = body.find(INPUT_END, start_idx)
+            if end_idx > start_idx:
+                raw = body[start_idx:end_idx]
+                return _normalize_input_pad_text(raw), "INPUT_PAD_DIAGNOSTIC: fallback parser recovered INPUT PAD content."
+            return "", "INPUT_PAD_DIAGNOSTIC: markers present but section parse failed; check marker ordering/content boundaries."
+        if "\r\n" in body:
+            return "", "INPUT_PAD_DIAGNOSTIC: INPUT PAD markers missing; document uses CRLF line endings."
+        return "", "INPUT_PAD_DIAGNOSTIC: markdown INPUT PAD markers missing"
+    return _normalize_input_pad_text(section), ""
+
+
+def _write_markdown_input_pad(md_path: Path, text: str) -> None:
+    """Mirror INPUT PAD into markdown trigger section for compatibility."""
+    if not md_path.exists():
+        return
+    body = _load_text(md_path)
+    normalized = _normalize_input_pad_text(text)
+    if INPUT_START in body and INPUT_END in body:
+        updated = _replace_section(body, INPUT_START, INPUT_END, normalized)
+        atomic_write_text(md_path, updated)
+        return
+    # Legacy/export markdown without INPUT PAD markers: append a bounded section.
+    appended = (
+        body.rstrip()
+        + "\n\n"
+        + INPUT_START
+        + "\n"
+        + normalized
+        + "\n"
+        + INPUT_END
+        + "\n"
+    )
+    atomic_write_text(md_path, appended)
+
+
 def _now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
 
@@ -740,14 +793,37 @@ def _sync_markdown(md_path: Path, requests: List[Dict[str, str]], input_pad_cont
 def consume(md_path: Path, json_path: Path, db_path: Path, schema_path: Path, lock_timeout: int) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
         _init_db(db_path, schema_path)
-        input_text = _db_get_input_text(db_path)
-        if not input_text or input_text == PLACEHOLDER:
+        # Canonical preflight validation: consume must surface structural failures even on no-op paths.
+        _load_state(json_path, md_path)
+        sqlite_input = _normalize_input_pad_text(_db_get_input_text(db_path))
+        md_input, diag = _read_markdown_input_pad(md_path)
+        source = ""
+        input_text = ""
+        if md_input and md_input != PLACEHOLDER:
+            source = "markdown_primary"
+            input_text = md_input
+            if sqlite_input != md_input:
+                _db_set_input_text(db_path, md_input)
+        elif sqlite_input and sqlite_input != PLACEHOLDER:
+            source = "sqlite_fallback"
+            input_text = sqlite_input
+            print("INPUT_PAD_DIAGNOSTIC: sqlite fallback used; markdown INPUT PAD empty/placeholder.")
+        else:
+            if diag:
+                print(diag)
             print("No new INPUT PAD content. Nothing to do.")
             return 0
         objective = extract_objective(input_text)
         req_id = _next_id_from_db(db_path)
         created = _now_iso()
         title = _extract_title(input_text)
+        duplicate_detected = False
+        with _db_connect(db_path) as conn:
+            dup = conn.execute(
+                "SELECT request_id FROM logs WHERE log_entry = ? ORDER BY id DESC LIMIT 1",
+                (f"REQUEST_TEXT::{input_text}",),
+            ).fetchone()
+            duplicate_detected = dup is not None
         with _db_connect(db_path) as conn:
             conn.execute("BEGIN IMMEDIATE")
             conn.execute(
@@ -761,6 +837,20 @@ def consume(md_path: Path, json_path: Path, db_path: Path, schema_path: Path, lo
                 "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
                 (req_id, f"REQUEST_TEXT::{input_text}", created),
             )
+            if source:
+                conn.execute(
+                    "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                    (req_id, f"INPUT_SOURCE::{source}", created),
+                )
+            if duplicate_detected:
+                conn.execute(
+                    "INSERT INTO logs(request_id, log_entry, timestamp) VALUES(?, ?, ?)",
+                    (
+                        req_id,
+                        "INPUT_DUPLICATE_DETECTED::Identical payload exists in prior history; policy=process_as_new",
+                        created,
+                    ),
+                )
             _db_upsert_communicate_req(
                 conn,
                 req_id=req_id,
@@ -773,6 +863,7 @@ def consume(md_path: Path, json_path: Path, db_path: Path, schema_path: Path, lo
             )
             conn.commit()
         _db_set_input_text(db_path, PLACEHOLDER)
+        _write_markdown_input_pad(md_path, PLACEHOLDER)
         print(req_id)
         return 0
 
@@ -980,9 +1071,10 @@ def set_input(
     lock_timeout: int,
 ) -> int:
     with file_lock(json_path.with_suffix(json_path.suffix + ".lock"), timeout_seconds=lock_timeout):
-        del md_path
         _init_db(db_path, schema_path)
-        _db_set_input_text(db_path, text.strip())
+        normalized = _normalize_input_pad_text(text)
+        _db_set_input_text(db_path, normalized)
+        _write_markdown_input_pad(md_path, normalized)
         return 0
 
 
