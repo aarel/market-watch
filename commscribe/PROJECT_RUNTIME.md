@@ -1,3 +1,9 @@
+## Document Authority
+- STATUS: LEGACY
+- CANONICAL: `ai_runtime/PROJECT_RUNTIME.md`
+- SCOPE: Historical runtime contract context for commscribe evolution.
+- DO NOT USE AS AUTHORITY: Use `ai_runtime/PROJECT_RUNTIME.md` for active runtime governance.
+
 # PROJECT RUNTIME CONTRACT
 # Version: 1.0
 # Enforcement Mode: REQUIRED

@@ -1,3 +1,8 @@
+## Document Authority
+- STATUS: CANONICAL
+- DOMAIN: Communicate Engine
+- GOVERNANCE: This file is the single source of truth for Communicate Engine.
+
 # commscribe
 
 Portable, document-driven runtime for auditable Codex execution workflows.

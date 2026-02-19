@@ -1,3 +1,8 @@
+## Document Authority
+- STATUS: SUPPORTING
+- CANONICAL: `commscribe/README.md`
+- SCOPE: Command-word trigger behavior and execution protocol for `communicate>`.
+
 # Codex Command Word: communicate>
 
 When user says `communicate>`, follow this contract:

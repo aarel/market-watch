@@ -1,3 +1,9 @@
+## Document Authority
+- STATUS: SUPPORTING
+- CANONICAL: `ROADMAP.md`
+- SCOPE: Strategic options, sequencing analysis, and planning recommendations.
+- DO NOT USE AS PRIMARY PLANNING AUTHORITY
+
 ## Strategic Roadmap Assessment
 
 ### 1) Current Project Maturity

@@ -1,3 +1,9 @@
+## Document Authority
+- STATUS: LEGACY
+- CANONICAL: `commscribe/README.md`
+- SCOPE: Historical request transcript export for audit/reference only.
+- DO NOT USE AS AUTHORITY: Lifecycle/state authority is defined by `commscribe/README.md` and scanner runtime contracts.
+
 # Communicate Export
 
 ## REQUEST REQ-20260218-185719
@@ -776,3 +782,7 @@
 - STATUS: DONE
 - CREATED_AT: 2026-02-13T00:02:01+00:00
 - UPDATED_AT: 2026-02-13T00:02:12+00:00
+
+<!-- INPUT_PAD_START -->
+Paste request text here. One request at a time. Include files/paths if relevant.
+<!-- INPUT_PAD_END -->

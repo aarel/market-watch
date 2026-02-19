@@ -1,3 +1,9 @@
+DOCUMENT AUTHORITY
+STATUS: SUPPORTING
+CANONICAL: ROADMAP.md
+SCOPE: Concise phase snapshot and alignment notes.
+DO NOT USE AS PRIMARY PLANNING AUTHORITY
+
 Roadmap Phase Snapshot
 - Phase E (Market Awareness): Not started, 0/5 done.
 - Phase F (Testing & CI): In progress, 2/4 done; blockers include coverage gate and missing broker-failure/backtest-regression tests.

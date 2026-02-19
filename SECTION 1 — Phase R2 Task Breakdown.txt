@@ -1,3 +1,9 @@
+DOCUMENT AUTHORITY
+STATUS: SUPPORTING
+CANONICAL: ROADMAP.md
+SCOPE: Task-level execution breakdown for R2 planning.
+DO NOT USE AS PRIMARY PLANNING AUTHORITY
+
 SECTION 1 — Phase R2 Task Breakdown
 1. Define runtime authority boundary for realism pipeline.
 - Output: explicit gate-on authoritative source definition for gross/net/after-tax/settlement fields.

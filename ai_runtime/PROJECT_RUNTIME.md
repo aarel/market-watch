@@ -1,3 +1,8 @@
+## Document Authority
+- STATUS: CANONICAL
+- DOMAIN: Runtime Governance
+- GOVERNANCE: This file is the single source of truth for Runtime Governance.
+
 # PROJECT RUNTIME ACTIVE — ENFORCED MODE
 
 ## Operating Mode

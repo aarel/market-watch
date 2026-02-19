@@ -1,3 +1,8 @@
+## Document Authority
+- STATUS: SUPPORTING
+- CANONICAL: `ai_runtime/PROJECT_RUNTIME.md`
+- SCOPE: Startup handshake sequence and readiness checks only.
+
 # STARTUP_PROTOCOL
 
 ## Phase 0 - Session Intent
