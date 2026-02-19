@@ -5,8 +5,14 @@ from starlette.requests import Request
 import config
 
 from .config_manager import ConfigManager
-from .main import app  # noqa: F401
 from .state import AppState
+
+try:
+    from .main import app  # noqa: F401
+except ModuleNotFoundError:
+    # Allow partial imports (for isolated tests/tools) when optional web deps
+    # are unavailable in the current environment.
+    app = None  # type: ignore[assignment]
 
 # Expose shared state and config for tests and legacy imports
 state = AppState.instance()

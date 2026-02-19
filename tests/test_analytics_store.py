@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from threading import Thread
 
+import config
 from analytics.store import AnalyticsStore, _cutoff_from_period, _parse_ts
 from universe import Universe
 
@@ -30,6 +31,17 @@ class TestAnalyticsStore(unittest.TestCase):
 
         self.store = AnalyticsStore(Universe.SIMULATION)
         self.test_session_id = "session_20260124_test001"
+
+    def _assert_trade_matches_baseline_except_realism(
+        self, baseline: dict, persisted: dict
+    ) -> None:
+        """Assert persisted trade matches baseline exactly except realism flag."""
+        ignored_key = "realism_pipeline_enabled"
+        baseline_keys = set(baseline.keys())
+        persisted_keys = set(persisted.keys()) - {ignored_key}
+        self.assertEqual(baseline_keys, persisted_keys)
+        for key in baseline_keys:
+            self.assertEqual(baseline[key], persisted[key], f"Mismatch for key '{key}'")
 
     def tearDown(self):
         """Clean up temporary files."""
@@ -127,6 +139,74 @@ class TestAnalyticsStore(unittest.TestCase):
         self.assertEqual(len(loaded), 3)
         self.assertEqual(loaded[0]["symbol"], "AAPL")
         self.assertEqual(loaded[2]["symbol"], "AAPL")
+
+    def test_record_trade_persists_realism_flag_gate_off(self):
+        """Gate OFF should persist realism_pipeline_enabled=False."""
+        prior = config.ENABLE_REALISM_PIPELINE
+        config.ENABLE_REALISM_PIPELINE = False
+        try:
+            fixed_ts = "2026-01-24T10:30:00+00:00"
+            trade = {
+                "session_id": self.test_session_id,
+                "timestamp": fixed_ts,
+                "symbol": "AAPL",
+                "side": "buy",
+                "qty": 1,
+            }
+            baseline = {
+                "session_id": self.test_session_id,
+                "timestamp": fixed_ts,
+                "symbol": "AAPL",
+                "side": "buy",
+                "qty": 1,
+                "universe": "simulation",
+                "data_lineage_id": "unknown_lineage",
+                "validity_class": "SIM_VALID_FOR_TRAINING",
+            }
+            self.store.record_trade(trade)
+            loaded = self.store.load_trades(period="all")
+            self.assertEqual(len(loaded), 1)
+            persisted = loaded[0]
+            self.assertIn("realism_pipeline_enabled", persisted)
+            self.assertFalse(persisted["realism_pipeline_enabled"])
+            self._assert_trade_matches_baseline_except_realism(baseline, persisted)
+        finally:
+            config.ENABLE_REALISM_PIPELINE = prior
+
+    def test_record_trade_persists_realism_flag_gate_on(self):
+        """Gate ON should persist realism_pipeline_enabled=True."""
+        prior = config.ENABLE_REALISM_PIPELINE
+        config.ENABLE_REALISM_PIPELINE = True
+        try:
+            fixed_ts = "2026-01-24T10:30:00+00:00"
+            trade = {
+                "session_id": self.test_session_id,
+                "timestamp": fixed_ts,
+                "symbol": "AAPL",
+                "side": "buy",
+                "qty": 1,
+            }
+            baseline = {
+                "session_id": self.test_session_id,
+                "timestamp": fixed_ts,
+                "symbol": "AAPL",
+                "side": "buy",
+                "qty": 1,
+                "universe": "simulation",
+                "data_lineage_id": "unknown_lineage",
+                "validity_class": "SIM_VALID_FOR_TRAINING",
+            }
+            self.store.record_trade(trade)
+            loaded = self.store.load_trades(period="all")
+            self.assertEqual(len(loaded), 1)
+            persisted = loaded[0]
+            self.assertIn("realism_pipeline_enabled", persisted)
+            self.assertTrue(persisted["realism_pipeline_enabled"])
+            added_keys = set(persisted.keys()) - set(baseline.keys())
+            self.assertEqual(added_keys, {"realism_pipeline_enabled"})
+            self._assert_trade_matches_baseline_except_realism(baseline, persisted)
+        finally:
+            config.ENABLE_REALISM_PIPELINE = prior
 
     # ==================== READ OPERATIONS ====================
 

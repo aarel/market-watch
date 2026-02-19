@@ -1,7 +1,7 @@
 """Demo reliability hardening for partial-startup environments.
 
 This module adds safe dependency guards and startup diagnostics without
-changing core business logic or Cloudflare infrastructure.
+changing core business logic.
 """
 
 from __future__ import annotations

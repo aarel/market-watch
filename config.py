@@ -167,3 +167,41 @@ CONFIG_STATE_PATH = os.getenv("CONFIG_STATE_PATH", "data/config_state.json")
 ANALYTICS_ENABLED = os.getenv("ANALYTICS_ENABLED", "true").lower() == "true"
 # DEPRECATED: AnalyticsStore now uses universe-scoped paths (logs/{universe}/)
 # ANALYTICS_DATA_PATH = os.getenv("ANALYTICS_DATA_PATH", "data/analytics")
+
+# Realism layer toggles (non-breaking; legacy flows stay available when disabled)
+ENABLE_CORPORATE_ACTIONS = os.getenv("ENABLE_CORPORATE_ACTIONS", "true").lower() == "true"
+ENABLE_COST_BASIS_ENGINE = os.getenv("ENABLE_COST_BASIS_ENGINE", "true").lower() == "true"
+ENABLE_SETTLEMENT_ENFORCEMENT = os.getenv("ENABLE_SETTLEMENT_ENFORCEMENT", "true").lower() == "true"
+DEFAULT_SETTLEMENT_CYCLE = os.getenv("DEFAULT_SETTLEMENT_CYCLE", "T+1")
+
+# Authoritative realism pipeline gate
+_default_realism_pipeline = "false" if TRADING_MODE == "live" else "true"
+ENABLE_REALISM_PIPELINE = os.getenv("ENABLE_REALISM_PIPELINE", _default_realism_pipeline).lower() == "true"
+REALISM_ACCOUNT_TYPE = os.getenv("REALISM_ACCOUNT_TYPE", "margin").lower()  # cash|margin
+REALISM_FAIL_FAST_PNL_GUARD = os.getenv("REALISM_FAIL_FAST_PNL_GUARD", "false").lower() == "true"
+
+# Componentized cost model defaults
+COST_COMMISSION_RATE = float(os.getenv("COST_COMMISSION_RATE", "0.0"))
+COST_SPREAD_RATE = float(os.getenv("COST_SPREAD_RATE", "0.0002"))
+COST_SLIPPAGE_RATE = float(os.getenv("COST_SLIPPAGE_RATE", "0.0005"))
+COST_REGULATORY_FEE_RATE = float(os.getenv("COST_REGULATORY_FEE_RATE", "0.00001"))
+COST_BORROW_FEE_RATE = float(os.getenv("COST_BORROW_FEE_RATE", "0.0001"))
+COST_MARGIN_INTEREST_DAILY_RATE = float(os.getenv("COST_MARGIN_INTEREST_DAILY_RATE", "0.0001"))
+COST_FX_SPREAD_RATE = float(os.getenv("COST_FX_SPREAD_RATE", "0.0002"))
+COST_SESSION_MULTIPLIER_PRE_AFTER_HOURS = float(
+    os.getenv("COST_SESSION_MULTIPLIER_PRE_AFTER_HOURS", "1.25")
+)
+
+# Tax profile defaults (estimated-only, non-authoritative)
+TAX_JURISDICTION = os.getenv("TAX_JURISDICTION", "US").upper()
+TAX_SHORT_TERM_RATE = float(os.getenv("TAX_SHORT_TERM_RATE", "0.30"))
+TAX_LONG_TERM_RATE = float(os.getenv("TAX_LONG_TERM_RATE", "0.15"))
+TAX_STATE_RATE = float(os.getenv("TAX_STATE_RATE", "0.0"))
+TAX_DISCLAIMER_REQUIRED = os.getenv("TAX_DISCLAIMER_REQUIRED", "true").lower() == "true"
+TAX_FOREIGN_WITHHOLDING_RATE = float(os.getenv("TAX_FOREIGN_WITHHOLDING_RATE", "0.0"))
+TAX_FOREIGN_TAX_CREDIT_RATE = float(os.getenv("TAX_FOREIGN_TAX_CREDIT_RATE", "0.0"))
+
+# Tier B skeleton gates
+ENABLE_MARGIN_MODEL = os.getenv("ENABLE_MARGIN_MODEL", "false").lower() == "true"
+ENABLE_FX_TIMING = os.getenv("ENABLE_FX_TIMING", "false").lower() == "true"
+FX_TIMING_MODE = os.getenv("FX_TIMING_MODE", "TRADE_DATE").upper()

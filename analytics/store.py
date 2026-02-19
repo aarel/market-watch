@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from threading import Lock
 
+import config
 from universe import Universe, get_log_path
 
 
@@ -129,6 +130,9 @@ class AnalyticsStore:
         trade["universe"] = self.universe.value
         if "validity_class" not in trade:
             trade["validity_class"] = self.universe.default_validity_class
+        trade["realism_pipeline_enabled"] = bool(
+            trade.get("realism_pipeline_enabled", config.ENABLE_REALISM_PIPELINE)
+        )
 
         # Validate full schema
         self._validate_trade_schema(trade)
