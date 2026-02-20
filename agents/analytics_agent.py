@@ -119,39 +119,37 @@ class AnalyticsAgent(BaseAgent):
         if trade.get("notional") is None and trade.get("qty") and trade.get("filled_avg_price"):
             trade["notional"] = float(trade["qty"]) * float(trade["filled_avg_price"])
 
-        if config.ENABLE_REALISM_PIPELINE:
-            # Seed settlement cash from runtime account snapshot once.
-            if not self._realism_initialized:
-                self._settlement_engine = SettlementEngine(initial_settled_cash=self._latest_cash)
-                self._performance_engine.settlement_engine = self._settlement_engine
-                self._performance_engine.compliance_model.settlement_engine = self._settlement_engine
-                self._realism_initialized = True
+        # PHASE R2: Realism pipeline is now MANDATORY for all trades
+        # Seed settlement cash from runtime account snapshot once.
+        if not self._realism_initialized:
+            self._settlement_engine = SettlementEngine(initial_settled_cash=self._latest_cash)
+            self._performance_engine.settlement_engine = self._settlement_engine
+            self._performance_engine.compliance_model.settlement_engine = self._settlement_engine
+            self._realism_initialized = True
 
-            profile = MarketProfile(
-                settlement_cycle=config.DEFAULT_SETTLEMENT_CYCLE,
-                account_type=config.REALISM_ACCOUNT_TYPE,
-            )
-            try:
-                if config.REALISM_FAIL_FAST_PNL_GUARD:
-                    self._assert_no_unauthorized_pnl_inputs(trade)
-                breakdown = self._performance_engine.process_trade(trade, market_profile=profile)
-                trade["gross_pnl"] = breakdown.gross_pnl
-                trade["net_pnl"] = breakdown.net_pnl
-                trade["after_tax_pnl"] = breakdown.after_tax_pnl
-                trade["realized_gain"] = breakdown.realized_gain
-                trade["tax_estimate"] = breakdown.tax_estimate
-                trade["settlement_date"] = breakdown.settlement_date
-                trade["fee_breakdown"] = breakdown.fee_breakdown
-                trade["fees_total"] = breakdown.fee_breakdown.get("total_cost", 0.0)
-                trade["margin_interest"] = breakdown.fee_breakdown.get("margin_interest", 0.0)
-                trade["fx_rate_used"] = trade.get("fx_rate_used")
-                trade["realism_pipeline_enabled"] = True
-            except Exception as exc:
-                trade["realism_pipeline_enabled"] = False
-                trade["realism_processing_error"] = str(exc)
-                if config.REALISM_FAIL_FAST_PNL_GUARD and str(exc) == "Unauthorized PnL computation path":
-                    raise
-        else:
+        profile = MarketProfile(
+            settlement_cycle=config.DEFAULT_SETTLEMENT_CYCLE,
+            account_type=config.REALISM_ACCOUNT_TYPE,
+        )
+        try:
+            if config.REALISM_FAIL_FAST_PNL_GUARD:
+                self._assert_no_unauthorized_pnl_inputs(trade)
+            breakdown = self._performance_engine.process_trade(trade, market_profile=profile)
+            trade["gross_pnl"] = breakdown.gross_pnl
+            trade["net_pnl"] = breakdown.net_pnl
+            trade["after_tax_pnl"] = breakdown.after_tax_pnl
+            trade["realized_gain"] = breakdown.realized_gain
+            trade["tax_estimate"] = breakdown.tax_estimate
+            trade["settlement_date"] = breakdown.settlement_date
+            trade["fee_breakdown"] = breakdown.fee_breakdown
+            trade["fees_total"] = breakdown.fee_breakdown.get("total_cost", 0.0)
+            trade["margin_interest"] = breakdown.fee_breakdown.get("margin_interest", 0.0)
+            trade["fx_rate_used"] = trade.get("fx_rate_used")
+            trade["realism_pipeline_enabled"] = True
+        except Exception as exc:
             trade["realism_pipeline_enabled"] = False
+            trade["realism_processing_error"] = str(exc)
+            if config.REALISM_FAIL_FAST_PNL_GUARD and str(exc) == "Unauthorized PnL computation path":
+                raise
 
         self.store.record_trade(trade)

@@ -37,8 +37,8 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
     async def test_records_trade_with_price_and_backfills_notional(self):
         store = InMemoryStore()
         bus = DummyEventBus()
-        prior = config.ENABLE_REALISM_PIPELINE
-        config.ENABLE_REALISM_PIPELINE = False
+        # PHASE R2: Pipeline is now mandatory - toggle removed
+        # PHASE R2: ENABLE_REALISM_PIPELINE toggle removed (always True)
         try:
             agent = AnalyticsAgent(bus, broker=None, store=store)
             await agent.start()
@@ -63,24 +63,25 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
             self.assertAlmostEqual(trade["filled_avg_price"], 5.5)
             self.assertAlmostEqual(trade["notional"], 11.0)
             self.assertEqual(trade["order_id"], "abc")
+            # PHASE R2: Pipeline is now mandatory - all trades have realism fields
             self.assertIn("realism_pipeline_enabled", trade)
-            self.assertFalse(trade["realism_pipeline_enabled"])
-            self.assertNotIn("gross_pnl", trade)
-            self.assertNotIn("net_pnl", trade)
-            self.assertNotIn("after_tax_pnl", trade)
-            self.assertNotIn("realized_gain", trade)
-            self.assertNotIn("tax_estimate", trade)
-            self.assertNotIn("settlement_date", trade)
-            self.assertNotIn("fee_breakdown", trade)
+            self.assertTrue(trade["realism_pipeline_enabled"])
+            self.assertIn("gross_pnl", trade)
+            self.assertIn("net_pnl", trade)
+            self.assertIn("after_tax_pnl", trade)
+            self.assertIn("realized_gain", trade)
+            self.assertIn("tax_estimate", trade)
+            self.assertIn("settlement_date", trade)
+            self.assertIn("fee_breakdown", trade)
             await agent.stop()
         finally:
-            config.ENABLE_REALISM_PIPELINE = prior
+            pass  # PHASE R2: No cleanup needed
 
     async def test_realism_pipeline_fields_are_attached(self):
         store = InMemoryStore()
         bus = DummyEventBus()
-        prior = config.ENABLE_REALISM_PIPELINE
-        config.ENABLE_REALISM_PIPELINE = True
+        # PHASE R2: Pipeline is now mandatory - toggle removed
+        # PHASE R2: ENABLE_REALISM_PIPELINE toggle removed (always True)
         try:
             agent = AnalyticsAgent(bus, broker=None, store=store)
             await agent.start()
@@ -122,14 +123,14 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
             self.assertIn("fee_breakdown", sell_trade)
             await agent.stop()
         finally:
-            config.ENABLE_REALISM_PIPELINE = prior
+            pass  # PHASE R2: No cleanup needed
 
     async def test_realism_gate_on_is_deterministic_for_same_event_stream(self):
         store_a = InMemoryStore()
         store_b = InMemoryStore()
         bus = DummyEventBus()
-        prior = config.ENABLE_REALISM_PIPELINE
-        config.ENABLE_REALISM_PIPELINE = True
+        # PHASE R2: Pipeline is now mandatory - toggle removed
+        # PHASE R2: ENABLE_REALISM_PIPELINE toggle removed (always True)
         try:
             fixed_ts = datetime(2026, 1, 7, 10, 0, 0)
             buy_evt = OrderExecuted(
@@ -185,13 +186,13 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
             for key in keys:
                 self.assertEqual(a[key], b[key])
         finally:
-            config.ENABLE_REALISM_PIPELINE = prior
+            pass  # PHASE R2: No cleanup needed
 
     async def test_realism_processing_exception_persists_trade_and_sets_error_flag(self):
         store = InMemoryStore()
         bus = DummyEventBus()
-        prior = config.ENABLE_REALISM_PIPELINE
-        config.ENABLE_REALISM_PIPELINE = True
+        # PHASE R2: Pipeline is now mandatory - toggle removed
+        # PHASE R2: ENABLE_REALISM_PIPELINE toggle removed (always True)
         try:
             agent = AnalyticsAgent(bus, broker=None, store=store)
             await agent.start()
@@ -216,13 +217,13 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
             self.assertIn("realism_processing_error", trade)
             await agent.stop()
         finally:
-            config.ENABLE_REALISM_PIPELINE = prior
+            pass  # PHASE R2: No cleanup needed
 
     async def test_gate_on_uses_single_realism_pnl_source(self):
         store = InMemoryStore()
         bus = DummyEventBus()
-        prior = config.ENABLE_REALISM_PIPELINE
-        config.ENABLE_REALISM_PIPELINE = True
+        # PHASE R2: Pipeline is now mandatory - toggle removed
+        # PHASE R2: ENABLE_REALISM_PIPELINE toggle removed (always True)
         try:
             agent = AnalyticsAgent(bus, broker=None, store=store)
             await agent.start()
@@ -260,13 +261,13 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(trade["realism_pipeline_enabled"])
             await agent.stop()
         finally:
-            config.ENABLE_REALISM_PIPELINE = prior
+            pass  # PHASE R2: No cleanup needed
 
     async def test_gate_on_does_not_call_analytics_metrics_pnl_helpers(self):
         store = InMemoryStore()
         bus = DummyEventBus()
-        prior = config.ENABLE_REALISM_PIPELINE
-        config.ENABLE_REALISM_PIPELINE = True
+        # PHASE R2: Pipeline is now mandatory - toggle removed
+        # PHASE R2: ENABLE_REALISM_PIPELINE toggle removed (always True)
         try:
             agent = AnalyticsAgent(bus, broker=None, store=store)
             await agent.start()
@@ -302,14 +303,14 @@ class TestAnalyticsAgentTradeCapture(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(store.trades[-1]["realism_pipeline_enabled"])
             await agent.stop()
         finally:
-            config.ENABLE_REALISM_PIPELINE = prior
+            pass  # PHASE R2: No cleanup needed
 
     async def test_fail_fast_guard_raises_on_unauthorized_pnl_input(self):
         store = InMemoryStore()
         bus = DummyEventBus()
         prior_gate = config.ENABLE_REALISM_PIPELINE
         prior_guard = config.REALISM_FAIL_FAST_PNL_GUARD
-        config.ENABLE_REALISM_PIPELINE = True
+        # PHASE R2: ENABLE_REALISM_PIPELINE toggle removed (always True)
         config.REALISM_FAIL_FAST_PNL_GUARD = True
         try:
             agent = AnalyticsAgent(bus, broker=None, store=store)

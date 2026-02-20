@@ -174,9 +174,10 @@ ENABLE_COST_BASIS_ENGINE = os.getenv("ENABLE_COST_BASIS_ENGINE", "true").lower()
 ENABLE_SETTLEMENT_ENFORCEMENT = os.getenv("ENABLE_SETTLEMENT_ENFORCEMENT", "true").lower() == "true"
 DEFAULT_SETTLEMENT_CYCLE = os.getenv("DEFAULT_SETTLEMENT_CYCLE", "T+1")
 
-# Authoritative realism pipeline gate
-_default_realism_pipeline = "false" if TRADING_MODE == "live" else "true"
-ENABLE_REALISM_PIPELINE = os.getenv("ENABLE_REALISM_PIPELINE", _default_realism_pipeline).lower() == "true"
+# PHASE R2: Realism pipeline is now MANDATORY for all trades
+# ENABLE_REALISM_PIPELINE is DEPRECATED - pipeline always runs
+# Kept for backward compatibility (always True) - will be removed in future
+ENABLE_REALISM_PIPELINE = True  # DEPRECATED: No longer configurable
 REALISM_ACCOUNT_TYPE = os.getenv("REALISM_ACCOUNT_TYPE", "margin").lower()  # cash|margin
 REALISM_FAIL_FAST_PNL_GUARD = os.getenv("REALISM_FAIL_FAST_PNL_GUARD", "false").lower() == "true"
 

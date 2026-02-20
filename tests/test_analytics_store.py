@@ -141,37 +141,34 @@ class TestAnalyticsStore(unittest.TestCase):
         self.assertEqual(loaded[2]["symbol"], "AAPL")
 
     def test_record_trade_persists_realism_flag_gate_off(self):
-        """Gate OFF should persist realism_pipeline_enabled=False."""
-        prior = config.ENABLE_REALISM_PIPELINE
-        config.ENABLE_REALISM_PIPELINE = False
-        try:
-            fixed_ts = "2026-01-24T10:30:00+00:00"
-            trade = {
-                "session_id": self.test_session_id,
-                "timestamp": fixed_ts,
-                "symbol": "AAPL",
-                "side": "buy",
-                "qty": 1,
-            }
-            baseline = {
-                "session_id": self.test_session_id,
-                "timestamp": fixed_ts,
-                "symbol": "AAPL",
-                "side": "buy",
-                "qty": 1,
-                "universe": "simulation",
-                "data_lineage_id": "unknown_lineage",
-                "validity_class": "SIM_VALID_FOR_TRAINING",
-            }
-            self.store.record_trade(trade)
-            loaded = self.store.load_trades(period="all")
-            self.assertEqual(len(loaded), 1)
-            persisted = loaded[0]
-            self.assertIn("realism_pipeline_enabled", persisted)
-            self.assertFalse(persisted["realism_pipeline_enabled"])
-            self._assert_trade_matches_baseline_except_realism(baseline, persisted)
-        finally:
-            config.ENABLE_REALISM_PIPELINE = prior
+        """PHASE R2: Pipeline is mandatory - realism_pipeline_enabled always True (test updated)."""
+        # PHASE R2: ENABLE_REALISM_PIPELINE is deprecated - pipeline always runs
+        fixed_ts = "2026-01-24T10:30:00+00:00"
+        trade = {
+            "session_id": self.test_session_id,
+            "timestamp": fixed_ts,
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 1,
+        }
+        baseline = {
+            "session_id": self.test_session_id,
+            "timestamp": fixed_ts,
+            "symbol": "AAPL",
+            "side": "buy",
+            "qty": 1,
+            "universe": "simulation",
+            "data_lineage_id": "unknown_lineage",
+            "validity_class": "SIM_VALID_FOR_TRAINING",
+        }
+        self.store.record_trade(trade)
+        loaded = self.store.load_trades(period="all")
+        self.assertEqual(len(loaded), 1)
+        persisted = loaded[0]
+        self.assertIn("realism_pipeline_enabled", persisted)
+        # PHASE R2: Pipeline is now mandatory - flag should always be True
+        self.assertTrue(persisted["realism_pipeline_enabled"])
+        self._assert_trade_matches_baseline_except_realism(baseline, persisted)
 
     def test_record_trade_persists_realism_flag_gate_on(self):
         """Gate ON should persist realism_pipeline_enabled=True."""

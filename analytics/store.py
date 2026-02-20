@@ -130,8 +130,9 @@ class AnalyticsStore:
         trade["universe"] = self.universe.value
         if "validity_class" not in trade:
             trade["validity_class"] = self.universe.default_validity_class
+        # PHASE R2: Realism pipeline is mandatory - trade must have this field set by AnalyticsAgent
         trade["realism_pipeline_enabled"] = bool(
-            trade.get("realism_pipeline_enabled", config.ENABLE_REALISM_PIPELINE)
+            trade.get("realism_pipeline_enabled", True)  # Default True (pipeline is mandatory)
         )
 
         # Validate full schema
