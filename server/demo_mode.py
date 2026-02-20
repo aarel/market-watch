@@ -1,6 +1,6 @@
 """Demo mode enforcement — blocks all state-changing operations server-side.
 
-When DEMO_MODE=1, all POST/PUT/PATCH/DELETE requests are blocked with 403 unless
+When MARKET_WATCH_DEMO_MODE=1, all POST/PUT/PATCH/DELETE requests are blocked with 403 unless
 explicitly allowlisted. This ensures demo users can browse the UI but cannot
 modify state, execute trades, or change configuration.
 """
@@ -13,7 +13,7 @@ from starlette.responses import Response
 
 
 # Environment flag
-DEMO_MODE_ENABLED = os.getenv("DEMO_MODE", "0").lower() in {"1", "true", "yes", "on"}
+DEMO_MODE_ENABLED = os.getenv("MARKET_WATCH_DEMO_MODE", "0").lower() in {"1", "true", "yes", "on"}
 
 # Allowlisted paths that can accept writes even in demo mode
 # (e.g., health checks, read-only endpoints mistakenly using POST)
