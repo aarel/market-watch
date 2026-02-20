@@ -1,0 +1,128 @@
+  VPS Production Security Audit — REQ-20260219-122602
+
+  Posture Classification: EXPERIMENTAL / borderline CRITICAL EXPOSURE
+
+  ---
+  CRITICAL (Immediate action required)
+
+  C1 — Live API credentials committed to git
+
+  .env is tracked by git (git ls-files --cached .env confirms it). The file contains:
+  - ALPACA_API_KEY=PKK3WEOZKMLYF7BH5WF3S4W3HT
+  - ALPACA_SECRET_KEY=3GEXcipW2qyUZ9hEtQswAGFhsSRMuAevW9sbyRH3xwcT
+  - FMP_API_KEY=kj2OpNkvWjqIZztWpDOSoEBIAGuNuPKR
+
+  The .gitignore lists .env but gitignore does not un-track already-committed files. Anyone
+  with read access to the repo has these credentials. Even if fixed now, they remain in git
+  history permanently unless you rebase/force-push.
+
+  Required actions:
+  1. Rotate all three keys immediately via the Alpaca and FMP dashboards.
+  2. git rm --cached .env && git commit -m "untrack .env" — removes it from tracking going
+  forward.
+  3. To scrub history: git filter-repo --invert-paths --path .env (or BFG Repo Cleaner),
+  then force-push. Only do this if the repo is private or hasn't been cloned widely.
+
+  ---
+  HIGH
+
+  H1 — No API_TOKEN set in .env
+
+  API_TOKEN= is empty. The require_api_access function in server/__init__.py:48-53 falls
+  through to an IP check: only 127.0.0.1 / ::1 are allowed when no token is set. This means
+  if Uvicorn is directly internet-reachable (no reverse proxy), every non-localhost request
+  returns 403 — not great but better than open. However:
+
+  - start_app.sh runs uvicorn ... --host 0.0.0.0 --port 8000
+  - deploy/market-watch.service also binds --host 0.0.0.0 --port 8000
+
+  If no nginx proxy sits in front, port 8000 is directly internet-exposed. The IP check
+  would block unauthenticated access from the internet, but the require_api_access
+  dependency is not applied to any router (zero results from grep). So the protection exists
+   in code but is not wired to any actual routes. All routes are currently unauthenticated.
+
+  H2 — /docs and /redoc endpoints exposed
+
+  server/main.py:68-69 enables FastAPI's interactive docs at /docs and /redoc. These
+  enumerate every API endpoint, their parameters, and allow calling them from the browser.
+  No auth is on these routes.
+
+  H3 — start_app.sh runs with --reload
+
+  The startup script uses uvicorn ... --reload. This is a development flag that watches
+  files for changes and hot-reloads. It should never run on a production VPS — it adds
+  overhead and is not suitable for production use. The systemd service file correctly omits
+  --reload, so this only matters if someone launches via start_app.sh on the VPS.
+
+  ---
+  MEDIUM
+
+  M1 — Reverse proxy / TLS status: UNKNOWN
+
+  No nginx, Caddy, or any reverse proxy config exists in the repo. Cannot confirm from repo
+  alone whether:
+  - HTTPS is configured
+  - HTTP→HTTPS redirect exists
+  - HSTS headers are set
+  - Port 8000 is firewalled from public access
+
+  Requires VPS shell access to verify: sudo ufw status, sudo ss -tlnp, nginx -T (or caddy
+  validate).
+
+  M2 — SSH and firewall hardening: UNKNOWN
+
+  No sshd_config, ufw rules, or fail2ban config in repo. Cannot verify:
+  - Whether root SSH login is disabled
+  - Whether password auth is disabled
+  - Whether port 22 is restricted to known IPs
+  - Whether fail2ban is active
+
+  M3 — Auto-trading enabled with no approval gate
+
+  .env has AUTO_TRADE=true, REQUIRE_APPROVAL=false, TRADE_INTERVAL_MINUTES=1. If the server
+  is reachable and manipulated, trades execute without human confirmation. (Mitigated by
+  paper mode currently.)
+
+  ---
+  LOW / INFORMATIONAL
+
+  - L1 — API_HOST defaults to 127.0.0.1 in config.py but is overridden to 0.0.0.0 in both
+  launch scripts. The config default is safe but is never used.
+  - L2 — Service user marketwatch is non-root — correct.
+  - L3 — .env.demo / .env.demo.example are untracked — correct.
+  - L4 — ALLOWED_ORIGINS defaults to localhost only — safe default, but has no effect when
+  API_TOKEN is empty and caller is non-origin (e.g. direct API call).
+
+  ---
+  Prioritized remediation
+
+  Priority: Immediate
+  Action: Rotate Alpaca and FMP API keys
+  ────────────────────────────────────────
+  Priority: Immediate
+  Action: git rm --cached .env and commit
+  ────────────────────────────────────────
+  Priority: High
+  Action: Set API_TOKEN in production .env
+  ────────────────────────────────────────
+  Priority: High
+  Action: Verify / install nginx reverse proxy with TLS termination; firewall port 8000 from
+
+    public
+  ────────────────────────────────────────
+  Priority: High
+  Action: Set docs_url=None, redoc_url=None in FastAPI app for production
+  ────────────────────────────────────────
+  Priority: High
+  Action: Verify SSH root login disabled, password auth disabled, port 22 restricted
+  ────────────────────────────────────────
+  Priority: Medium
+  Action: Wire require_api_access as a dependency on all routers
+  ────────────────────────────────────────
+  Priority: Medium
+  Action: Verify/enable UFW + fail2ban
+  ────────────────────────────────────────
+  Priority: Low
+  Action: Remove --reload from start_app.sh
+
+✻ Cogitated for 3m 14s
