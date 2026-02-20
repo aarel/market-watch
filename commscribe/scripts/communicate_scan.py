@@ -427,13 +427,21 @@ def validate_objective(text: str) -> bool:
     content = text.strip()
     if not content:
         return False
-    if len(content) > 4000:
+    # Enforce 500-character limit for objective field (single sentence/paragraph)
+    if len(content) > 500:
         return False
     upper = content.upper()
     if "SECTION" in upper or "REQUIRED ACTIONS" in upper:
         return False
     if "```" in content:
         return False
+    # Reject bullet points - objective should be prose, not a list
+    if content.lstrip().startswith(("-", "*", "•")):
+        return False
+    # Reject if any line in multi-line content starts with bullet
+    for line in content.splitlines():
+        if line.strip().startswith(("-", "*", "•")):
+            return False
     return True
 
 
@@ -453,6 +461,12 @@ def extract_objective(request_text: str) -> str:
         if _is_objective_stop_line(line):
             break
         captured.append(line.strip())
+
+    # Check for bullets before joining (bullets indicate list structure, not prose objective)
+    for part in captured:
+        if part and part.startswith(("-", "*", "•")):
+            raise ValueError("OBJECTIVE field invalid — contains non-objective content.")
+
     objective = " ".join(part for part in captured if part).strip()
     if not validate_objective(objective):
         raise ValueError("OBJECTIVE field invalid — contains non-objective content.")

@@ -1,4 +1,6 @@
 """Shared FastAPI dependencies."""
+import os
+
 from fastapi import Depends, HTTPException
 from starlette.requests import Request
 
@@ -31,12 +33,25 @@ def get_analytics_store(state: AppState = Depends(get_state)):
 def require_api_access(request: Request) -> None:
     """Gate all API routes behind an optional token + origin check.
 
+    When MARKET_WATCH_DEMO_MODE is enabled, API token validation is skipped
+    entirely (nginx basic auth provides access control, and DemoModeMiddleware
+    blocks writes).
+
     When API_TOKEN is set in the environment, every request must supply a
     matching X-Api-Key header.  When API_TOKEN is empty the gate falls back
     to an IP allowlist (localhost only), which is safe when uvicorn is
     fronted by a local nginx proxy but should not be used in place of a
     real token for any publicly reachable service.
     """
+    # Health checks should always be unauthenticated (monitoring/load balancer standard)
+    if request.url.path == "/api/health":
+        return
+
+    # Skip API token validation in demo mode (nginx basic auth + write blocking suffice)
+    demo_mode = os.getenv("MARKET_WATCH_DEMO_MODE", "0").lower() in {"1", "true", "yes", "on"}
+    if demo_mode:
+        return
+
     api_token = getattr(config, "API_TOKEN", "")
     allowed_origins = getattr(config, "ALLOWED_ORIGINS", [])
     client_ip = request.client.host if request.client else None
