@@ -911,11 +911,20 @@
             overflow-x: auto;
             overflow-y: hidden;
         }
+        .equity-chart-frame {
+            height: 260px;
+            min-height: 260px;
+            max-height: 260px;
+            overflow: hidden;
+        }
         .chart-frame canvas {
             display: block;
             width: 100% !important;
             max-width: 100%;
             height: auto !important;
+        }
+        .equity-chart-frame canvas {
+            height: 100% !important;
         }
         .collapsible-card .card-header {
             justify-content: space-between;
@@ -969,6 +978,11 @@
             }
             .tooltip .tooltip-text { width: 220px; }
             .modal { min-width: 90vw; }
+            .equity-chart-frame {
+                height: 200px;
+                min-height: 200px;
+                max-height: 220px;
+            }
         }
         @media (orientation: landscape) and (max-width: 980px) {
             body { padding: 10px; }
@@ -1106,7 +1120,7 @@
                 </div>
                 <div class="analytics-grid" style="grid-template-columns: 1fr; row-gap: 16px;">
                     <div>
-                    <div class="chart-frame">
+                    <div class="chart-frame equity-chart-frame">
                         <canvas id="equity-chart" height="180"></canvas>
                     </div>
                 </div>
@@ -1987,6 +2001,13 @@
             }
             const response = await fetch(url, Object.assign({}, options, { headers }));
             if ((response.status === 401 || response.status === 403) && retry) {
+                // Check if this is a demo mode block
+                const isDemoBlock = await checkIfDemoModeBlock(response);
+                if (isDemoBlock) {
+                    showDemoModeToast();
+                    return response;
+                }
+                // Otherwise prompt for token
                 const token = prompt('Enter API token for this session:');
                 if (token) {
                     setApiToken(token.trim());
@@ -1994,6 +2015,42 @@
                 }
             }
             return response;
+        }
+
+        async function checkIfDemoModeBlock(response) {
+            if (response.status !== 403) return false;
+            try {
+                const clone = response.clone();
+                const data = await clone.json();
+                return data.detail && data.detail.toLowerCase().includes('demo mode');
+            } catch {
+                return false;
+            }
+        }
+
+        function showDemoModeToast() {
+            const toast = document.createElement('div');
+            toast.textContent = '🔒 Demo Mode: Changes are disabled in this environment';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 16px 24px;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: 600;
+                max-width: 400px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
         }
 
         function escapeHtml(value) {

@@ -11,6 +11,10 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, H
 
 import config
 
+from fastapi import Depends
+
+from .demo_mode import DemoModeMiddleware
+from .dependencies import require_api_access
 from .lifespan import lifespan as full_lifespan
 from .lifespan import ws_manager
 from .middleware import LatencyMiddleware
@@ -22,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 DEMO_MODE = os.getenv("MARKET_WATCH_DEMO_MODE", "0").lower() in {"1", "true", "yes", "on"}
 USE_NOOP_LIFESPAN = os.getenv("FASTAPI_DISABLE_LIFESPAN", "0") == "1"
+_DISABLE_API_DOCS = os.getenv("DISABLE_API_DOCS", "0").lower() in {"1", "true", "yes", "on"}
 
 def create_metrics(registry: CollectorRegistry | None = None):
     """Build metrics against an explicit registry for test-safe isolation."""
@@ -117,6 +122,9 @@ app.add_middleware(
 # Add latency tracking middleware
 app.add_middleware(LatencyMiddleware)
 
+# Add demo mode enforcement (blocks writes when DEMO_MODE=1)
+app.add_middleware(DemoModeMiddleware)
+
 # WebSocket endpoint (MUST be before static mount)
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -128,13 +136,14 @@ async def websocket_endpoint(websocket: WebSocket):
         await ws_manager.remove(websocket)
 
 
-# Routers
-app.include_router(status.router, prefix="/api")  # Fixed: add /api prefix
-app.include_router(cfg_router.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")
-app.include_router(trading.router, prefix="/api")
-app.include_router(observability.router, prefix="/api")
-app.include_router(alerts.router, prefix="/api")
+# Routers — all API routes require authentication via require_api_access.
+_api_deps = [Depends(require_api_access)]
+app.include_router(status.router, prefix="/api", dependencies=_api_deps)
+app.include_router(cfg_router.router, prefix="/api", dependencies=_api_deps)
+app.include_router(analytics.router, prefix="/api", dependencies=_api_deps)
+app.include_router(trading.router, prefix="/api", dependencies=_api_deps)
+app.include_router(observability.router, prefix="/api", dependencies=_api_deps)
+app.include_router(alerts.router, prefix="/api", dependencies=_api_deps)
 
 # Apply demo hardening after routes are registered so dependency substitutions can be bound.
 build_demo_hardening(app)
