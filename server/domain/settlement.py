@@ -1,4 +1,19 @@
-"""Settlement cycle accounting and cash-availability enforcement."""
+"""Settlement cycle accounting and cash-availability enforcement.
+
+Contract:
+- Input schema:
+  - Trade mappings include explicit `timestamp` or `trade_date`, plus side/notional
+    (or qty and price fields).
+  - `MarketProfile` declares settlement cycle and account type.
+- Output schema:
+  - `register_trade` returns computed settlement date.
+  - Cash-availability methods return deterministic boolean/float values.
+- Determinism guarantee:
+  - Deterministic for explicit trade/as-of inputs; no hidden system-time fallback.
+- No-mutation guarantee:
+  - Caller trade mappings are not mutated.
+  - Internal settlement ledger state mutates only within engine state.
+"""
 
 from __future__ import annotations
 
@@ -53,7 +68,9 @@ class SettlementEngine:
         return _add_business_days(base_date, cycle)
 
     def update_unsettled_cash(self, as_of: date | None = None) -> None:
-        today = as_of or datetime.now(UTC).date()
+        if as_of is None:
+            raise ValueError("Explicit as_of date is required for deterministic settlement updates")
+        today = as_of
         matured: list[SettlementEntry] = []
         pending: list[SettlementEntry] = []
         for entry in self._pending_credits:
@@ -66,6 +83,8 @@ class SettlementEngine:
         self._unsettled_cash = sum(item.amount for item in self._pending_credits)
 
     def get_available_cash(self, as_of: date | None = None) -> float:
+        if as_of is None:
+            raise ValueError("Explicit as_of date is required for deterministic cash availability")
         self.update_unsettled_cash(as_of=as_of)
         return float(self._settled_cash)
 
@@ -76,7 +95,8 @@ class SettlementEngine:
         if side != "buy":
             return True
         notional = _trade_notional(trade)
-        return self.get_available_cash() >= notional
+        trade_dt = _parse_datetime(trade.get("timestamp") or trade.get("trade_date"))
+        return self.get_available_cash(as_of=trade_dt.date()) >= notional
 
 
 def _settlement_days(value: str) -> int:
@@ -99,6 +119,7 @@ def _add_business_days(start: date, days: int) -> date:
 
 
 def _parse_datetime(value: Any) -> datetime:
+    """Parse explicit datetime inputs; raises on missing values."""
     if isinstance(value, datetime):
         dt = value
     elif isinstance(value, date):
@@ -109,7 +130,7 @@ def _parse_datetime(value: Any) -> datetime:
             raw = raw[:-1] + "+00:00"
         dt = datetime.fromisoformat(raw)
     else:
-        dt = datetime.now(UTC)
+        raise ValueError("Explicit datetime value is required")
 
     if dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)

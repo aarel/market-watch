@@ -1,5 +1,6 @@
 from server.domain.corporate_actions import CorporateActionEvent, CorporateActionType
 from server.domain.cost_basis import CostBasisEngine
+import pytest
 
 
 def _buy(symbol: str, qty: float, price: float, ts: str) -> dict:
@@ -42,3 +43,16 @@ def test_apply_split_updates_open_lots() -> None:
     assert len(lots) == 1
     assert lots[0].remaining_quantity == 20.0
     assert lots[0].adjusted_cost_basis == 50.0
+
+
+def test_add_lot_requires_explicit_timestamp() -> None:
+    engine = CostBasisEngine()
+    with pytest.raises(ValueError, match="Explicit datetime value is required"):
+        engine.add_lot({"symbol": "ABC", "side": "buy", "qty": 1, "filled_avg_price": 100})
+
+
+def test_close_lot_requires_explicit_timestamp() -> None:
+    engine = CostBasisEngine()
+    engine.add_lot(_buy("ABC", 1, 100, "2026-01-01T10:00:00Z"))
+    with pytest.raises(ValueError, match="Explicit datetime value is required"):
+        engine.compute_realized_gain({"symbol": "ABC", "side": "sell", "qty": 1, "filled_avg_price": 110})

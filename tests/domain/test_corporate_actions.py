@@ -15,9 +15,11 @@ def test_split_adjusts_position_and_lot_basis() -> None:
     )
 
     position = {"symbol": "ABC", "quantity": 10.0, "entry_price": 100.0}
-    model.apply_to_position(position, event)
-    assert position["quantity"] == 20.0
-    assert position["entry_price"] == 50.0
+    adjusted_position = model.apply_to_position(position, event)
+    assert position["quantity"] == 10.0
+    assert position["entry_price"] == 100.0
+    assert adjusted_position["quantity"] == 20.0
+    assert adjusted_position["entry_price"] == 50.0
 
     lot = Lot(
         lot_id="LOT-1",
@@ -28,10 +30,13 @@ def test_split_adjusts_position_and_lot_basis() -> None:
         remaining_quantity=10.0,
         adjusted_cost_basis=100.0,
     )
-    model.apply_to_lots([lot], event)
-    assert lot.quantity == 20.0
-    assert lot.remaining_quantity == 20.0
-    assert lot.adjusted_cost_basis == 50.0
+    adjusted_lots = model.apply_to_lots([lot], event)
+    assert lot.quantity == 10.0
+    assert lot.remaining_quantity == 10.0
+    assert lot.adjusted_cost_basis == 100.0
+    assert adjusted_lots[0].quantity == 20.0
+    assert adjusted_lots[0].remaining_quantity == 20.0
+    assert adjusted_lots[0].adjusted_cost_basis == 50.0
 
 
 def test_reverse_split_preserves_total_basis() -> None:
@@ -45,8 +50,8 @@ def test_reverse_split_preserves_total_basis() -> None:
     )
     position = {"symbol": "ABC", "quantity": 100.0, "entry_price": 2.0}
     before_total = position["quantity"] * position["entry_price"]
-    model.apply_to_position(position, event)
-    after_total = position["quantity"] * position["entry_price"]
+    adjusted = model.apply_to_position(position, event)
+    after_total = adjusted["quantity"] * adjusted["entry_price"]
     assert round(before_total, 8) == round(after_total, 8)
 
 
@@ -60,5 +65,6 @@ def test_dividend_records_cash_inflow() -> None:
         cash_amount=0.25,
     )
     position = {"symbol": "ABC", "quantity": 40.0}
-    model.apply_to_position(position, event)
-    assert position["cash_dividend"] == 10.0
+    adjusted = model.apply_to_position(position, event)
+    assert "cash_dividend" not in position
+    assert adjusted["cash_dividend"] == 10.0

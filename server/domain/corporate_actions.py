@@ -1,7 +1,22 @@
-"""Corporate action processing for position and lot adjustments."""
+"""Corporate action processing for position and lot adjustments.
+
+Contract:
+- Input schema:
+  - Position: mapping with at least `symbol`; may include `quantity`, `entry_price`.
+  - Lots: sequence of objects with `symbol`, `quantity`, `remaining_quantity`,
+    and `adjusted_cost_basis` attributes.
+  - Event: `CorporateActionEvent`.
+- Output schema:
+  - New position mapping and/or new lot-object list reflecting action adjustments.
+- Determinism guarantee:
+  - For the same input position/lots/event, output values are identical.
+- No-mutation guarantee:
+  - Caller-provided position mappings and lot objects are never mutated in place.
+"""
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
@@ -29,7 +44,7 @@ class CorporateActionEvent:
 
 
 class CorporateActionModel:
-    """Stores and applies deterministic corporate action adjustments."""
+    """Apply deterministic corporate action adjustments without mutating caller data."""
 
     def __init__(self) -> None:
         self._events: list[CorporateActionEvent] = []
@@ -38,69 +53,75 @@ class CorporateActionModel:
         self._events.append(event)
 
     def apply_to_position(self, position: dict[str, Any], event: CorporateActionEvent) -> dict[str, Any]:
-        if position.get("symbol") != event.symbol:
-            return position
+        """Return a new adjusted position mapping for a corporate action event."""
+        updated = dict(position)
+        if updated.get("symbol") != event.symbol:
+            return updated
 
         if event.action_type == CorporateActionType.SPLIT:
             ratio = _require_ratio(event)
-            qty = float(position.get("quantity", 0.0))
-            entry_price = float(position.get("entry_price", 0.0))
-            position["quantity"] = qty * ratio
-            position["entry_price"] = entry_price / ratio if ratio else entry_price
+            qty = float(updated.get("quantity", 0.0))
+            entry_price = float(updated.get("entry_price", 0.0))
+            updated["quantity"] = qty * ratio
+            updated["entry_price"] = entry_price / ratio if ratio else entry_price
         elif event.action_type == CorporateActionType.REVERSE_SPLIT:
             ratio = _require_ratio(event)
-            qty = float(position.get("quantity", 0.0))
-            entry_price = float(position.get("entry_price", 0.0))
-            position["quantity"] = qty / ratio if ratio else qty
-            position["entry_price"] = entry_price * ratio
+            qty = float(updated.get("quantity", 0.0))
+            entry_price = float(updated.get("entry_price", 0.0))
+            updated["quantity"] = qty / ratio if ratio else qty
+            updated["entry_price"] = entry_price * ratio
         elif event.action_type == CorporateActionType.DIVIDEND:
-            qty = float(position.get("quantity", 0.0))
+            qty = float(updated.get("quantity", 0.0))
             cash = float(event.cash_amount or 0.0)
-            position["cash_dividend"] = float(position.get("cash_dividend", 0.0)) + (qty * cash)
+            updated["cash_dividend"] = float(updated.get("cash_dividend", 0.0)) + (qty * cash)
         elif event.action_type == CorporateActionType.SYMBOL_CHANGE:
-            self.handle_symbol_change(position, event)
+            updated = self.handle_symbol_change(updated, event)
         elif event.action_type in {CorporateActionType.MERGER, CorporateActionType.SPINOFF}:
             # Placeholder: no valuation math, allow target symbol override.
             target = event.metadata.get("target_symbol")
             if target:
-                position["symbol"] = str(target)
-        return position
+                updated["symbol"] = str(target)
+        return updated
 
     def apply_to_lots(self, lots: list[Any], event: CorporateActionEvent) -> list[Any]:
+        """Return a new lot list with adjusted values; never mutates provided lot objects."""
         adjusted: list[Any] = []
         for lot in lots:
-            symbol = getattr(lot, "symbol", None)
+            clone = deepcopy(lot)
+            symbol = getattr(clone, "symbol", None)
             if symbol != event.symbol:
-                adjusted.append(lot)
+                adjusted.append(clone)
                 continue
 
             if event.action_type == CorporateActionType.SPLIT:
                 ratio = _require_ratio(event)
-                lot.quantity = float(lot.quantity) * ratio
-                lot.remaining_quantity = float(lot.remaining_quantity) * ratio
-                lot.adjusted_cost_basis = float(lot.adjusted_cost_basis) / ratio if ratio else float(lot.adjusted_cost_basis)
+                clone.quantity = float(clone.quantity) * ratio
+                clone.remaining_quantity = float(clone.remaining_quantity) * ratio
+                clone.adjusted_cost_basis = float(clone.adjusted_cost_basis) / ratio if ratio else float(clone.adjusted_cost_basis)
             elif event.action_type == CorporateActionType.REVERSE_SPLIT:
                 ratio = _require_ratio(event)
-                lot.quantity = float(lot.quantity) / ratio if ratio else float(lot.quantity)
-                lot.remaining_quantity = float(lot.remaining_quantity) / ratio if ratio else float(lot.remaining_quantity)
-                lot.adjusted_cost_basis = float(lot.adjusted_cost_basis) * ratio
+                clone.quantity = float(clone.quantity) / ratio if ratio else float(clone.quantity)
+                clone.remaining_quantity = float(clone.remaining_quantity) / ratio if ratio else float(clone.remaining_quantity)
+                clone.adjusted_cost_basis = float(clone.adjusted_cost_basis) * ratio
             elif event.action_type == CorporateActionType.SYMBOL_CHANGE:
-                lot.symbol = str(event.metadata.get("new_symbol", lot.symbol))
+                clone.symbol = str(event.metadata.get("new_symbol", clone.symbol))
             elif event.action_type in {CorporateActionType.MERGER, CorporateActionType.SPINOFF}:
                 target = event.metadata.get("target_symbol")
                 if target:
-                    lot.symbol = str(target)
-            adjusted.append(lot)
+                    clone.symbol = str(target)
+            adjusted.append(clone)
         return adjusted
 
     def adjust_cost_basis(self, lots: list[Any], event: CorporateActionEvent) -> list[Any]:
         return self.apply_to_lots(lots, event)
 
     def handle_symbol_change(self, position: dict[str, Any], event: CorporateActionEvent) -> dict[str, Any]:
+        """Return a new position mapping with updated symbol when provided."""
+        updated = dict(position)
         new_symbol = event.metadata.get("new_symbol")
         if new_symbol:
-            position["symbol"] = str(new_symbol)
-        return position
+            updated["symbol"] = str(new_symbol)
+        return updated
 
 
 def _require_ratio(event: CorporateActionEvent) -> float:

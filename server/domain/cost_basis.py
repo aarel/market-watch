@@ -1,4 +1,19 @@
-"""Lot-level cost basis accounting engine."""
+"""Lot-level cost basis accounting engine.
+
+Contract:
+- Input schema:
+  - Trades are mappings containing `symbol`, `qty`, `filled_avg_price` or `price`,
+    and explicit `timestamp` or `entry_date`/`exit_date`.
+  - Corporate actions are `CorporateActionEvent`.
+- Output schema:
+  - `add_lot` returns a `Lot`.
+  - `close_lot`/`compute_realized_gain` return realized-gain payload dictionaries.
+- Determinism guarantee:
+  - Deterministic for identical explicit inputs; no system-time fallbacks.
+- No-mutation guarantee:
+  - Caller trade mappings are never mutated.
+  - Engine-managed lot state mutates only inside the engine.
+"""
 
 from __future__ import annotations
 
@@ -29,7 +44,7 @@ class LotCloseResult:
 
 
 class CostBasisEngine:
-    """Tracks open lots by symbol and computes realized gains on closure."""
+    """Track open lots by symbol and compute realized gains on closure."""
 
     def __init__(self) -> None:
         self._lots: dict[str, list[Lot]] = {}
@@ -153,6 +168,7 @@ class CostBasisEngine:
 
 
 def _parse_datetime(value: Any) -> datetime:
+    """Parse explicit timestamps deterministically; no implicit now() fallback."""
     if isinstance(value, datetime):
         dt = value
     elif isinstance(value, str) and value:
@@ -161,7 +177,7 @@ def _parse_datetime(value: Any) -> datetime:
             raw = raw[:-1] + "+00:00"
         dt = datetime.fromisoformat(raw)
     else:
-        dt = datetime.now(UTC)
+        raise ValueError("Explicit datetime value is required")
 
     if dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
