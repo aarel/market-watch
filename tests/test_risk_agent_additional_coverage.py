@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from agents.event_bus import EventBus
 from agents.events import RiskCheckFailed, RiskCheckPassed, SignalGenerated
@@ -50,6 +51,10 @@ class DummyBroker:
         if self._raise_get_position:
             raise Exception("position error")
         return self.get_position(symbol)
+
+    def get_bars(self, symbol, timeframe=None, limit=None, start=None, end=None, days=None, **kwargs):
+        """Mock get_bars for RVOL/exposure checks. Returns empty list."""
+        return []
 
 
 class DummySizer:
@@ -101,10 +106,15 @@ class TestRiskAgentAdditionalCoverage(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(failed, [])
 
     async def test_daily_trade_limit_blocks_signal(self):
+        import config
         broker = DummyBroker()
         agent = RiskAgent(self.bus, broker, circuit_breaker=DummyBreaker())
         agent.daily_trades = 5
-        agent.last_trade_date = datetime.now().date()
+        # Use same timezone as RiskAgent._reset_daily_limits()
+        try:
+            agent.last_trade_date = datetime.now(ZoneInfo(config.MARKET_TIMEZONE)).date()
+        except Exception:
+            agent.last_trade_date = datetime.now().date()
 
         failed = []
         self.bus.subscribe(RiskCheckFailed, failed.append)
