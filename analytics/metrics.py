@@ -77,9 +77,12 @@ def _collapse_daily(points: list[dict]) -> list[dict]:
                 continue
         if not isinstance(ts, datetime):
             continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=UTC)
         key = ts.date()
-        # keep the latest snapshot for the day
-        by_day[key] = {"timestamp": ts, "equity": float(equity)}
+        existing = by_day.get(key)
+        if existing is None or ts > existing["timestamp"]:
+            by_day[key] = {"timestamp": ts, "equity": float(equity)}
     return sorted(by_day.values(), key=lambda x: x["timestamp"])
 
 

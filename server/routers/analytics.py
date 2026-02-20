@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 
 import config
 from analytics.metrics import (
+    _collapse_daily,
     compute_equity_metrics,
     compute_period_returns,
     compute_round_trip_trades,
@@ -47,7 +48,9 @@ def _serialize_positions_for_concentration(positions, portfolio_value: float) ->
 @router.get("/analytics/equity")
 async def get_equity(period: str = "30d", store=Depends(get_analytics_store)):
     equity = store.load_equity(period=period)
-    return {"period": period, "equity": equity, "benchmark": [], "benchmark_symbol": ""}
+    daily = _collapse_daily(equity)
+    serialized = [{"timestamp": p["timestamp"].isoformat(), "equity": p["equity"]} for p in daily]
+    return {"period": period, "equity": serialized, "benchmark": [], "benchmark_symbol": ""}
 
 
 @router.get("/analytics/equity.csv")
