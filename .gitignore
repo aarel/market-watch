@@ -41,4 +41,4 @@ UNIVERSE_GUARDRAILS_ANALYSIS.md
 development_docs/
 logs/**/*.jsonl
 to-dos.md
-img/
+img/*.png

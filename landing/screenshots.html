@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Watch — Feature Walkthrough</title>
+    <meta name="description" content="Screenshots and feature walkthrough of Market Watch — a production-grade algorithmic trading system.">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-dim: #8b949e;
+            --green: #3fb950;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --yellow: #d29922;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+        }
+        .back-link {
+            display: inline-block;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.9em;
+            margin-bottom: 24px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--blue); }
+        h1 { font-size: 2.8em; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+        .tagline { font-size: 1.2em; color: var(--text-dim); font-weight: 300; margin-bottom: 28px; }
+        .btn {
+            display: inline-block;
+            padding: 12px 32px;
+            background: var(--blue);
+            color: #0d1117;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #79b8ff; transform: translateY(-1px); }
+
+        /* Sections */
+        .section { margin-bottom: 56px; }
+        .section-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--blue);
+            margin-bottom: 6px;
+        }
+        .section-title {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        .section-desc {
+            color: var(--text-dim);
+            font-size: 1em;
+            margin-bottom: 28px;
+            max-width: 720px;
+        }
+
+        /* Screenshot cards */
+        .shot-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .shot-img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-bottom: 1px solid var(--border);
+        }
+        .shot-img.narrow {
+            max-width: 500px;
+            margin: 0 auto;
+            display: block;
+        }
+        .shot-caption {
+            padding: 20px 24px;
+        }
+        .shot-title {
+            font-size: 1em;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .shot-desc {
+            font-size: 0.92em;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .shot-desc strong { color: var(--text); }
+
+        /* Two-column detail grid for tooltip/callout screenshots */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Section divider */
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 56px 0;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-dim);
+            margin-top: 60px;
+            padding: 20px 0;
+            font-size: 0.9em;
+            border-top: 1px solid var(--border);
+        }
+        strong { color: var(--text); }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <a href="/" class="back-link">← Back to Overview</a>
+        <h1>Market Watch</h1>
+        <p class="tagline">Feature walkthrough — what the system does and how it looks doing it</p>
+        <a href="https://app.market-watch.online" class="btn">Enter Demo →</a>
+    </header>
+
+    <!-- ── SECTION 1: DASHBOARD ── -->
+    <div class="section">
+        <div class="section-label">Section 1</div>
+        <div class="section-title">Live Dashboard</div>
+        <p class="section-desc">The top of the interface encodes the system's operating state at a glance — universe, market status, and auto-trade mode — before a single number is read. Below that, agents and analytics update in real time.</p>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-bot.png" alt="Full dashboard overview">
+            <div class="shot-caption">
+                <div class="shot-title">Full Dashboard View</div>
+                <p class="shot-desc">Header status badges encode the three operating invariants: <strong>MARKET OPEN</strong> (whether the exchange is live), <strong>UNIVERSE: PAPER</strong> (the execution context — PAPER, LIVE, or SIMULATION — set at construction time and enforced across every subsystem), and <strong>AUTO-TRADE: ENABLED</strong> (whether the execution pipeline is cleared to submit orders). The agent health row and analytics panel sit immediately below, updating via WebSocket without page refresh.</p>
+            </div>
+        </div>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-ticker.png" alt="Real-time market ticker">
+            <div class="shot-caption">
+                <div class="shot-title">Real-Time Market Ticker</div>
+                <p class="shot-desc">A scrolling ticker strip shows <strong>top % gainers</strong> from the current day's momentum scan alongside sector ETF moves (XLF, XLK, XLE, etc.). The Data agent refreshes this every minute during market hours. The gainers list feeds directly into the Signal agent's candidate pool — symbols appearing here are the ones being evaluated for buy conditions.</p>
+            </div>
+        </div>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-agents.png" alt="Agent pipeline status">
+            <div class="shot-caption">
+                <div class="shot-title">Agent Pipeline</div>
+                <p class="shot-desc">Seven specialized agents run concurrently in independent threads. <strong>DATA</strong> fetches live market bars from Alpaca. <strong>SIGNAL</strong> evaluates momentum conditions and outputs actionable signals. <strong>RISK</strong> validates every order candidate through a 14-step filter chain before it can proceed. <strong>EXECUTION</strong> submits cleared orders to the broker. <strong>MONITOR</strong> watches open positions for stop-loss breaches every cycle. <strong>ALERT</strong> dispatches notifications on risk events. <strong>OBSERVABILITY</strong> classifies and logs all agent events (OK / WARN / FAIL) for audit. Each card shows live running state and last activity timestamp.</p>
+            </div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- ── SECTION 2: ACCOUNT & POSITIONS ── -->
+    <div class="section">
+        <div class="section-label">Section 2</div>
+        <div class="section-title">Account & Positions</div>
+        <p class="section-desc">Live portfolio state sourced from the broker API, broken down into cash and position components with a visual concentration view.</p>
+
+        <div class="shot-card">
+            <img class="shot-img narrow" src="img/screenshots/market-watch-account.png" alt="Account summary">
+            <div class="shot-caption">
+                <div class="shot-title">Account Summary</div>
+                <p class="shot-desc">Pulled live from Alpaca on each polling cycle. <strong>Portfolio Value</strong> is the sum of cash and all open position market values. <strong>Buying Power</strong> reflects margin-adjusted available capital. <strong>Daily Trades</strong> tracks completed round-trips against the configured maximum — once the limit is hit, the execution pipeline stops accepting new buy orders for the rest of the session.</p>
+            </div>
+        </div>
+
+        <div class="shot-card">
+            <img class="shot-img narrow" src="img/screenshots/market-watch-positions.png" alt="Open positions list">
+            <div class="shot-caption">
+                <div class="shot-title">Open Positions</div>
+                <p class="shot-desc">All current holdings with quantity, average entry price, unrealized P&amp;L in dollars and percentage. <strong>Green</strong> = profitable, <strong>red</strong> = underwater. Each row has a trade button for manual intervention — useful during demo mode where auto-trade is disabled but the interface remains fully operational.</p>
+            </div>
+        </div>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-position.png" alt="Position concentration chart">
+            <div class="shot-caption">
+                <div class="shot-title">Position Concentration Chart</div>
+                <p class="shot-desc">A donut chart visualizing portfolio allocation by position. <strong>Green segments</strong> are profitable positions, <strong>red</strong> are losses, sized proportionally by weight in the portfolio. This makes concentration risk immediately visible — a sector or single-name overweight that might be invisible in a list view stands out clearly in the chart.</p>
+            </div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- ── SECTION 3: TRADING ACTIVITY ── -->
+    <div class="section">
+        <div class="section-label">Section 3</div>
+        <div class="section-title">Trading Activity</div>
+        <p class="section-desc">The execution feed and signal queue — what the system traded and why.</p>
+
+        <div class="shot-card">
+            <img class="shot-img narrow" src="img/screenshots/market-watch-trades.png" alt="Trade execution history">
+            <div class="shot-caption">
+                <div class="shot-title">Trade Execution History</div>
+                <p class="shot-desc">Execution history sourced directly from the Alpaca broker feed. Each entry shows ticker, direction (<strong>BUY</strong> / <strong>SELL</strong>), execution source (<strong>AUTO</strong> = algorithm-driven, manual otherwise), average fill price, notional value, and timestamp. The full list exports to CSV for external analysis. Showing 10 of 30 in this view — the full history is paginated and filterable by period.</p>
+            </div>
+        </div>
+
+        <div class="shot-card">
+            <img class="shot-img narrow" src="img/screenshots/market-watch-signals.png" alt="Watchlist signals">
+            <div class="shot-caption">
+                <div class="shot-title">Watchlist Signals</div>
+                <p class="shot-desc">The Signal agent evaluates each watched symbol's 20-day momentum score every cycle and emits a classification: <strong>BUY</strong> = momentum exceeds the buy threshold; <strong>HOLD</strong> = within range but not a new entry; <strong>SELL</strong> = momentum has reversed through the sell threshold or stop-loss is hit. Each row shows the rationale — momentum %, P&amp;L on existing position, and current price. Signals that pass downstream Risk checks enter the execution queue.</p>
+            </div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- ── SECTION 4: RISK CONTROLS ── -->
+    <div class="section">
+        <div class="section-label">Section 4</div>
+        <div class="section-title">Risk Controls</div>
+        <p class="section-desc">Every order passes through a multi-layer risk filter before reaching the broker. These controls are visible live and configurable without a restart.</p>
+
+        <div class="shot-card">
+            <img class="shot-img narrow" src="img/screenshots/market-watch-risks-and-limits.png" alt="Risk and limits panel">
+            <div class="shot-caption">
+                <div class="shot-title">Risk &amp; Limits Panel</div>
+                <p class="shot-desc">Live guard-rail status in one place. <strong>Circuit Breaker</strong> shows OK or TRIGGERED — when triggered, the execution pipeline halts and will not resume until the operator clicks Reset. <strong>Open Positions</strong> shows the live count against the configured maximum. <strong>Daily Loss Limit</strong> and <strong>Max Drawdown</strong> display the active thresholds — breaching either pauses new buys automatically.</p>
+            </div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="shot-card">
+                <img class="shot-img" src="img/screenshots/market-watch-circuit-breaker.png" alt="Circuit breaker detail">
+                <div class="shot-caption">
+                    <div class="shot-title">Circuit Breaker</div>
+                    <p class="shot-desc">When triggered, trading pauses entirely and does not resume until the operator resets it. Designed for gap-down opens, high-volatility events, or any condition where continuing to trade would compound losses faster than the stop-loss can contain them.</p>
+                </div>
+            </div>
+            <div class="shot-card">
+                <img class="shot-img" src="img/screenshots/market-watch-daily-loss-limit.png" alt="Daily loss limit">
+                <div class="shot-caption">
+                    <div class="shot-title">Daily Loss Limit</div>
+                    <p class="shot-desc">The Risk agent computes intraday portfolio change against the session's opening value on every evaluation cycle. If the threshold is breached, new buys are rejected for the remainder of the trading day — existing positions continue to be monitored for stop-loss.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- ── SECTION 5: ANALYTICS ── -->
+    <div class="section">
+        <div class="section-label">Section 5</div>
+        <div class="section-title">Analytics &amp; Reporting</div>
+        <p class="section-desc">Performance metrics derived from an on-disk equity snapshot store — independent of the live broker state and queryable across any time window.</p>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-analytics-and-reporting.png" alt="Equity curve and metrics">
+            <div class="shot-caption">
+                <div class="shot-title">Equity Curve &amp; Performance Metrics</div>
+                <p class="shot-desc">The <strong>equity curve</strong> (blue line) plots end-of-day portfolio value. The <strong>drawdown overlay</strong> (red dashed line, right axis) shows the percentage decline from each preceding peak — giving simultaneous visibility into absolute performance and downside risk without switching views. The summary row below the chart shows <strong>Total Return</strong>, <strong>Max Drawdown</strong>, <strong>Volatility / Sharpe Ratio</strong>, and <strong>Trade Stats</strong> for the selected period. The period selector (30D / 90D / YTD / ALL) dynamically filters the underlying dataset.</p>
+            </div>
+        </div>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-period-returns.png" alt="Period returns tables">
+            <div class="shot-caption">
+                <div class="shot-title">Period Returns</div>
+                <p class="shot-desc">Daily, weekly, and monthly return tables computed from <strong>end-of-period equity snapshots</strong> — not from trade P&amp;L calculations. This makes them an independent cross-check against the execution accounting. Each row is the percentage change from the prior period's closing equity value, bucketed in the configured market timezone.</p>
+            </div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- ── SECTION 6: CONFIGURATION ── -->
+    <div class="section">
+        <div class="section-label">Section 6</div>
+        <div class="section-title">Configuration</div>
+        <p class="section-desc">All strategy and risk parameters are live-updatable through the UI. Changes apply to the running system immediately and persist across restarts via per-universe config files — no code changes, no redeploy.</p>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-config%281%29.png" alt="Configuration panel">
+            <div class="shot-caption">
+                <div class="shot-title">Configuration Panel</div>
+                <p class="shot-desc"><strong>Strategy Preset</strong> selects a pre-tuned parameter bundle; Custom allows individual field overrides. <strong>Watchlist Mode</strong> controls the symbol universe — Top % Gainers (auto-populated daily from the momentum scan) or a manual watchlist. <strong>Top Gainers Count</strong> and <strong>Universe</strong> (Large Cap / All) refine the candidate pool. Below that: Buy/Sell momentum thresholds, Stop Loss, position sizing limits, Max Daily Trades, sector and correlation exposure caps, RVOL filter, and Trade Interval.</p>
+            </div>
+        </div>
+
+        <div class="shot-card">
+            <img class="shot-img" src="img/screenshots/market-watch-config-investment-warning.png" alt="Inline config validation">
+            <div class="shot-caption">
+                <div class="shot-title">Inline Validation</div>
+                <p class="shot-desc">Config fields carry real-time safety indicators alongside each value. <strong>Green checkmark</strong> = within safe operating bounds. <strong>Amber warning</strong> = value is valid but operationally risky — the tooltip shown here flags a Max Position setting of 50% as concentrated: <em>"Concentrated — 30-50% in one stock is risky."</em> Validation runs client-side on every keystroke; the server enforces the same rules on save.</p>
+            </div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="shot-card">
+                <img class="shot-img" src="img/screenshots/market-watch-buy-threshold.png" alt="Buy threshold">
+                <div class="shot-caption">
+                    <div class="shot-title">Buy Threshold</div>
+                    <p class="shot-desc">Minimum 20-day momentum % required to generate a BUY signal. <strong>Higher = fewer trades, stronger signals. Lower = more trades, higher noise.</strong> At 2.0, a stock must be up 2%+ over 20 days before the bot considers entering.</p>
+                </div>
+            </div>
+            <div class="shot-card">
+                <img class="shot-img" src="img/screenshots/market-watch-sell-threshold.png" alt="Sell threshold">
+                <div class="shot-caption">
+                    <div class="shot-title">Sell Threshold</div>
+                    <p class="shot-desc">Momentum floor for exits. When a held position's momentum drops below this (typically a negative value), the Signal agent issues a SELL. Catches trend reversals before they compound. At -1.0, the bot exits when momentum goes negative.</p>
+                </div>
+            </div>
+            <div class="shot-card">
+                <img class="shot-img" src="img/screenshots/market-watch-stop-loss.png" alt="Stop loss">
+                <div class="shot-caption">
+                    <div class="shot-title">Stop Loss</div>
+                    <p class="shot-desc">Position-level hard stop, enforced by the Monitor agent independently of signal state. If a position drops more than this % from entry price, a market sell is submitted immediately. At 5.0, any position down 5% from cost is closed without waiting for the next signal cycle.</p>
+                </div>
+            </div>
+            <div class="shot-card">
+                <img class="shot-img" src="img/screenshots/market-watch-save-config.png" alt="Save config">
+                <div class="shot-caption">
+                    <div class="shot-title">Save &amp; Persist</div>
+                    <p class="shot-desc"><strong>Save Config</strong> writes all fields to the universe-scoped config file and hot-applies them to the running system — no restart required. <strong>Reset Defaults</strong> reverts to the values from the environment file. Config state is isolated per universe (PAPER, LIVE, SIMULATION) so paper settings never bleed into live.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align:center; padding: 20px 0 40px;">
+        <a href="https://app.market-watch.online" class="btn">Enter Demo →</a>
+        &nbsp;&nbsp;
+        <a href="/" style="color: var(--text-dim); text-decoration: none; font-size: 0.95em;">← Back to Overview</a>
+    </div>
+
+    <footer>
+        <p>Market Watch — Built with FastAPI, SQLite, Alpaca Markets API</p>
+        <p>© 2026 — Actively Maintained</p>
+    </footer>
+
+</div>
+</body>
+</html>
