@@ -929,22 +929,6 @@
         .collapsible-card .card-header {
             justify-content: space-between;
         }
-        .collapse-toggle {
-            border: 1px solid var(--border);
-            background: var(--bg);
-            color: var(--text-dim);
-            border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .collapse-toggle:hover {
-            border-color: var(--blue);
-            color: var(--text);
-        }
-        .collapsible-card.collapsed .collapse-content {
-            display: none;
-        }
 
         @keyframes ticker-scroll {
             from { transform: translateX(0); }
@@ -1494,7 +1478,7 @@
                 </div>
             </div>
             <!-- Observability Warnings -->
-            <div class="card collapsible-card" id="risk-obs-card" data-collapse-mobile="true">
+            <div class="card" id="risk-obs-card">
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <h2>Risk & Observability Alerts</h2>
@@ -1503,19 +1487,16 @@
                             <span class="tooltip-text">Today's WARN/FAIL events from agent activity. Shows why trades were blocked or flagged. Also logged daily to logs/risk-and-obs-alerts/.</span>
                         </span>
                     </div>
-                    <button class="collapse-toggle" data-target="risk-obs-card" aria-expanded="true" onclick="toggleCardCollapse('risk-obs-card', this)">Collapse</button>
                 </div>
-                <div class="collapse-content">
-                    <div class="log-container obs-log-container" id="obs-log-container">
-                        <div class="empty-state">No warnings yet</div>
-                    </div>
+                <div class="log-container obs-log-container" id="obs-log-container">
+                    <div class="empty-state">No warnings yet</div>
                 </div>
             </div>
         </div>
 
         <div class="grid" style="margin-bottom: 20px;">
             <!-- Activity Log -->
-            <div class="card collapsible-card" id="activity-log-card" data-collapse-mobile="true">
+            <div class="card" id="activity-log-card">
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <h2>Activity Log</h2>
@@ -1524,17 +1505,14 @@
                             <span class="tooltip-text">Real-time log of bot activity. Shows trades executed, errors, market status, and system events. Newest entries appear at the top.</span>
                         </span>
                     </div>
-                    <button class="collapse-toggle" data-target="activity-log-card" aria-expanded="true" onclick="toggleCardCollapse('activity-log-card', this)">Collapse</button>
                 </div>
-                <div class="collapse-content">
-                    <div class="log-container" id="log-container">
-                        <div class="empty-state">No activity yet</div>
-                    </div>
+                <div class="log-container" id="log-container">
+                    <div class="empty-state">No activity yet</div>
                 </div>
             </div>
 
             <!-- Alert History -->
-            <div class="card collapsible-card" id="alert-history-card" data-collapse-mobile="true">
+            <div class="card" id="alert-history-card">
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <h2>Alert History</h2>
@@ -1543,17 +1521,14 @@
                             <span class="tooltip-text">Recent alerts sent via email or webhook. Shows alert type, severity, timestamp, and delivery status.</span>
                         </span>
                     </div>
-                    <button class="collapse-toggle" data-target="alert-history-card" aria-expanded="true" onclick="toggleCardCollapse('alert-history-card', this)">Collapse</button>
                 </div>
-                <div class="collapse-content">
-                    <div class="log-container" id="alert-history-container">
-                        <div class="empty-state">No alerts yet</div>
-                    </div>
+                <div class="log-container" id="alert-history-container">
+                    <div class="empty-state">No alerts yet</div>
                 </div>
             </div>
 
             <!-- Alert Settings -->
-            <div class="card collapsible-card" id="alert-settings-card" data-collapse-mobile="true">
+            <div class="card" id="alert-settings-card">
                 <div class="card-header">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <h2>Alert Settings</h2>
@@ -1562,9 +1537,7 @@
                             <span class="tooltip-text">Configure alert channels and send test notifications.</span>
                         </span>
                     </div>
-                    <button class="collapse-toggle" data-target="alert-settings-card" aria-expanded="true" onclick="toggleCardCollapse('alert-settings-card', this)">Collapse</button>
                 </div>
-                <div class="collapse-content">
                 <div class="config-row">
                     <span class="config-label">
                         Alerts Enabled
@@ -1611,7 +1584,6 @@
                     </div>
                 </div>
                 <div id="alert-test-message" style="margin-top: 10px; padding: 8px; border-radius: 4px; display: none;"></div>
-                </div>
             </div>
         </div>
 
@@ -4551,32 +4523,6 @@
             }, 10000);
         }
 
-        function toggleCardCollapse(cardId, trigger) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-            const isCollapsed = card.classList.toggle('collapsed');
-            if (trigger) {
-                trigger.textContent = isCollapsed ? 'Expand' : 'Collapse';
-                trigger.setAttribute('aria-expanded', String(!isCollapsed));
-            }
-        }
-
-        function applyMobileCollapseDefaults() {
-            const compactLandscape = window.matchMedia('(orientation: landscape) and (max-width: 980px)').matches;
-            document.querySelectorAll('.collapsible-card[data-collapse-mobile=\"true\"]').forEach((card) => {
-                const btn = card.querySelector('.collapse-toggle');
-                if (!btn) return;
-                if (compactLandscape) {
-                    card.classList.add('collapsed');
-                    btn.textContent = 'Expand';
-                    btn.setAttribute('aria-expanded', 'false');
-                } else {
-                    card.classList.remove('collapsed');
-                    btn.textContent = 'Collapse';
-                    btn.setAttribute('aria-expanded', 'true');
-                }
-            });
-        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -4595,7 +4541,6 @@
             fetchTrades();
             setInterval(fetchTrades, 20000);
             fetchAnalytics('30d');
-            applyMobileCollapseDefaults();
             document.querySelectorAll('#analytics-period .pill-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('#analytics-period .pill-btn').forEach(b => b.classList.remove('active'));
@@ -4614,7 +4559,6 @@
         window.addEventListener('resize', () => {
             updateTopGainers(currentTopGainers);
             updateMarketIndices(currentMarketIndices);
-            applyMobileCollapseDefaults();
         });
     </script>
 </body>
