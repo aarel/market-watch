@@ -1,0 +1,87 @@
+REQ-20260219-123825 — Complete
+
+  Audit correction from previous REQ
+
+  .env is not committed to git — it's properly gitignored. My prior audit incorrectly
+  flagged this as critical. The gitignore is working.
+
+  ---
+  What was done (repo-side)
+
+  server/dependencies.py — require_api_access moved here (its proper home alongside all
+  other FastAPI dependencies). Function logic unchanged, but now lives where it can be
+  cleanly imported by main.py without circular imports.
+
+  server/__init__.py — removed the duplicate definition, now re-exports require_api_access
+  from dependencies.py for any existing test/legacy callers.
+
+  server/main.py — two changes:
+  # Docs endpoints now conditional
+  docs_url=None if _DISABLE_API_DOCS else "/docs",
+  redoc_url=None if _DISABLE_API_DOCS else "/redoc",
+
+  # Auth gate wired to all 6 API routers
+  _api_deps = [Depends(require_api_access)]
+  app.include_router(status.router, prefix="/api", dependencies=_api_deps)
+  app.include_router(cfg_router.router, prefix="/api", dependencies=_api_deps)
+  # ... (all 6 routers)
+
+  .env.example — API_TOKEN now documented as required for public deployment with generation
+  command. DISABLE_API_DOCS=0 added.
+
+  .env.demo.example — DISABLE_API_DOCS=1 set (correct default for a demo deployment).
+
+  ---
+  What you need to do on the VPS
+
+  Stage 2 — Run these on the VPS and paste back the output:
+  ss -tlnp
+  sudo ufw status verbose
+  sudo systemctl status market-watch
+  curl -sk https://localhost/api/health 2>/dev/null | head -3
+  nginx -T 2>/dev/null | grep -E "listen|server_name|ssl|proxy_pass" | head -20
+
+  Stage 4 — Harden the VPS (run these yourself):
+  # Lock down port 8000 — should only be reachable from localhost (nginx)
+  sudo ufw deny 8000
+  sudo ufw allow 80/tcp
+  sudo ufw allow 443/tcp
+  sudo ufw allow 22/tcp      # or restrict to your IP: ufw allow from YOUR_IP to any port 22
+  sudo ufw enable
+
+  # fail2ban
+  sudo apt install fail2ban -y
+  sudo systemctl enable fail2ban && sudo systemctl start fail2ban
+
+  # SSH hardening — edit /etc/ssh/sshd_config and set:
+  #   PermitRootLogin no
+  #   PasswordAuthentication no
+  sudo systemctl restart sshd
+
+  # Unattended security upgrades
+  sudo apt install unattended-upgrades -y
+  sudo dpkg-reconfigure --priority=low unattended-upgrades
+
+  Stage 5 — Set secrets in your VPS .env:
+  # Generate a strong API token
+  python3 -c "import secrets; print(secrets.token_hex(32))"
+  # Add to your .env:
+  # API_TOKEN=<generated>
+  # DISABLE_API_DOCS=1
+  # AUTO_TRADE=false   (until fully hardened)
+
+  Once you paste back the ss -tlnp / ufw status output I can give you a final posture
+  classification.
+
+✻ Brewed for 12m 55s
+
+● Background command "Run tests excluding prometheus-dependent tests (pre-existing issue)"
+completed (exit code 0)
+
+● Read 1 file (ctrl+o to expand)
+
+● That was the same run I already retrieved. 710 pass, 5 skip — the 9 failures are all
+  pre-existing (prometheus_client missing in this venv, pre-existing static cache bust test,
+   pre-existing req log normalization tests). None introduced by the hardening changes.
+
+  No action needed on this notification.
