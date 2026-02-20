@@ -256,20 +256,14 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            write_input_pad_via_scan(
-                scan_script=self.scan_script,
-                communicate_file=self.communicate_file,
-                json_file=self.json_file,
-                failure_log_file=self.failure_log_file,
-                text=text,
-                lock_timeout=self.lock_timeout,
-                db_path=self.db_path,
-                schema_path=self.schema_path,
-            )
+            # Create request directly instead of writing to INPUT_PAD
+            req_id = self.request_api.create_request(text)
+            # Clear INPUT_PAD after successful creation
+            self.request_api.set_input_pad("")
+            self._send_json({"ok": True, "request_id": req_id})
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=400)
             return
-        self._send_json({"ok": True})
 
 
 def parse_args() -> argparse.Namespace:

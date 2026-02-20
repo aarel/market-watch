@@ -14,7 +14,7 @@
       <h1>Communicate Input Pad</h1>
       <div class="input-section">
         <textarea id="input" placeholder="Write one request and submit"></textarea>
-        <button id="submit">Write To INPUT PAD</button>
+        <button id="submit">Submit Request</button>
         <p class="small">Deep link format: <code>?req=REQ-YYYYMMDD-HHMMSS</code> or <code>#/REQ-...</code></p>
       </div>
       <h2 class="section-title">Requests</h2>
@@ -383,11 +383,12 @@
         body: JSON.stringify({ text })
       });
       if (!res.ok) {
-        alert('Failed to write INPUT PAD');
+        alert('Failed to create request');
         return;
       }
+      const data = await res.json();
       document.getElementById('input').value = '';
-      btn.textContent = 'Saved To INPUT PAD';
+      btn.textContent = `Created ${data.request_id || 'Request'}`;
       setTimeout(() => {
         btn.textContent = prior;
       }, 1400);
