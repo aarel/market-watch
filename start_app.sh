@@ -30,8 +30,8 @@ fi
 
 # Display current configuration
 echo "📊 Current Configuration:"
-echo "  TRADING_MODE: $(grep TRADING_MODE .env | cut -d'=' -f2)"
-echo "  AUTO_TRADE: $(grep AUTO_TRADE .env | cut -d'=' -f2)"
+echo "  TRADING_MODE: $(grep "^TRADING_MODE" .env | cut -d'=' -f2)"
+echo "  AUTO_TRADE: $(grep "^AUTO_TRADE" .env | cut -d'=' -f2)"
 echo ""
 
 # Start the application
