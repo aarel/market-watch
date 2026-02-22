@@ -76,10 +76,9 @@ class SQLiteRequestStore:
             params.append(created_date)
         if source == "communicate>":
             query += (
-                " AND (EXISTS (SELECT 1 FROM communicate_reqs c WHERE c.req_id = r.id AND c.source = ?)"
+                " AND (EXISTS (SELECT 1 FROM communicate_reqs c WHERE c.req_id = r.id AND c.source IN ('communicate>', 'ui'))"
                 " OR EXISTS (SELECT 1 FROM logs l WHERE l.request_id = r.id AND l.log_entry LIKE 'REQUEST_TEXT::%'))"
             )
-            params.append(source)
         query += " ORDER BY datetime(r.updated_at) DESC, r.id DESC"
         with self.db._connect() as conn:  # noqa: SLF001
             rows = conn.execute(query, tuple(params)).fetchall()
@@ -151,8 +150,7 @@ class SQLiteRequestStore:
         title, objective = _extract_title_objective(text)
         existing = {r["id"] for r in self.db.list_requests()}
         rid = _next_req_id(existing)
-        self.db.create_request(rid, title, objective, status="INPUT_PAD")
-        self.db.transition_status(rid, "IN_PROGRESS")
+        self.db.create_request(rid, title, objective, status="NEW")
         self.db.add_log(rid, f"created_from_ui { _now_iso() }")
         with self.db._connect() as conn:  # noqa: SLF001
             row = conn.execute(
@@ -171,7 +169,7 @@ class SQLiteRequestStore:
                       source=excluded.source,
                       structured_payload=excluded.structured_payload
                     """,
-                    (rid, title, "IN_PROGRESS", row["created_at"], row["updated_at"], "ui", text.strip()),
+                    (rid, title, "NEW", row["created_at"], row["updated_at"], "ui", text.strip()),
                 )
                 conn.commit()
         return rid

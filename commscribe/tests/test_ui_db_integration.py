@@ -38,6 +38,7 @@ class UiDbIntegrationTests(unittest.TestCase):
 
     def test_complete_with_verification_allowed(self):
         rid = self.api.create_request("TITLE:\nReq C\nOBJECTIVE:\nObj C")
+        self.api.update_request(rid, status="IN_PROGRESS")
         self.api.complete_request(
             rid,
             verification={

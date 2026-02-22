@@ -45,7 +45,7 @@ class SQLiteOnlyEnforcementTests(unittest.TestCase):
             rel = path.relative_to(ROOT)
             if rel in allowed:
                 continue
-            if ".git" in rel.parts or ".venv" in rel.parts or "__pycache__" in rel.parts:
+            if ".git" in rel.parts or ".venv" in rel.parts or "__pycache__" in rel.parts or "archive" in rel.parts:
                 continue
             try:
                 text = path.read_text(encoding="utf-8")

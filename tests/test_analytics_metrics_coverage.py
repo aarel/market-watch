@@ -230,6 +230,66 @@ class TestRoundTripTradesEdgeCases(unittest.TestCase):
         result = compute_round_trip_trades(trades)
         self.assertEqual(result, [])
 
+    def test_layered_buys_weighted_average(self):
+        """Multiple buys before a single sell use weighted average cost basis."""
+        now = datetime.now(UTC)
+        trades = [
+            {"timestamp": now, "symbol": "AAPL", "side": "buy", "qty": 10, "filled_avg_price": 100.0},
+            {"timestamp": now + timedelta(hours=1), "symbol": "AAPL", "side": "buy", "qty": 10, "filled_avg_price": 120.0},
+            # Weighted avg = (100*10 + 120*10) / 20 = 110; sell at 110 → PnL = 0
+            {"timestamp": now + timedelta(hours=2), "symbol": "AAPL", "side": "sell", "qty": 20, "filled_avg_price": 110.0},
+        ]
+        result = compute_round_trip_trades(trades)
+        self.assertEqual(len(result), 1)
+        self.assertAlmostEqual(result[0]["buy_price"], 110.0, places=2)
+        self.assertAlmostEqual(result[0]["pnl"], 0.0, places=2)
+        self.assertAlmostEqual(result[0]["pnl_pct"], 0.0, places=2)
+
+    def test_reentry_after_flat_position(self):
+        """Buying after going flat starts a fresh cost basis for the second trip."""
+        now = datetime.now(UTC)
+        trades = [
+            {"timestamp": now, "symbol": "AAPL", "side": "buy", "qty": 10, "filled_avg_price": 100.0},
+            {"timestamp": now + timedelta(hours=1), "symbol": "AAPL", "side": "sell", "qty": 10, "filled_avg_price": 120.0},
+            # Re-entry after flat
+            {"timestamp": now + timedelta(hours=2), "symbol": "AAPL", "side": "buy", "qty": 10, "filled_avg_price": 130.0},
+            {"timestamp": now + timedelta(hours=3), "symbol": "AAPL", "side": "sell", "qty": 10, "filled_avg_price": 150.0},
+        ]
+        result = compute_round_trip_trades(trades)
+        self.assertEqual(len(result), 2)
+        # First trip: (120 - 100) * 10 = 200
+        self.assertAlmostEqual(result[0]["buy_price"], 100.0, places=2)
+        self.assertAlmostEqual(result[0]["pnl"], 200.0, places=2)
+        # Second trip: fresh cost basis at 130; (150 - 130) * 10 = 200
+        self.assertAlmostEqual(result[1]["buy_price"], 130.0, places=2)
+        self.assertAlmostEqual(result[1]["pnl"], 200.0, places=2)
+
+    def test_oversell_capped_to_available_inventory(self):
+        """Selling more shares than owned is capped to available inventory."""
+        now = datetime.now(UTC)
+        trades = [
+            {"timestamp": now, "symbol": "AAPL", "side": "buy", "qty": 5, "filled_avg_price": 100.0},
+            # Attempt to sell 10 but only 5 are owned
+            {"timestamp": now + timedelta(hours=1), "symbol": "AAPL", "side": "sell", "qty": 10, "filled_avg_price": 120.0},
+        ]
+        result = compute_round_trip_trades(trades)
+        self.assertEqual(len(result), 1)
+        self.assertAlmostEqual(result[0]["qty"], 5.0, places=2)
+        # PnL: (120 - 100) * 5 = 100
+        self.assertAlmostEqual(result[0]["pnl"], 100.0, places=2)
+
+    def test_pnl_pct_accuracy(self):
+        """pnl_pct is (sell_price - buy_price) / buy_price * 100."""
+        now = datetime.now(UTC)
+        trades = [
+            {"timestamp": now, "symbol": "AAPL", "side": "buy", "qty": 10, "filled_avg_price": 200.0},
+            {"timestamp": now + timedelta(hours=1), "symbol": "AAPL", "side": "sell", "qty": 10, "filled_avg_price": 250.0},
+        ]
+        result = compute_round_trip_trades(trades)
+        self.assertEqual(len(result), 1)
+        # (250 - 200) / 200 * 100 = 25%
+        self.assertAlmostEqual(result[0]["pnl_pct"], 25.0, places=2)
+
 
 class TestPeriodReturnsEdgeCases(unittest.TestCase):
     """Test edge cases in period returns calculation."""

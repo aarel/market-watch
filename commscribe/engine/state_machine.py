@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 ALLOWED_TRANSITIONS = {
-    "INPUT_PAD": {"IN_PROGRESS"},
+    "NEW": {"ACKED", "IN_PROGRESS", "BLOCKED"},
+    "ACKED": {"IN_PROGRESS", "BLOCKED"},
     "IN_PROGRESS": {"DONE", "BLOCKED"},
     "BLOCKED": {"IN_PROGRESS"},
     "DONE": set(),
+    "INPUT_PAD": {"IN_PROGRESS"},  # legacy compatibility
 }
 
 

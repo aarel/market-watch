@@ -3,7 +3,8 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-from server.routers.alerts import TestAlertRequest, get_alert_history, test_alert
+from server.routers.alerts import TestAlertRequest, get_alert_history
+from server.routers.alerts import test_alert as _alert_endpoint
 
 
 class DummyAlert:
@@ -29,7 +30,7 @@ class TestAlertsRouterCoverage(unittest.IsolatedAsyncioTestCase):
         alert = DummyAlert(delivered=delivered_at)
         manager = SimpleNamespace(trigger_alert=AsyncMock(return_value=[alert]))
         with patch("server.routers.alerts.get_manager", return_value=manager):
-            result = await test_alert(TestAlertRequest(channel="email"), state=None)
+            result = await _alert_endpoint(TestAlertRequest(channel="email"), state=None)
 
         self.assertTrue(result["success"])
         self.assertIn("successfully", result["message"])
@@ -39,7 +40,7 @@ class TestAlertsRouterCoverage(unittest.IsolatedAsyncioTestCase):
         alert = DummyAlert(delivered=None, errors=["delivery failed"])
         manager = SimpleNamespace(trigger_alert=AsyncMock(return_value=[alert]))
         with patch("server.routers.alerts.get_manager", return_value=manager):
-            result = await test_alert(TestAlertRequest(channel="email"), state=None)
+            result = await _alert_endpoint(TestAlertRequest(channel="email"), state=None)
 
         self.assertFalse(result["success"])
         self.assertIn("delivery failed", result["message"].lower())
@@ -48,7 +49,7 @@ class TestAlertsRouterCoverage(unittest.IsolatedAsyncioTestCase):
     async def test_test_alert_no_rules_configured(self):
         manager = SimpleNamespace(trigger_alert=AsyncMock(return_value=[]))
         with patch("server.routers.alerts.get_manager", return_value=manager):
-            result = await test_alert(TestAlertRequest(channel="webhook"), state=None)
+            result = await _alert_endpoint(TestAlertRequest(channel="webhook"), state=None)
 
         self.assertFalse(result["success"])
         self.assertIn("No alert rules", result["message"])
@@ -57,7 +58,7 @@ class TestAlertsRouterCoverage(unittest.IsolatedAsyncioTestCase):
     async def test_test_alert_exception(self):
         manager = SimpleNamespace(trigger_alert=AsyncMock(side_effect=Exception("boom")))
         with patch("server.routers.alerts.get_manager", return_value=manager):
-            result = await test_alert(TestAlertRequest(channel="email"), state=None)
+            result = await _alert_endpoint(TestAlertRequest(channel="email"), state=None)
 
         self.assertFalse(result["success"])
         self.assertIn("Failed to send test alert", result["message"])

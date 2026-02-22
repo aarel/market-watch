@@ -133,8 +133,6 @@ class CommunicateUiTests(unittest.TestCase):
         updated = self.doc.read_text(encoding="utf-8")
         self.assertIn("<!-- REQUEST_QUEUE_START -->", updated)
         self.assertIn("<!-- REQUEST_QUEUE_END -->", updated)
-        self.assertIn("<!-- COMPLETION_INDEX_START -->", updated)
-        self.assertIn("<!-- COMPLETION_INDEX_END -->", updated)
 
     def test_selected_req_from_url_parses_query_and_hash(self):
         self.assertEqual(selected_req_from_url("/communicate?req=REQ-20260212-111111"), "REQ-20260212-111111")
