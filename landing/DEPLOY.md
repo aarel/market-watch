@@ -35,8 +35,9 @@ Wait for DNS propagation (check with `dig app.yourdomain.com`).
 # Create landing directory
 sudo mkdir -p /var/www/market-watch-landing
 
-# Copy landing page
+# Copy landing page and favicon
 sudo cp landing/index.html /var/www/market-watch-landing/
+sudo cp static/favicon.svg static/favicon.ico /var/www/market-watch-landing/
 
 # Set ownership
 sudo chown -R www-data:www-data /var/www/market-watch-landing
