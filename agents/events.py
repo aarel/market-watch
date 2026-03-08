@@ -66,6 +66,9 @@ class RiskCheckPassed(Event):
     trade_value: float = 0.0
     position_pct: float = 0.0
     reason: str = ""
+    signal_reason: str = ""
+    signal_strength: float = 0.0
+    signal_momentum: float = 0.0
 
 
 @dataclass
@@ -90,6 +93,9 @@ class OrderExecuted(Event):
     status: str = ""
     time_in_force: str = ""
     order_type: str = ""
+    signal_reason: str = ""
+    signal_strength: float = 0.0
+    signal_momentum: float = 0.0
 
 
 @dataclass

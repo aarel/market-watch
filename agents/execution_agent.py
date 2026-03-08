@@ -192,6 +192,9 @@ class ExecutionAgent(BaseAgent):
             notional=self._round_notional(event.trade_value) if event.action == "buy" else None,
             qty=getattr(order, "qty", None),
             order_id=order.id,
+            signal_reason=event.signal_reason,
+            signal_strength=event.signal_strength,
+            signal_momentum=event.signal_momentum,
             **self._order_fields(order),
         )
         await self.event_bus.publish(exec_event)

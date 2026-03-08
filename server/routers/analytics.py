@@ -2,11 +2,15 @@ import csv
 import io
 from dataclasses import asdict
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 import config
+from analytics.enrichment import enrich_with_subsequent_performance
+from analytics.whatif import run_what_if
 from analytics.metrics import (
     _collapse_daily,
     compute_equity_metrics,
@@ -113,6 +117,17 @@ async def get_analytics_trades(period: str = "90d", limit: int = 100, store=Depe
     return {"period": period, "trades": trades}
 
 
+@router.get("/analytics/trades/enriched")
+async def get_enriched_trades(period: str = "90d", limit: int = 100, store=Depends(get_analytics_store)):
+    """Return trades annotated with portfolio equity performance 1, 5, and 10 days after each trade."""
+    limit = max(1, min(limit, 500))
+    trades = store.load_trades(period=period, limit=limit)
+    # Load all equity history so forward windows beyond the query period resolve
+    equity = store.load_equity(period="all")
+    enriched = enrich_with_subsequent_performance(trades, equity)
+    return {"period": period, "trades": enriched}
+
+
 @router.get("/analytics/trades.csv")
 async def export_trades_csv(period: str = "90d", limit: int = 500, store=Depends(get_analytics_store)):
     limit = max(1, min(limit, 1000))
@@ -204,6 +219,58 @@ async def get_position_concentration(state=Depends(get_state), broker=Depends(ge
         return {"positions": rows, "portfolio_value": portfolio_value}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class WhatIfRequest(BaseModel):
+    type: str                          # "position_sizing" | "stop_loss" | "hold_duration"
+    period: str = "90d"
+    # position_sizing
+    multiplier: Optional[float] = None
+    # stop_loss
+    stop_loss_pct: Optional[float] = None
+    # hold_duration
+    extra_days: Optional[int] = None
+
+
+@router.post("/analytics/what-if")
+async def run_what_if_analysis(request: WhatIfRequest, store=Depends(get_analytics_store)):
+    """Run a what-if scenario against historical paper trade records.
+
+    Scenario types:
+      position_sizing  — what if positions were multiplier× larger/smaller?
+      stop_loss        — what if stop-loss was stop_loss_pct% (e.g. 0.03 for 3%)?
+      hold_duration    — what if trades were held extra_days longer? (requires historical price data)
+    """
+    valid_types = {"position_sizing", "stop_loss", "hold_duration"}
+    if request.type not in valid_types:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid scenario type '{request.type}'. Must be one of: {sorted(valid_types)}",
+        )
+
+    trades = store.load_trades(period=request.period, limit=1000)
+    scenario = {"type": request.type}
+    if request.multiplier is not None:
+        scenario["multiplier"] = request.multiplier
+    if request.stop_loss_pct is not None:
+        scenario["stop_loss_pct"] = request.stop_loss_pct
+    if request.extra_days is not None:
+        scenario["extra_days"] = request.extra_days
+
+    result = run_what_if(trades, scenario)
+    return {
+        "scenario_type": result.scenario_type,
+        "available": result.available,
+        "unavailable_reason": result.unavailable_reason,
+        "baseline_pnl": result.baseline_pnl,
+        "scenario_pnl": result.scenario_pnl,
+        "delta_pnl": result.delta_pnl,
+        "delta_pct": result.delta_pct,
+        "trade_count": result.trade_count,
+        "affected_trade_count": result.affected_trade_count,
+        "trade_by_trade": result.trade_by_trade,
+        "period": request.period,
+    }
 
 
 @router.get("/analytics/report")

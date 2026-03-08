@@ -1288,6 +1288,158 @@
             </div>
         </div>
 
+        <!-- What-If Analysis Card -->
+        <div class="card full card-full-gap" id="whatif-card">
+            <div class="card-header" style="cursor:pointer; user-select:none;" onclick="toggleWhatIf()">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <h2>What-If Analysis</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Replay your completed paper trades under alternative parameters — different position sizes, tighter stop-losses — to understand how those changes would have affected your P&amp;L. All analysis is read-only and never modifies real trades.</span>
+                    </span>
+                    <span id="whatif-toggle-icon" style="margin-left:4px; color:var(--text-dim); font-size:12px;">▼ expand</span>
+                </div>
+                <div class="help-text">Explore alternative outcomes from your paper trading history.</div>
+            </div>
+
+            <div id="whatif-body" style="display:none;">
+                <!-- Scenario controls -->
+                <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; margin-bottom:16px;">
+                    <div>
+                        <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                            Scenario Type
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Choose what parameter to change:<br><br><strong>Position Sizing</strong> — scale every trade's size up or down<br><strong>Stop-Loss</strong> — apply a tighter or looser stop-loss threshold<br><strong>Hold Duration</strong> — hold each position longer (requires historical price data)</span>
+                            </span>
+                        </label>
+                        <select id="whatif-type" onchange="onWhatIfTypeChange()"
+                            title="Select the type of what-if scenario to simulate against your paper trading history"
+                            style="background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer;">
+                            <option value="position_sizing">Position Sizing</option>
+                            <option value="stop_loss">Stop-Loss Threshold</option>
+                            <option value="hold_duration">Hold Duration</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                            Period
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">How far back to look for completed trades. Longer periods include more trades but may mix different market regimes.</span>
+                            </span>
+                        </label>
+                        <select id="whatif-period"
+                            title="Time period of trade history to analyse"
+                            style="background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer;">
+                            <option value="30d">Last 30 days</option>
+                            <option value="90d" selected>Last 90 days</option>
+                            <option value="180d">Last 180 days</option>
+                            <option value="all">All time</option>
+                        </select>
+                    </div>
+
+                    <!-- Position sizing params -->
+                    <div id="whatif-params-position_sizing">
+                        <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                            Size Multiplier
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Scales every trade proportionally. 2.0 = positions twice as large (P&amp;L doubles). 0.5 = half-sized positions. Must be greater than 0.</span>
+                            </span>
+                        </label>
+                        <input id="whatif-multiplier" type="number" value="2.0" step="0.1" min="0.1" max="10"
+                            title="Multiplier applied to every trade's size. 1.5 means 50% larger positions."
+                            style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                    </div>
+
+                    <!-- Stop-loss params -->
+                    <div id="whatif-params-stop_loss" style="display:none;">
+                        <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                            Stop-Loss % (e.g. 3 for 3%)
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Simulates a stop-loss at this percentage below entry. Trades that lost more than this would have been capped at the threshold price. This is an approximation — actual intraday trigger prices are not tracked.</span>
+                            </span>
+                        </label>
+                        <input id="whatif-stoploss" type="number" value="3" step="0.5" min="0.1" max="50"
+                            title="Stop-loss percentage (e.g. 3 means a 3% drop from entry triggers an exit)."
+                            style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                    </div>
+
+                    <!-- Hold duration params -->
+                    <div id="whatif-params-hold_duration" style="display:none;">
+                        <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                            Extra Days to Hold
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">How many additional calendar days each position would have been held after the actual exit. Note: this scenario requires per-symbol historical price data which may not be available.</span>
+                            </span>
+                        </label>
+                        <input id="whatif-extradays" type="number" value="2" step="1" min="1" max="90"
+                            title="Number of extra days each trade would have been held beyond its actual exit."
+                            style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                    </div>
+
+                    <button onclick="runWhatIf()"
+                        title="Run the selected scenario against your completed paper trades"
+                        style="padding:8px 18px; background:var(--blue); color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; font-weight:600; align-self:flex-end;">
+                        Run Analysis
+                    </button>
+                </div>
+
+                <!-- Results -->
+                <div id="whatif-results" style="display:none;">
+                    <!-- Summary row -->
+                    <div id="whatif-unavailable" style="display:none; margin-bottom:12px; padding:12px 16px; background:rgba(255,200,0,0.1); border:1px solid var(--yellow); border-radius:8px; font-size:13px; color:var(--yellow);">
+                    </div>
+                    <div id="whatif-summary" style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+                        <div style="flex:1; min-width:140px; background:var(--bg-input); border-radius:8px; padding:12px 16px;">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">Baseline P&amp;L</div>
+                            <div id="wi-baseline" style="font-size:18px; font-weight:700;">—</div>
+                        </div>
+                        <div style="flex:1; min-width:140px; background:var(--bg-input); border-radius:8px; padding:12px 16px;">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">Scenario P&amp;L</div>
+                            <div id="wi-scenario" style="font-size:18px; font-weight:700;">—</div>
+                        </div>
+                        <div style="flex:1; min-width:140px; background:var(--bg-input); border-radius:8px; padding:12px 16px;">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">Delta</div>
+                            <div id="wi-delta" style="font-size:18px; font-weight:700;">—</div>
+                        </div>
+                        <div style="flex:1; min-width:140px; background:var(--bg-input); border-radius:8px; padding:12px 16px;">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">Trades Analysed / Affected</div>
+                            <div id="wi-trades" style="font-size:18px; font-weight:700;">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Per-trade table -->
+                    <div id="whatif-table-wrap" style="overflow-x:auto;">
+                        <table class="analytics-table" id="whatif-table">
+                            <thead>
+                                <tr>
+                                    <th title="Stock symbol">Symbol</th>
+                                    <th title="Entry price paid">Entry</th>
+                                    <th title="Actual exit price">Actual Exit</th>
+                                    <th title="Exit price under the scenario (may differ from actual)">Scenario Exit</th>
+                                    <th title="Actual realised P&L for this round-trip">Baseline P&L</th>
+                                    <th title="P&L if the scenario had been applied">Scenario P&L</th>
+                                    <th title="Difference between scenario and baseline P&L">Delta</th>
+                                    <th title="Whether this trade's outcome changed under the scenario">Changed?</th>
+                                </tr>
+                            </thead>
+                            <tbody id="whatif-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="whatif-loading" style="display:none; color:var(--text-dim); font-size:13px; padding:8px 0;">Running analysis…</div>
+                <div id="whatif-error" style="display:none; color:var(--red); font-size:13px; padding:8px 0;"></div>
+            </div>
+        </div>
+        <!-- End What-If Analysis Card -->
+
         <div class="grid">
             <!-- Account Card -->
             <div class="card">
@@ -4560,6 +4712,137 @@
             updateTopGainers(currentTopGainers);
             updateMarketIndices(currentMarketIndices);
         });
+
+        // ----------------------------------------------------------------
+        // What-If Analysis
+        // ----------------------------------------------------------------
+        function toggleWhatIf() {
+            const body = document.getElementById('whatif-body');
+            const icon = document.getElementById('whatif-toggle-icon');
+            const expanded = body.style.display !== 'none';
+            body.style.display = expanded ? 'none' : 'block';
+            icon.textContent = expanded ? '▼ expand' : '▲ collapse';
+        }
+
+        function onWhatIfTypeChange() {
+            const type = document.getElementById('whatif-type').value;
+            ['position_sizing', 'stop_loss', 'hold_duration'].forEach(t => {
+                const el = document.getElementById(`whatif-params-${t}`);
+                if (el) el.style.display = t === type ? '' : 'none';
+            });
+            // Reset results when type changes
+            document.getElementById('whatif-results').style.display = 'none';
+            document.getElementById('whatif-error').style.display = 'none';
+        }
+
+        function _fmtPnl(val) {
+            if (val === null || val === undefined) return '—';
+            const n = parseFloat(val);
+            const color = n >= 0 ? 'var(--green)' : 'var(--red)';
+            const sign = n >= 0 ? '+' : '';
+            return `<span style="color:${color}">${sign}$${Math.abs(n).toFixed(2)}</span>`;
+        }
+
+        async function runWhatIf() {
+            const type = document.getElementById('whatif-type').value;
+            const period = document.getElementById('whatif-period').value;
+            const loading = document.getElementById('whatif-loading');
+            const error = document.getElementById('whatif-error');
+            const results = document.getElementById('whatif-results');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            results.style.display = 'none';
+
+            const body = { type, period };
+            if (type === 'position_sizing') {
+                const v = parseFloat(document.getElementById('whatif-multiplier').value);
+                if (isNaN(v) || v <= 0) {
+                    loading.style.display = 'none';
+                    error.textContent = 'Multiplier must be a positive number.';
+                    error.style.display = 'block';
+                    return;
+                }
+                body.multiplier = v;
+            } else if (type === 'stop_loss') {
+                const v = parseFloat(document.getElementById('whatif-stoploss').value);
+                if (isNaN(v) || v <= 0 || v >= 100) {
+                    loading.style.display = 'none';
+                    error.textContent = 'Stop-loss % must be between 0 and 100.';
+                    error.style.display = 'block';
+                    return;
+                }
+                body.stop_loss_pct = v / 100;  // convert % to decimal
+            } else if (type === 'hold_duration') {
+                const v = parseInt(document.getElementById('whatif-extradays').value, 10);
+                if (isNaN(v) || v < 1) {
+                    loading.style.display = 'none';
+                    error.textContent = 'Extra days must be at least 1.';
+                    error.style.display = 'block';
+                    return;
+                }
+                body.extra_days = v;
+            }
+
+            try {
+                const resp = await apiFetch('/api/analytics/what-if', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                loading.style.display = 'none';
+
+                const unavailableEl = document.getElementById('whatif-unavailable');
+                if (!resp.available) {
+                    unavailableEl.style.display = 'block';
+                    unavailableEl.textContent = '⚠ ' + (resp.unavailable_reason || 'This scenario is not available.');
+                } else {
+                    unavailableEl.style.display = 'none';
+                }
+
+                document.getElementById('wi-baseline').innerHTML = _fmtPnl(resp.baseline_pnl);
+                document.getElementById('wi-scenario').innerHTML = resp.available ? _fmtPnl(resp.scenario_pnl) : '<span style="color:var(--text-dim)">N/A</span>';
+                document.getElementById('wi-delta').innerHTML = resp.available ? _fmtPnl(resp.delta_pnl) : '<span style="color:var(--text-dim)">N/A</span>';
+                document.getElementById('wi-trades').textContent = resp.available
+                    ? `${resp.trade_count} / ${resp.affected_trade_count}`
+                    : `${resp.trade_count} / —`;
+
+                const tbody = document.getElementById('whatif-tbody');
+                tbody.innerHTML = '';
+                const tableWrap = document.getElementById('whatif-table-wrap');
+
+                if (resp.available && resp.trade_by_trade && resp.trade_by_trade.length > 0) {
+                    tableWrap.style.display = '';
+                    resp.trade_by_trade.forEach(t => {
+                        const tr = document.createElement('tr');
+                        if (t.affected) tr.style.background = 'rgba(255,200,0,0.06)';
+                        tr.innerHTML = `
+                            <td><strong>${t.symbol || '—'}</strong></td>
+                            <td>$${parseFloat(t.entry_price || 0).toFixed(4)}</td>
+                            <td>$${parseFloat(t.exit_price || 0).toFixed(4)}</td>
+                            <td>$${parseFloat(t.scenario_exit_price || t.exit_price || 0).toFixed(4)}</td>
+                            <td>${_fmtPnl(t.baseline_pnl)}</td>
+                            <td>${_fmtPnl(t.scenario_pnl)}</td>
+                            <td>${_fmtPnl(t.delta)}</td>
+                            <td>${t.affected ? '<span style="color:var(--yellow)">Yes</span>' : '<span style="color:var(--text-dim)">No</span>'}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tableWrap.style.display = resp.available ? '' : 'none';
+                    if (resp.available) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-dim);">No completed round-trip trades in this period.</td></tr>';
+                    }
+                }
+
+                results.style.display = 'block';
+            } catch (e) {
+                loading.style.display = 'none';
+                error.textContent = 'Error running analysis: ' + (e.message || String(e));
+                error.style.display = 'block';
+            }
+        }
     </script>
 </body>
 </html>

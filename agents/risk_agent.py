@@ -216,6 +216,9 @@ class RiskAgent(BaseAgent):
             trade_value=trade_value,
             position_pct=position_pct,
             reason=reason,
+            signal_reason=signal.reason,
+            signal_strength=signal.strength,
+            signal_momentum=signal.momentum,
         )
         await self.event_bus.publish(event)
 

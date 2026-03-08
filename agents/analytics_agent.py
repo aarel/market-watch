@@ -32,6 +32,7 @@ class AnalyticsAgent(BaseAgent):
         self.broker = broker
         self.store = store
         self._latest_cash: float = 0.0
+        self._market_context: dict = {}
         self._realism_initialized = False
         self._settlement_engine = SettlementEngine(initial_settled_cash=0.0)
         self._performance_engine = PerformanceEngine(
@@ -70,6 +71,12 @@ class AnalyticsAgent(BaseAgent):
             raise RuntimeError("Unauthorized PnL computation path")
 
     async def _handle_market_data(self, event: MarketDataReady):
+        self._market_context = {
+            "market_open": event.market_open,
+            "index_levels": list(event.market_indices or []),
+            "top_gainer_count": len(event.top_gainers or []),
+            "snapshot_timestamp": event.timestamp,
+        }
         account = event.account or {}
         if not account:
             return
@@ -114,6 +121,10 @@ class AnalyticsAgent(BaseAgent):
             "source": event.source,
             "time_in_force": event.time_in_force,
             "order_type": event.order_type,
+            "signal_reason": event.signal_reason,
+            "signal_strength": event.signal_strength,
+            "signal_momentum": event.signal_momentum,
+            "market_context": dict(self._market_context),
         }
         # Backfill notional if missing and qty/price available
         if trade.get("notional") is None and trade.get("qty") and trade.get("filled_avg_price"):
