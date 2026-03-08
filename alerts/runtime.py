@@ -166,12 +166,19 @@ def _build_webhook_channel() -> WebhookChannel | None:
 
     webhook_type = _parse_webhook_type(config.ALERT_WEBHOOK_TYPE)
 
-    return WebhookChannel(
+    channel = WebhookChannel(
         webhook_url=config.ALERT_WEBHOOK_URL,
         webhook_type=webhook_type,
         retry_attempts=config.ALERT_WEBHOOK_RETRY_ATTEMPTS,
         timeout_seconds=config.ALERT_WEBHOOK_TIMEOUT_SECONDS,
+        telegram_chat_id=config.ALERT_TELEGRAM_CHAT_ID,
     )
+    if webhook_type == WebhookType.TELEGRAM and not config.ALERT_TELEGRAM_CHAT_ID:
+        print(
+            "Alert webhook warning: ALERT_WEBHOOK_TYPE=telegram but "
+            "ALERT_TELEGRAM_CHAT_ID is not set. Messages will fail to deliver."
+        )
+    return channel
 
 
 def _parse_email_list(value: str) -> list[str]:

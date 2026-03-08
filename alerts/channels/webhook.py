@@ -31,6 +31,7 @@ class WebhookChannel(AlertChannel):
         webhook_type: WebhookType = WebhookType.GENERIC,
         retry_attempts: int = 3,
         timeout_seconds: int = 10,
+        telegram_chat_id: str = "",
     ):
         """
         Initialize webhook channel.
@@ -40,11 +41,16 @@ class WebhookChannel(AlertChannel):
             webhook_type: Type of webhook (affects payload format)
             retry_attempts: Number of retry attempts on failure
             timeout_seconds: HTTP request timeout in seconds
+            telegram_chat_id: Telegram chat/channel ID (required for Telegram type).
+                The Telegram Bot API requires the destination chat_id in every
+                request alongside the message text. Format: numeric user ID,
+                negative group ID, or @channel_username.
         """
         self.webhook_url = webhook_url
         self.webhook_type = webhook_type
         self.retry_attempts = retry_attempts
         self.timeout_seconds = timeout_seconds
+        self.telegram_chat_id = telegram_chat_id
 
     async def send(self, alert: Alert) -> bool:
         """
@@ -253,10 +259,15 @@ class WebhookChannel(AlertChannel):
         lines.append("")
         lines.append("_Market-Watch Trading Bot_")
 
-        return {
+        payload: dict[str, Any] = {
             "text": "\n".join(lines),
-            "parse_mode": "Markdown"
+            "parse_mode": "Markdown",
         }
+        # chat_id is required by the Telegram Bot API. Without it the request
+        # returns HTTP 400 and the message is silently dropped.
+        if self.telegram_chat_id:
+            payload["chat_id"] = self.telegram_chat_id
+        return payload
 
     def validate_config(self, config: dict[str, Any]) -> bool:
         """
