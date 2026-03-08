@@ -31,14 +31,27 @@ data/
 # Observability logs
 logs/observability/
 
+# SQLite databases and WAL journal files
+*.db
+*.db-shm
+*.db-wal
+
+# Environment files (all variants)
+.env.*
+
 # Documentation artifacts
 *.md.backup
 INTEGRATION_TEST_SUMMARY.md
 TIMEZONE_FIX_SUMMARY.md
 UNIVERSE_GUARDRAILS_ANALYSIS.md
+REQ_LOG_NORMALIZATION_REPORT.md
 
 # Development docs (local working notes)
 development_docs/
 logs/**/*.jsonl
 to-dos.md
 img/*.png
+
+# Local tooling and scratch files
+SKILL.md
+market-watch-conversation.txt
