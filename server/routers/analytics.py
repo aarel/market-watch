@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 import config
+from analytics.ab_test import run_ab_test
 from analytics.enrichment import enrich_with_subsequent_performance
 from analytics.whatif import run_what_if
 from analytics.metrics import (
@@ -270,6 +271,82 @@ async def run_what_if_analysis(request: WhatIfRequest, store=Depends(get_analyti
         "affected_trade_count": result.affected_trade_count,
         "trade_by_trade": result.trade_by_trade,
         "period": request.period,
+    }
+
+
+class ABTestScenario(BaseModel):
+    type: str
+    multiplier: Optional[float] = None
+    stop_loss_pct: Optional[float] = None
+    extra_days: Optional[int] = None
+
+
+class ABTestRequest(BaseModel):
+    period: str = "90d"
+    scenario_a: ABTestScenario
+    scenario_b: ABTestScenario
+
+
+@router.post("/analytics/ab-test")
+async def run_ab_test_analysis(request: ABTestRequest, store=Depends(get_analytics_store)):
+    """Compare two what-if scenarios against the same paper trade history.
+
+    Both scenarios are evaluated independently against the same set of
+    completed round-trip trades, then compared to identify the better
+    configuration.
+
+    Scenario format (same as /analytics/what-if):
+        position_sizing: {type, multiplier}
+        stop_loss:       {type, stop_loss_pct}
+        hold_duration:   {type, extra_days}
+    """
+    valid_types = {"position_sizing", "stop_loss", "hold_duration"}
+    for label, sc in (("scenario_a", request.scenario_a), ("scenario_b", request.scenario_b)):
+        if sc.type not in valid_types:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Invalid type '{sc.type}' in {label}. "
+                    f"Must be one of: {sorted(valid_types)}"
+                ),
+            )
+
+    trades = store.load_trades(period=request.period, limit=1000)
+
+    def _sc_dict(sc: ABTestScenario) -> dict:
+        d: dict = {"type": sc.type}
+        if sc.multiplier is not None:
+            d["multiplier"] = sc.multiplier
+        if sc.stop_loss_pct is not None:
+            d["stop_loss_pct"] = sc.stop_loss_pct
+        if sc.extra_days is not None:
+            d["extra_days"] = sc.extra_days
+        return d
+
+    result = run_ab_test(trades, _sc_dict(request.scenario_a), _sc_dict(request.scenario_b))
+
+    def _serialize_whatif(w):
+        return {
+            "scenario_type": w.scenario_type,
+            "available": w.available,
+            "unavailable_reason": w.unavailable_reason,
+            "baseline_pnl": w.baseline_pnl,
+            "scenario_pnl": w.scenario_pnl,
+            "delta_pnl": w.delta_pnl,
+            "delta_pct": w.delta_pct,
+            "trade_count": w.trade_count,
+            "affected_trade_count": w.affected_trade_count,
+            "trade_by_trade": w.trade_by_trade,
+        }
+
+    return {
+        "period": request.period,
+        "winner": result.winner,
+        "delta_pnl": result.delta_pnl,
+        "delta_pct": result.delta_pct,
+        "summary": result.summary,
+        "scenario_a": _serialize_whatif(result.scenario_a),
+        "scenario_b": _serialize_whatif(result.scenario_b),
     }
 
 

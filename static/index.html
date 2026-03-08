@@ -1440,6 +1440,243 @@
         </div>
         <!-- End What-If Analysis Card -->
 
+        <!-- A/B Test Card -->
+        <div class="card full card-full-gap" id="abtest-card">
+            <div class="card-header" style="cursor:pointer; user-select:none;" onclick="toggleABTest()">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <h2>A/B Test</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Compare two different strategy parameter configurations head-to-head against your paper trading history. Both scenarios replay the same completed trades so you can see which settings would have produced better results.</span>
+                    </span>
+                    <span id="abtest-toggle-icon" style="margin-left:4px; color:var(--text-dim); font-size:12px;">▼ expand</span>
+                </div>
+                <div class="help-text">Compare two scenario configurations side-by-side against the same trade history.</div>
+            </div>
+
+            <div id="abtest-body" style="display:none;">
+                <!-- Shared period selector -->
+                <div style="display:flex; align-items:flex-end; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+                    <div>
+                        <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                            Period
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Both scenarios are evaluated against trades from this period. Using the same period ensures a fair comparison on identical data.</span>
+                            </span>
+                        </label>
+                        <select id="ab-period"
+                            title="Time period of paper trade history used for both scenarios"
+                            style="background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer;">
+                            <option value="30d">Last 30 days</option>
+                            <option value="90d" selected>Last 90 days</option>
+                            <option value="180d">Last 180 days</option>
+                            <option value="all">All time</option>
+                        </select>
+                    </div>
+
+                    <button onclick="runABTest()"
+                        title="Run both scenarios and compare their P&L outcomes"
+                        style="padding:8px 18px; background:var(--blue); color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; font-weight:600; align-self:flex-end;">
+                        Run Comparison
+                    </button>
+                </div>
+
+                <!-- Side-by-side scenario configurators -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+
+                    <!-- Scenario A -->
+                    <div style="background:var(--bg-input); border-radius:10px; padding:16px; border:2px solid transparent;" id="ab-panel-a">
+                        <div style="font-size:13px; font-weight:700; color:var(--text-dim); margin-bottom:12px; letter-spacing:0.04em;">
+                            SCENARIO A
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Scenario Type
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Choose what parameter to vary for Scenario A:<br><br><strong>Position Sizing</strong> — scale every trade's size<br><strong>Stop-Loss</strong> — apply a stop-loss threshold<br><strong>Hold Duration</strong> — hold longer (requires price data)</span>
+                                </span>
+                            </label>
+                            <select id="ab-type-a" onchange="onABTypeChange('a')"
+                                title="Scenario type for the A configuration"
+                                style="width:100%; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer;">
+                                <option value="position_sizing">Position Sizing</option>
+                                <option value="stop_loss">Stop-Loss Threshold</option>
+                                <option value="hold_duration">Hold Duration</option>
+                            </select>
+                        </div>
+
+                        <div id="ab-params-a-position_sizing">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Size Multiplier
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Scales every trade's P&amp;L by this factor. 2.0 doubles position size. Must be &gt; 0.</span>
+                                </span>
+                            </label>
+                            <input id="ab-multiplier-a" type="number" value="1.5" step="0.1" min="0.1" max="10"
+                                title="Position size multiplier for Scenario A (e.g. 1.5 = 50% larger positions)"
+                                style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                        </div>
+                        <div id="ab-params-a-stop_loss" style="display:none;">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Stop-Loss % (e.g. 3 for 3%)
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Losses deeper than this percentage from entry are capped at the threshold price.</span>
+                                </span>
+                            </label>
+                            <input id="ab-stoploss-a" type="number" value="3" step="0.5" min="0.1" max="50"
+                                title="Stop-loss percentage for Scenario A (e.g. 3 means exit at 3% below entry)"
+                                style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                        </div>
+                        <div id="ab-params-a-hold_duration" style="display:none;">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Extra Days to Hold
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Extra calendar days each trade would have been held beyond the actual exit. Requires per-symbol historical price data.</span>
+                                </span>
+                            </label>
+                            <input id="ab-extradays-a" type="number" value="2" step="1" min="1" max="90"
+                                title="Extra hold days for Scenario A"
+                                style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                        </div>
+                    </div>
+
+                    <!-- Scenario B -->
+                    <div style="background:var(--bg-input); border-radius:10px; padding:16px; border:2px solid transparent;" id="ab-panel-b">
+                        <div style="font-size:13px; font-weight:700; color:var(--text-dim); margin-bottom:12px; letter-spacing:0.04em;">
+                            SCENARIO B
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Scenario Type
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Choose what parameter to vary for Scenario B. You can compare two different scenario types (e.g. Position Sizing vs Stop-Loss) or the same type with different values.</span>
+                                </span>
+                            </label>
+                            <select id="ab-type-b" onchange="onABTypeChange('b')"
+                                title="Scenario type for the B configuration"
+                                style="width:100%; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer;">
+                                <option value="position_sizing">Position Sizing</option>
+                                <option value="stop_loss" selected>Stop-Loss Threshold</option>
+                                <option value="hold_duration">Hold Duration</option>
+                            </select>
+                        </div>
+
+                        <div id="ab-params-b-position_sizing" style="display:none;">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Size Multiplier
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Scales every trade's P&amp;L by this factor. 2.0 doubles position size. Must be &gt; 0.</span>
+                                </span>
+                            </label>
+                            <input id="ab-multiplier-b" type="number" value="2.0" step="0.1" min="0.1" max="10"
+                                title="Position size multiplier for Scenario B (e.g. 2.0 = double positions)"
+                                style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                        </div>
+                        <div id="ab-params-b-stop_loss">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Stop-Loss % (e.g. 5 for 5%)
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Losses deeper than this percentage from entry are capped at the threshold price.</span>
+                                </span>
+                            </label>
+                            <input id="ab-stoploss-b" type="number" value="5" step="0.5" min="0.1" max="50"
+                                title="Stop-loss percentage for Scenario B (e.g. 5 means exit at 5% below entry)"
+                                style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                        </div>
+                        <div id="ab-params-b-hold_duration" style="display:none;">
+                            <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                                Extra Days to Hold
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Extra calendar days each trade would have been held beyond the actual exit. Requires per-symbol historical price data.</span>
+                                </span>
+                            </label>
+                            <input id="ab-extradays-b" type="number" value="5" step="1" min="1" max="90"
+                                title="Extra hold days for Scenario B"
+                                style="width:100px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading / error -->
+                <div id="abtest-loading" style="display:none; color:var(--text-dim); font-size:13px; padding:8px 0;">Running comparison…</div>
+                <div id="abtest-error" style="display:none; color:var(--red); font-size:13px; padding:8px 0;"></div>
+
+                <!-- Results -->
+                <div id="abtest-results" style="display:none;">
+
+                    <!-- Winner banner -->
+                    <div id="abtest-winner-banner" style="margin-bottom:16px; padding:14px 20px; border-radius:8px; font-size:14px; font-weight:600;"></div>
+
+                    <!-- Summary stats: 4 tiles -->
+                    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                        <div style="flex:1; min-width:130px; background:var(--bg-input); border-radius:8px; padding:12px 16px;" id="ab-panel-stat-a">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px; font-weight:600;">SCENARIO A — P&amp;L</div>
+                            <div id="ab-pnl-a" style="font-size:18px; font-weight:700;">—</div>
+                            <div id="ab-label-a" style="font-size:11px; color:var(--text-dim); margin-top:4px;"></div>
+                        </div>
+                        <div style="flex:1; min-width:130px; background:var(--bg-input); border-radius:8px; padding:12px 16px;" id="ab-panel-stat-b">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px; font-weight:600;">SCENARIO B — P&amp;L</div>
+                            <div id="ab-pnl-b" style="font-size:18px; font-weight:700;">—</div>
+                            <div id="ab-label-b" style="font-size:11px; color:var(--text-dim); margin-top:4px;"></div>
+                        </div>
+                        <div style="flex:1; min-width:130px; background:var(--bg-input); border-radius:8px; padding:12px 16px;">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">
+                                B vs A Delta
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Scenario B P&L minus Scenario A P&L. Positive means B would have outperformed A.</span>
+                                </span>
+                            </div>
+                            <div id="ab-delta" style="font-size:18px; font-weight:700;">—</div>
+                        </div>
+                        <div style="flex:1; min-width:130px; background:var(--bg-input); border-radius:8px; padding:12px 16px;">
+                            <div style="font-size:11px; color:var(--text-dim); margin-bottom:4px;">
+                                Trades (A / B)
+                                <span class="tooltip">
+                                    <i class="info-icon">?</i>
+                                    <span class="tooltip-text">Number of completed round-trip trades analysed for each scenario. Both use the same history so counts should match.</span>
+                                </span>
+                            </div>
+                            <div id="ab-trades" style="font-size:18px; font-weight:700;">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Unavailable notices -->
+                    <div id="abtest-unavailable-a" style="display:none; margin-bottom:8px; padding:12px 16px; background:rgba(255,200,0,0.1); border:1px solid var(--yellow); border-radius:8px; font-size:13px; color:var(--yellow);"></div>
+                    <div id="abtest-unavailable-b" style="display:none; margin-bottom:8px; padding:12px 16px; background:rgba(255,200,0,0.1); border:1px solid var(--yellow); border-radius:8px; font-size:13px; color:var(--yellow);"></div>
+
+                    <!-- Per-trade comparison table -->
+                    <div id="abtest-table-wrap" style="overflow-x:auto;">
+                        <table class="analytics-table" id="abtest-table">
+                            <thead>
+                                <tr>
+                                    <th title="Stock symbol">Symbol</th>
+                                    <th title="Actual entry price">Entry</th>
+                                    <th title="Actual exit price">Actual Exit</th>
+                                    <th title="Actual realised P&L for this round-trip">Baseline P&L</th>
+                                    <th title="P&L under Scenario A parameters">A P&L</th>
+                                    <th title="P&L under Scenario B parameters">B P&L</th>
+                                    <th title="Scenario B minus Scenario A for this trade">B–A Delta</th>
+                                    <th title="Which scenario produced better P&L for this trade">Better?</th>
+                                </tr>
+                            </thead>
+                            <tbody id="abtest-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End A/B Test Card -->
+
         <div class="grid">
             <!-- Account Card -->
             <div class="card">
@@ -4841,6 +5078,182 @@
                 loading.style.display = 'none';
                 error.textContent = 'Error running analysis: ' + (e.message || String(e));
                 error.style.display = 'block';
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // A/B Test
+        // ---------------------------------------------------------------
+        function toggleABTest() {
+            const body = document.getElementById('abtest-body');
+            const icon = document.getElementById('abtest-toggle-icon');
+            const expanded = body.style.display !== 'none';
+            body.style.display = expanded ? 'none' : 'block';
+            icon.textContent = expanded ? '▼ expand' : '▲ collapse';
+        }
+
+        function onABTypeChange(side) {
+            const type = document.getElementById(`ab-type-${side}`).value;
+            ['position_sizing', 'stop_loss', 'hold_duration'].forEach(t => {
+                const el = document.getElementById(`ab-params-${side}-${t}`);
+                if (el) el.style.display = t === type ? '' : 'none';
+            });
+            document.getElementById('abtest-results').style.display = 'none';
+            document.getElementById('abtest-error').style.display = 'none';
+        }
+
+        function _buildABScenario(side) {
+            const type = document.getElementById(`ab-type-${side}`).value;
+            const sc = { type };
+            if (type === 'position_sizing') {
+                const v = parseFloat(document.getElementById(`ab-multiplier-${side}`).value);
+                if (isNaN(v) || v <= 0) throw new Error(`Scenario ${side.toUpperCase()}: multiplier must be > 0.`);
+                sc.multiplier = v;
+            } else if (type === 'stop_loss') {
+                const v = parseFloat(document.getElementById(`ab-stoploss-${side}`).value);
+                if (isNaN(v) || v <= 0 || v >= 100) throw new Error(`Scenario ${side.toUpperCase()}: stop-loss % must be between 0 and 100.`);
+                sc.stop_loss_pct = v / 100;
+            } else if (type === 'hold_duration') {
+                const v = parseInt(document.getElementById(`ab-extradays-${side}`).value, 10);
+                if (isNaN(v) || v < 1) throw new Error(`Scenario ${side.toUpperCase()}: extra days must be at least 1.`);
+                sc.extra_days = v;
+            }
+            return sc;
+        }
+
+        async function runABTest() {
+            const loading = document.getElementById('abtest-loading');
+            const errorEl = document.getElementById('abtest-error');
+            const results = document.getElementById('abtest-results');
+
+            loading.style.display = 'block';
+            errorEl.style.display = 'none';
+            results.style.display = 'none';
+
+            let scenario_a, scenario_b;
+            try {
+                scenario_a = _buildABScenario('a');
+                scenario_b = _buildABScenario('b');
+            } catch (e) {
+                loading.style.display = 'none';
+                errorEl.textContent = e.message;
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                const period = document.getElementById('ab-period').value;
+                const resp = await apiFetch('/api/analytics/ab-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ period, scenario_a, scenario_b }),
+                });
+
+                loading.style.display = 'none';
+
+                // Winner banner
+                const banner = document.getElementById('abtest-winner-banner');
+                const panelA = document.getElementById('ab-panel-stat-a');
+                const panelB = document.getElementById('ab-panel-stat-b');
+                // Reset highlights
+                [panelA, panelB].forEach(p => { p.style.border = '2px solid transparent'; });
+                if (resp.winner === 'a') {
+                    banner.style.background = 'rgba(0,200,100,0.12)';
+                    banner.style.color = 'var(--green)';
+                    banner.style.border = '1px solid var(--green)';
+                    banner.textContent = '🏆 ' + resp.summary;
+                    panelA.style.border = '2px solid var(--green)';
+                } else if (resp.winner === 'b') {
+                    banner.style.background = 'rgba(0,200,100,0.12)';
+                    banner.style.color = 'var(--green)';
+                    banner.style.border = '1px solid var(--green)';
+                    banner.textContent = '🏆 ' + resp.summary;
+                    panelB.style.border = '2px solid var(--green)';
+                } else if (resp.winner === 'tie') {
+                    banner.style.background = 'rgba(100,150,255,0.1)';
+                    banner.style.color = 'var(--blue)';
+                    banner.style.border = '1px solid var(--blue)';
+                    banner.textContent = '🤝 ' + resp.summary;
+                } else {
+                    banner.style.background = 'rgba(255,200,0,0.1)';
+                    banner.style.color = 'var(--yellow)';
+                    banner.style.border = '1px solid var(--yellow)';
+                    banner.textContent = '⚠ ' + resp.summary;
+                }
+
+                const sa = resp.scenario_a;
+                const sb = resp.scenario_b;
+
+                document.getElementById('ab-pnl-a').innerHTML = sa.available ? _fmtPnl(sa.scenario_pnl) : '<span style="color:var(--text-dim)">N/A</span>';
+                document.getElementById('ab-label-a').textContent = sa.available ? `${sa.affected_trade_count}/${sa.trade_count} trades affected` : '';
+                document.getElementById('ab-pnl-b').innerHTML = sb.available ? _fmtPnl(sb.scenario_pnl) : '<span style="color:var(--text-dim)">N/A</span>';
+                document.getElementById('ab-label-b').textContent = sb.available ? `${sb.affected_trade_count}/${sb.trade_count} trades affected` : '';
+                document.getElementById('ab-delta').innerHTML = (sa.available && sb.available) ? _fmtPnl(resp.delta_pnl) : '<span style="color:var(--text-dim)">N/A</span>';
+                document.getElementById('ab-trades').textContent = `${sa.trade_count} / ${sb.trade_count}`;
+
+                // Unavailable notices
+                const unavA = document.getElementById('abtest-unavailable-a');
+                const unavB = document.getElementById('abtest-unavailable-b');
+                if (!sa.available) {
+                    unavA.textContent = '⚠ Scenario A: ' + (sa.unavailable_reason || 'unavailable');
+                    unavA.style.display = 'block';
+                } else { unavA.style.display = 'none'; }
+                if (!sb.available) {
+                    unavB.textContent = '⚠ Scenario B: ' + (sb.unavailable_reason || 'unavailable');
+                    unavB.style.display = 'block';
+                } else { unavB.style.display = 'none'; }
+
+                // Per-trade table — join on symbol + index
+                const tbody = document.getElementById('abtest-tbody');
+                const tableWrap = document.getElementById('abtest-table-wrap');
+                tbody.innerHTML = '';
+
+                const tradesByA = sa.trade_by_trade || [];
+                const tradesByB = sb.trade_by_trade || [];
+                const rowCount = Math.max(tradesByA.length, tradesByB.length);
+
+                if (rowCount > 0 && (sa.available || sb.available)) {
+                    tableWrap.style.display = '';
+                    for (let i = 0; i < rowCount; i++) {
+                        const a = tradesByA[i] || {};
+                        const b = tradesByB[i] || {};
+                        const bMinusA = (a.scenario_pnl != null && b.scenario_pnl != null)
+                            ? b.scenario_pnl - a.scenario_pnl : null;
+                        let better = '—';
+                        if (bMinusA !== null) {
+                            if (Math.abs(bMinusA) < 0.01) better = '<span style="color:var(--text-dim)">Tie</span>';
+                            else if (bMinusA > 0) better = '<span style="color:var(--green)">B</span>';
+                            else better = '<span style="color:var(--blue)">A</span>';
+                        }
+                        const sym = a.symbol || b.symbol || '—';
+                        const entry = a.entry_price ?? b.entry_price ?? 0;
+                        const exit = a.exit_price ?? b.exit_price ?? 0;
+                        const baseline = a.baseline_pnl ?? b.baseline_pnl ?? null;
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${sym}</strong></td>
+                            <td>$${parseFloat(entry).toFixed(4)}</td>
+                            <td>$${parseFloat(exit).toFixed(4)}</td>
+                            <td>${_fmtPnl(baseline)}</td>
+                            <td>${a.scenario_pnl != null ? _fmtPnl(a.scenario_pnl) : '<span style="color:var(--text-dim)">N/A</span>'}</td>
+                            <td>${b.scenario_pnl != null ? _fmtPnl(b.scenario_pnl) : '<span style="color:var(--text-dim)">N/A</span>'}</td>
+                            <td>${bMinusA !== null ? _fmtPnl(bMinusA) : '—'}</td>
+                            <td>${better}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+                } else {
+                    tableWrap.style.display = (sa.available || sb.available) ? '' : 'none';
+                    if (sa.available || sb.available) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-dim);">No completed round-trip trades in this period.</td></tr>';
+                    }
+                }
+
+                results.style.display = 'block';
+            } catch (e) {
+                loading.style.display = 'none';
+                errorEl.textContent = 'Error running comparison: ' + (e.message || String(e));
+                errorEl.style.display = 'block';
             }
         }
     </script>
