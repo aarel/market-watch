@@ -2362,6 +2362,56 @@
                 </div>
                 <div class="config-error" id="error-trade-interval"></div>
 
+                <div class="config-row">
+                    <span class="config-label">
+                        Avoid Open (min)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Avoid Open Minutes:</strong> Skip trading for this many minutes after 9:30 ET open. Reduces exposure to volatile open-auction moves. 0 = disabled.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="avoid-open-minutes" step="5" min="0" max="120" value="0" />
+                </div>
+                <div class="config-error" id="error-avoid-open-minutes"></div>
+
+                <div class="config-row">
+                    <span class="config-label">
+                        Avoid Close (min)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Avoid Close Minutes:</strong> Stop trading this many minutes before 16:00 ET close. Avoids end-of-day liquidity squeeze. 0 = disabled.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="avoid-close-minutes" step="5" min="0" max="120" value="0" />
+                </div>
+                <div class="config-error" id="error-avoid-close-minutes"></div>
+
+                <div class="config-row">
+                    <span class="config-label">
+                        Earnings Blackout (days)
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>Earnings Blackout Days:</strong> Block buys within this many days of a symbol's earnings report (uses yfinance, fail-open). 0 = disabled.</span>
+                        </span>
+                    </span>
+                    <input type="number" class="config-input" id="earnings-blackout-days" step="1" min="0" max="7" value="0" />
+                </div>
+                <div class="config-error" id="error-earnings-blackout-days"></div>
+
+                <div class="config-row">
+                    <span class="config-label">
+                        FOMC Blackout
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text"><strong>FOMC Blackout:</strong> Suppress all buy signals on Federal Reserve announcement days (loaded from data/shared/fomc_dates.json).</span>
+                        </span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="fomc-blackout-enabled" onchange="handleConfigChange('fomc-blackout-enabled')">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
                 <div class="btn-group" style="display: flex; gap: 8px; margin-top: 20px;">
                     <span class="tooltip">
                         <button class="btn btn-secondary" onclick="resetToDefaults()">Reset Defaults</button>
@@ -2961,6 +3011,19 @@
                 }
                 if (data.config.top_gainers_min_volume !== undefined) {
                     document.getElementById('top-gainers-min-volume').value = data.config.top_gainers_min_volume;
+                }
+                // Market Awareness fields
+                if (data.config.avoid_open_minutes !== undefined && document.getElementById('avoid-open-minutes')) {
+                    document.getElementById('avoid-open-minutes').value = data.config.avoid_open_minutes;
+                }
+                if (data.config.avoid_close_minutes !== undefined && document.getElementById('avoid-close-minutes')) {
+                    document.getElementById('avoid-close-minutes').value = data.config.avoid_close_minutes;
+                }
+                if (data.config.earnings_blackout_days !== undefined && document.getElementById('earnings-blackout-days')) {
+                    document.getElementById('earnings-blackout-days').value = data.config.earnings_blackout_days;
+                }
+                if (data.config.fomc_blackout_enabled !== undefined && document.getElementById('fomc-blackout-enabled')) {
+                    document.getElementById('fomc-blackout-enabled').checked = data.config.fomc_blackout_enabled;
                 }
                 updateWatchlistDropdown(data.config.watchlist);
             }
@@ -4897,7 +4960,11 @@
                 trade_interval: parseInt(document.getElementById('trade-interval')?.value || '5'),
                 alerts_enabled: document.getElementById('alerts-enabled')?.checked || false,
                 alert_email_enabled: document.getElementById('alert-email-enabled')?.checked || false,
-                alert_webhook_enabled: document.getElementById('alert-webhook-enabled')?.checked || false
+                alert_webhook_enabled: document.getElementById('alert-webhook-enabled')?.checked || false,
+                avoid_open_minutes: parseInt(document.getElementById('avoid-open-minutes')?.value || '0'),
+                avoid_close_minutes: parseInt(document.getElementById('avoid-close-minutes')?.value || '0'),
+                earnings_blackout_days: parseInt(document.getElementById('earnings-blackout-days')?.value || '0'),
+                fomc_blackout_enabled: document.getElementById('fomc-blackout-enabled')?.checked || false,
             };
             if (watchlistMode === 'static') {
                 config.watchlist = watchlist;

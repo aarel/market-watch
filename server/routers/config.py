@@ -38,6 +38,10 @@ class ConfigUpdate(BaseModel):
     alerts_enabled: bool | None = None
     alert_email_enabled: bool | None = None
     alert_webhook_enabled: bool | None = None
+    avoid_open_minutes: int | None = None
+    avoid_close_minutes: int | None = None
+    earnings_blackout_days: int | None = None
+    fomc_blackout_enabled: bool | None = None
 
 
 router = APIRouter()

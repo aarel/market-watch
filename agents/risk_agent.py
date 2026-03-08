@@ -69,6 +69,9 @@ class RiskAgent(BaseAgent):
         self.correlation_exposure_checker = correlation_exposure_checker or CorrelationExposureChecker(self.return_calculator)
         self.rvol_checker = rvol_checker or RVOLChecker(broker)
 
+        # Earnings blackout (lazy-init; injected for testing)
+        self._earnings_cache = None
+
         self.daily_trades = 0
         self.last_trade_date = None
         self._checks_passed = 0
@@ -182,6 +185,21 @@ class RiskAgent(BaseAgent):
             if not self.rvol_checker.check(signal.symbol, config.RVOL_THRESHOLD, config.LOOKBACK_DAYS):
                 await self._fail(signal, f"Relative volume below threshold ({config.RVOL_THRESHOLD})")
                 return
+
+            # Earnings blackout
+            if config.EARNINGS_BLACKOUT_DAYS > 0:
+                from market_calendar import EarningsCache
+                if self._earnings_cache is None:
+                    self._earnings_cache = EarningsCache(blackout_days=config.EARNINGS_BLACKOUT_DAYS)
+                else:
+                    self._earnings_cache.blackout_days = config.EARNINGS_BLACKOUT_DAYS
+                if self._earnings_cache.is_in_blackout(signal.symbol):
+                    await self._fail(
+                        signal,
+                        f"Earnings blackout: {signal.symbol} has earnings within "
+                        f"{config.EARNINGS_BLACKOUT_DAYS} day(s)",
+                    )
+                    return
 
             position_pct = trade_value / portfolio_value * 100
 

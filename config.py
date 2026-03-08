@@ -125,6 +125,16 @@ TRADE_INTERVAL_MINUTES = int(os.getenv("TRADE_INTERVAL_MINUTES", "5"))
 # Market timezone for daily limits (IANA timezone name)
 MARKET_TIMEZONE = os.getenv("MARKET_TIMEZONE", "America/New_York")
 
+# Market Awareness (Phase 9)
+# Minutes to skip after 9:30 ET open before placing buys (0 = disabled)
+AVOID_OPEN_MINUTES = int(os.getenv("AVOID_OPEN_MINUTES", "0"))
+# Minutes to skip before 16:00 ET close before placing buys (0 = disabled)
+AVOID_CLOSE_MINUTES = int(os.getenv("AVOID_CLOSE_MINUTES", "0"))
+# Days before/after earnings to block buys (0 = disabled, uses yfinance)
+EARNINGS_BLACKOUT_DAYS = int(os.getenv("EARNINGS_BLACKOUT_DAYS", "0"))
+# Pause all trading on FOMC announcement days (uses data/shared/fomc_dates.json)
+FOMC_BLACKOUT_ENABLED = os.getenv("FOMC_BLACKOUT_ENABLED", "false").lower() == "true"
+
 # Observability (system-level logs)
 OBSERVABILITY_ENABLED = os.getenv("OBSERVABILITY_ENABLED", "true").lower() == "true"
 OBSERVABILITY_LOG_PATH = os.getenv(
@@ -153,6 +163,10 @@ ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL", "")
 ALERT_WEBHOOK_TYPE = os.getenv("ALERT_WEBHOOK_TYPE", "generic")
 ALERT_WEBHOOK_RETRY_ATTEMPTS = int(os.getenv("ALERT_WEBHOOK_RETRY_ATTEMPTS", "3"))
 ALERT_WEBHOOK_TIMEOUT_SECONDS = int(os.getenv("ALERT_WEBHOOK_TIMEOUT_SECONDS", "10"))
+# Required when ALERT_WEBHOOK_TYPE=telegram. The Telegram Bot API mandates a
+# chat_id in every request. Set to the numeric chat ID, negative group ID, or
+# @channel_username of your target Telegram chat.
+ALERT_TELEGRAM_CHAT_ID = os.getenv("ALERT_TELEGRAM_CHAT_ID", "")
 
 # UI check agent (system-level logs)
 UI_CHECK_ENABLED = os.getenv("UI_CHECK_ENABLED", "false").lower() == "true"

@@ -48,6 +48,12 @@ class RuntimeConfig(BaseModel):
     alert_email_enabled: bool = config.ALERT_EMAIL_ENABLED
     alert_webhook_enabled: bool = config.ALERT_WEBHOOK_ENABLED
 
+    # Market Awareness (Phase 9)
+    avoid_open_minutes: int = config.AVOID_OPEN_MINUTES
+    avoid_close_minutes: int = config.AVOID_CLOSE_MINUTES
+    earnings_blackout_days: int = config.EARNINGS_BLACKOUT_DAYS
+    fomc_blackout_enabled: bool = config.FOMC_BLACKOUT_ENABLED
+
     model_config = {"frozen": False}  # Allow field updates
 
     @field_validator('auto_trade', mode='before')
@@ -140,6 +146,10 @@ class ConfigManager:
             alerts_enabled=config.ALERTS_ENABLED,
             alert_email_enabled=config.ALERT_EMAIL_ENABLED,
             alert_webhook_enabled=config.ALERT_WEBHOOK_ENABLED,
+            avoid_open_minutes=config.AVOID_OPEN_MINUTES,
+            avoid_close_minutes=config.AVOID_CLOSE_MINUTES,
+            earnings_blackout_days=config.EARNINGS_BLACKOUT_DAYS,
+            fomc_blackout_enabled=config.FOMC_BLACKOUT_ENABLED,
         )
 
     def snapshot(self) -> dict:
@@ -227,6 +237,10 @@ class ConfigManager:
         config.ALERTS_ENABLED = cfg.alerts_enabled
         config.ALERT_EMAIL_ENABLED = cfg.alert_email_enabled
         config.ALERT_WEBHOOK_ENABLED = cfg.alert_webhook_enabled
+        config.AVOID_OPEN_MINUTES = cfg.avoid_open_minutes
+        config.AVOID_CLOSE_MINUTES = cfg.avoid_close_minutes
+        config.EARNINGS_BLACKOUT_DAYS = cfg.earnings_blackout_days
+        config.FOMC_BLACKOUT_ENABLED = cfg.fomc_blackout_enabled
 
     def _emit_config_updated(self, changed_keys: list[str]):
         """Emit ConfigUpdated event to notify agents of config changes.

@@ -45,19 +45,27 @@ class DataAgent(BaseAgent):
     Uses BrokerQueryService for optimized API calls with caching.
     """
 
-    def __init__(self, event_bus: "EventBus", broker: "AlpacaBroker", interval_minutes: int = 10):
+    def __init__(
+        self,
+        event_bus: "EventBus",
+        broker: "AlpacaBroker",
+        interval_minutes: int = 10,
+        fomc_calendar=None,
+    ):
         """Initialize DataAgent.
 
         Args:
             event_bus: Event bus for agent communication
             broker: Broker or BrokerQueryService (accepts both for compatibility)
             interval_minutes: Data fetch interval in minutes
+            fomc_calendar: FomcCalendar instance (None = lazy-init from default path)
         """
         super().__init__("DataAgent", event_bus)
         self.broker = broker  # BrokerQueryService in production (cached calls)
         self.interval_minutes = interval_minutes
         self._cache = {}
         self._last_fetch = None
+        self._fomc_calendar = fomc_calendar  # lazy-init on first use
 
     async def start(self):
         """Start the data fetching loop."""
@@ -99,6 +107,10 @@ class DataAgent(BaseAgent):
 
         # Check market status
         market_open = await asyncio.to_thread(self.broker.is_market_open)
+
+        # Apply market-awareness filters (trading windows + FOMC blackout)
+        if market_open:
+            market_open = self._apply_market_awareness()
 
         top_gainers = self._cache.get("top_gainers", [])
         market_indices = self._cache.get("market_indices", [])
@@ -223,6 +235,34 @@ class DataAgent(BaseAgent):
         await self.event_bus.publish(event)
 
         return event
+
+    def _apply_market_awareness(self) -> bool:
+        """Apply trading-window and FOMC blackout checks.
+
+        Returns False if trading should be suppressed; True otherwise.
+        Called only when the broker already reports the market as open.
+        """
+        import config
+        from market_calendar import FomcCalendar, is_in_trading_window
+
+        # FOMC blackout
+        if config.FOMC_BLACKOUT_ENABLED:
+            if self._fomc_calendar is None:
+                self._fomc_calendar = FomcCalendar()
+            if self._fomc_calendar.is_fomc_day():
+                logger.info("Market awareness: FOMC blackout — trading suppressed today")
+                return False
+
+        # Trading window (avoid open/close volatility)
+        if not is_in_trading_window(config.AVOID_OPEN_MINUTES, config.AVOID_CLOSE_MINUTES):
+            logger.debug(
+                f"Market awareness: outside trading window "
+                f"(avoid_open={config.AVOID_OPEN_MINUTES}m, "
+                f"avoid_close={config.AVOID_CLOSE_MINUTES}m)"
+            )
+            return False
+
+        return True
 
     def get_cached_data(self):
         """Get the most recent cached data."""
