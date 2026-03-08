@@ -2373,6 +2373,44 @@
                     </span>
                 </div>
                 <div class="config-error" id="error-config"></div>
+
+                <!-- Profiles -->
+                <div style="border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="font-size:13px; font-weight:600; color:var(--text);">Config Profiles</span>
+                        <span class="tooltip">
+                            <i class="info-icon">?</i>
+                            <span class="tooltip-text">Save the current config as a named profile to quickly switch between strategies (e.g. "conservative", "aggressive").</span>
+                        </span>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <input type="text" id="profile-name-input" placeholder="Profile name"
+                            style="flex:1; min-width:120px; max-width:200px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px;">
+                        <button class="btn btn-secondary btn-sm" onclick="saveProfile()" title="Save current config as this profile name">Save</button>
+                        <select id="profile-select"
+                            style="flex:1; min-width:120px; max-width:200px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer;">
+                            <option value="">— select profile —</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="loadProfile()" title="Load selected profile into the config form">Load</button>
+                        <button class="btn btn-secondary btn-sm" style="color:var(--red);" onclick="deleteProfile()" title="Permanently delete selected profile">Delete</button>
+                    </div>
+                    <div id="profile-message" style="display:none; margin-top:8px; font-size:12px; padding:6px 10px; border-radius:4px;"></div>
+                </div>
+
+                <!-- Export / Import -->
+                <div style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <span style="font-size:13px; font-weight:600; color:var(--text); margin-right:4px;">Backup</span>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Export downloads the current config as JSON. Import restores from a previously exported file.</span>
+                    </span>
+                    <button class="btn btn-secondary btn-sm" onclick="exportConfig()" title="Download current config as JSON">Export JSON</button>
+                    <label class="btn btn-secondary btn-sm" style="cursor:pointer; margin:0;" title="Import a config JSON file">
+                        Import JSON
+                        <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importConfig(this)">
+                    </label>
+                    <div id="import-message" style="display:none; font-size:12px; padding:6px 10px; border-radius:4px;"></div>
+                </div>
             </div>
 
         </div>
@@ -4892,6 +4930,152 @@
             }
         }
 
+        // ---------------------------------------------------------------
+        // Config Profiles
+        // ---------------------------------------------------------------
+
+        async function fetchProfiles() {
+            try {
+                const res = await apiFetch('/api/config/profiles');
+                if (!res.ok) return;
+                const data = await res.json();
+                const sel = document.getElementById('profile-select');
+                if (!sel) return;
+                const cur = sel.value;
+                sel.innerHTML = '<option value="">— select profile —</option>';
+                for (const p of (data.profiles || [])) {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = p.name + (p.saved_at ? '  (' + p.saved_at.slice(0, 10) + ')' : '');
+                    sel.appendChild(opt);
+                }
+                if (cur) sel.value = cur;
+            } catch (e) { /* silent */ }
+        }
+
+        function _showProfileMsg(text, isError) {
+            const el = document.getElementById('profile-message');
+            if (!el) return;
+            el.textContent = text;
+            el.style.display = 'block';
+            el.style.background = isError ? 'rgba(248,81,73,0.1)' : 'rgba(63,185,80,0.1)';
+            el.style.color = isError ? 'var(--red)' : 'var(--green)';
+            el.style.border = `1px solid ${isError ? 'var(--red)' : 'var(--green)'}`;
+            setTimeout(() => { el.style.display = 'none'; }, 4000);
+        }
+
+        async function saveProfile() {
+            const name = (document.getElementById('profile-name-input')?.value || '').trim();
+            if (!name) { _showProfileMsg('Enter a profile name.', true); return; }
+            try {
+                const res = await apiFetch('/api/config/profiles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    _showProfileMsg(d.detail || 'Failed to save profile.', true);
+                    return;
+                }
+                _showProfileMsg(`Profile "${name}" saved.`, false);
+                await fetchProfiles();
+                document.getElementById('profile-select').value = name;
+            } catch (e) { _showProfileMsg('Error: ' + e, true); }
+        }
+
+        async function loadProfile() {
+            const name = document.getElementById('profile-select')?.value;
+            if (!name) { _showProfileMsg('Select a profile to load.', true); return; }
+            if (!confirm(`Load profile "${name}"? This will overwrite your current config.`)) return;
+            try {
+                const res = await apiFetch(`/api/config/profiles/${encodeURIComponent(name)}/load`, { method: 'POST' });
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    _showProfileMsg(d.detail || 'Failed to load profile.', true);
+                    return;
+                }
+                _showProfileMsg(`Profile "${name}" loaded.`, false);
+                await fetchStatus();
+            } catch (e) { _showProfileMsg('Error: ' + e, true); }
+        }
+
+        async function deleteProfile() {
+            const name = document.getElementById('profile-select')?.value;
+            if (!name) { _showProfileMsg('Select a profile to delete.', true); return; }
+            if (!confirm(`Delete profile "${name}"? This cannot be undone.`)) return;
+            try {
+                const res = await apiFetch(`/api/config/profiles/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    _showProfileMsg(d.detail || 'Failed to delete profile.', true);
+                    return;
+                }
+                _showProfileMsg(`Profile "${name}" deleted.`, false);
+                await fetchProfiles();
+            } catch (e) { _showProfileMsg('Error: ' + e, true); }
+        }
+
+        // ---------------------------------------------------------------
+        // Config Export / Import
+        // ---------------------------------------------------------------
+
+        async function exportConfig() {
+            try {
+                const res = await apiFetch('/api/config/export');
+                if (!res.ok) { alert('Export failed.'); return; }
+                const blob = await res.blob();
+                const cd = res.headers.get('Content-Disposition') || '';
+                const match = cd.match(/filename="([^"]+)"/);
+                const filename = match ? match[1] : 'config.json';
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename; a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) { alert('Export failed: ' + e); }
+        }
+
+        async function importConfig(input) {
+            const file = input?.files?.[0];
+            if (!file) return;
+            if (!confirm(`Import config from "${file.name}"? This will overwrite your current config.`)) {
+                input.value = ''; return;
+            }
+            const msgEl = document.getElementById('import-message');
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await apiFetch('/api/config/import', { method: 'POST', body: formData });
+                input.value = '';
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    if (msgEl) {
+                        msgEl.textContent = d.detail || 'Import failed.';
+                        msgEl.style.display = 'block';
+                        msgEl.style.background = 'rgba(248,81,73,0.1)';
+                        msgEl.style.color = 'var(--red)';
+                        msgEl.style.border = '1px solid var(--red)';
+                    }
+                    return;
+                }
+                if (msgEl) {
+                    msgEl.textContent = 'Config imported successfully.';
+                    msgEl.style.display = 'block';
+                    msgEl.style.background = 'rgba(63,185,80,0.1)';
+                    msgEl.style.color = 'var(--green)';
+                    msgEl.style.border = '1px solid var(--green)';
+                    setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+                }
+                await fetchStatus();
+            } catch (e) {
+                input.value = '';
+                if (msgEl) {
+                    msgEl.textContent = 'Error: ' + e;
+                    msgEl.style.display = 'block';
+                }
+            }
+        }
+
         async function startBot() {
             if (!confirm('Start automatic trading? The bot will execute trades without asking.')) {
                 return;
@@ -5045,6 +5229,7 @@
             fetchLogs();
             fetchObservabilityLogs();
             fetchAlertHistory();
+            fetchProfiles();
             fetchTrades();
             setInterval(fetchTrades, 20000);
             fetchAnalytics('30d');

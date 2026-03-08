@@ -42,6 +42,12 @@ async def lifespan(app: FastAPI):
     state.config_manager.load()
     configure_alerts(state.config_manager.snapshot())
 
+    # Wire alert history persistence: logs/{universe}/alerts/alerts.jsonl
+    from pathlib import Path
+    from alerts.manager import get_manager as get_alert_manager
+    _alert_history_path = Path(f"logs/{universe.value}/alerts/alerts.jsonl")
+    get_alert_manager().set_history_path(_alert_history_path)
+
     # Rebuild universe-bound components via factories
     def broker_factory(u: Universe):
         if u == Universe.SIMULATION:
