@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import config
 from analytics.ab_test import run_ab_test
 from analytics.enrichment import enrich_with_subsequent_performance
+from analytics.insights import compute_insights
 from analytics.whatif import run_what_if
 from analytics.metrics import (
     _collapse_daily,
@@ -271,6 +272,38 @@ async def run_what_if_analysis(request: WhatIfRequest, store=Depends(get_analyti
         "affected_trade_count": result.affected_trade_count,
         "trade_by_trade": result.trade_by_trade,
         "period": request.period,
+    }
+
+
+@router.get("/analytics/insights")
+async def get_insights(period: str = "90d", store=Depends(get_analytics_store)):
+    """Return synthesised paper trading insights for the given period.
+
+    Loads trades and equity, enriches trades with forward performance, then
+    runs the insights engine across all available categories.
+
+    Response:
+        period, insights (list of insight objects), trade_count, generated_at.
+    """
+    trades = store.load_trades(period=period, limit=1000)
+    # Enrich with perf_1d/5d/10d using all available equity history
+    equity = store.load_equity(period="all")
+    enriched = enrich_with_subsequent_performance(trades, equity)
+    insights = compute_insights(enriched, equity)
+    return {
+        "period": period,
+        "insights": [
+            {
+                "category": i.category,
+                "headline": i.headline,
+                "detail": i.detail,
+                "value": i.value,
+                "direction": i.direction,
+            }
+            for i in insights
+        ],
+        "trade_count": len(trades),
+        "generated_at": datetime.now().isoformat(),
     }
 
 

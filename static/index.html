@@ -1677,6 +1677,124 @@
         </div>
         <!-- End A/B Test Card -->
 
+        <!-- Paper Trading Insights Card -->
+        <div class="card full card-full-gap" id="insights-card">
+            <div class="card-header" style="cursor:pointer; user-select:none;" onclick="toggleInsights()">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <h2>Paper Trading Insights</h2>
+                    <span class="tooltip">
+                        <i class="info-icon">?</i>
+                        <span class="tooltip-text">Synthesised observations from your paper trading history — signal quality, timing patterns, symbol performance, risk metrics, and portfolio health. Insights are omitted when there are too few data points to be meaningful (minimum 3 trades per observation).</span>
+                    </span>
+                    <span id="insights-toggle-icon" style="margin-left:4px; color:var(--text-dim); font-size:12px;">▼ expand</span>
+                </div>
+                <div class="help-text">Actionable observations synthesised from your annotated trade history.</div>
+            </div>
+
+            <div id="insights-body" style="display:none;">
+                <!-- Controls -->
+                <div style="display:flex; align-items:flex-end; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+                    <div>
+                        <label style="display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;">
+                            Period
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">How far back to look for trades when computing insights. Longer periods surface more stable patterns; shorter periods show recent regime changes.</span>
+                            </span>
+                        </label>
+                        <select id="insights-period"
+                            title="Trade history period for insights computation"
+                            style="background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer;">
+                            <option value="30d">Last 30 days</option>
+                            <option value="90d" selected>Last 90 days</option>
+                            <option value="180d">Last 180 days</option>
+                            <option value="all">All time</option>
+                        </select>
+                    </div>
+                    <button onclick="loadInsights()"
+                        title="Compute and display insights from your paper trade history"
+                        style="padding:8px 18px; background:var(--blue); color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; font-weight:600; align-self:flex-end;">
+                        Generate Insights
+                    </button>
+                </div>
+
+                <div id="insights-loading" style="display:none; color:var(--text-dim); font-size:13px; padding:8px 0;">Analysing trade history…</div>
+                <div id="insights-error" style="display:none; color:var(--red); font-size:13px; padding:8px 0;"></div>
+
+                <!-- Meta row -->
+                <div id="insights-meta" style="display:none; font-size:12px; color:var(--text-dim); margin-bottom:16px;"></div>
+
+                <!-- No data notice -->
+                <div id="insights-empty" style="display:none; padding:16px; background:rgba(255,200,0,0.08); border:1px solid var(--yellow); border-radius:8px; font-size:13px; color:var(--yellow);">
+                    Not enough trade data to generate insights yet. Complete at least 3 round-trip trades to begin seeing patterns.
+                </div>
+
+                <!-- Insight tiles by category -->
+                <div id="insights-grid" style="display:none;">
+                    <!-- Signal Quality -->
+                    <div id="insights-section-signal_quality" style="margin-bottom:24px; display:none;">
+                        <h3 style="font-size:13px; font-weight:700; color:var(--text-dim); letter-spacing:0.06em; margin-bottom:10px; text-transform:uppercase;">
+                            Signal Quality
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">How well your entry signals predict profitable trades — win rates per signal reason, signal strength correlation, and forward portfolio performance after entries.</span>
+                            </span>
+                        </h3>
+                        <div id="insights-tiles-signal_quality" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:12px;"></div>
+                    </div>
+
+                    <!-- Timing -->
+                    <div id="insights-section-timing" style="margin-bottom:24px; display:none;">
+                        <h3 style="font-size:13px; font-weight:700; color:var(--text-dim); letter-spacing:0.06em; margin-bottom:10px; text-transform:uppercase;">
+                            Timing
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">When your trades perform best — market-hours vs extended-hours execution, and correlation with broad market activity (top gainer count).</span>
+                            </span>
+                        </h3>
+                        <div id="insights-tiles-timing" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:12px;"></div>
+                    </div>
+
+                    <!-- Symbol Performance -->
+                    <div id="insights-section-symbol_performance" style="margin-bottom:24px; display:none;">
+                        <h3 style="font-size:13px; font-weight:700; color:var(--text-dim); letter-spacing:0.06em; margin-bottom:10px; text-transform:uppercase;">
+                            Symbol Performance
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Which symbols contributed the most (and least) to your P&amp;L. Only symbols with 3+ completed round trips are included in win-rate statistics.</span>
+                            </span>
+                        </h3>
+                        <div id="insights-tiles-symbol_performance" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:12px;"></div>
+                    </div>
+
+                    <!-- Risk -->
+                    <div id="insights-section-risk" style="margin-bottom:24px; display:none;">
+                        <h3 style="font-size:13px; font-weight:700; color:var(--text-dim); letter-spacing:0.06em; margin-bottom:10px; text-transform:uppercase;">
+                            Risk
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Risk/reward balance, largest single loss, and longest losing streak. These help identify if position sizing or stop-loss rules need adjustment.</span>
+                            </span>
+                        </h3>
+                        <div id="insights-tiles-risk" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:12px;"></div>
+                    </div>
+
+                    <!-- Portfolio -->
+                    <div id="insights-section-portfolio" style="margin-bottom:24px; display:none;">
+                        <h3 style="font-size:13px; font-weight:700; color:var(--text-dim); letter-spacing:0.06em; margin-bottom:10px; text-transform:uppercase;">
+                            Portfolio
+                            <span class="tooltip">
+                                <i class="info-icon">?</i>
+                                <span class="tooltip-text">Overall portfolio trajectory and total realised P&amp;L from completed round trips, giving a high-level view of strategy effectiveness.</span>
+                            </span>
+                        </h3>
+                        <div id="insights-tiles-portfolio" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:12px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Paper Trading Insights Card -->
+
         <div class="grid">
             <!-- Account Card -->
             <div class="card">
@@ -5078,6 +5196,98 @@
                 loading.style.display = 'none';
                 error.textContent = 'Error running analysis: ' + (e.message || String(e));
                 error.style.display = 'block';
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Paper Trading Insights
+        // ---------------------------------------------------------------
+        function toggleInsights() {
+            const body = document.getElementById('insights-body');
+            const icon = document.getElementById('insights-toggle-icon');
+            const expanded = body.style.display !== 'none';
+            body.style.display = expanded ? 'none' : 'block';
+            icon.textContent = expanded ? '▼ expand' : '▲ collapse';
+        }
+
+        function _insightTile(insight) {
+            const colors = {
+                positive: 'var(--green)',
+                negative: 'var(--red)',
+                neutral:  'var(--text-dim)',
+            };
+            const bgs = {
+                positive: 'rgba(0,200,100,0.07)',
+                negative: 'rgba(220,60,60,0.07)',
+                neutral:  'var(--bg-input)',
+            };
+            const color = colors[insight.direction] || colors.neutral;
+            const bg = bgs[insight.direction] || bgs.neutral;
+            const valueStr = insight.value !== null && insight.value !== undefined
+                ? `<div style="font-size:20px; font-weight:700; color:${color}; margin:8px 0 4px;">${
+                    typeof insight.value === 'number'
+                        ? (Number.isInteger(insight.value) ? insight.value : insight.value.toFixed(2))
+                        : insight.value
+                  }</div>`
+                : '';
+            return `
+                <div style="background:${bg}; border:1px solid ${color}30; border-radius:10px; padding:14px 16px;">
+                    <div style="font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; line-height:1.4;">${insight.headline}</div>
+                    ${valueStr}
+                    <div style="font-size:12px; color:var(--text-dim); line-height:1.5;">${insight.detail}</div>
+                </div>
+            `;
+        }
+
+        async function loadInsights() {
+            const period = document.getElementById('insights-period').value;
+            const loading = document.getElementById('insights-loading');
+            const errorEl = document.getElementById('insights-error');
+            const grid = document.getElementById('insights-grid');
+            const empty = document.getElementById('insights-empty');
+            const meta = document.getElementById('insights-meta');
+
+            loading.style.display = 'block';
+            errorEl.style.display = 'none';
+            grid.style.display = 'none';
+            empty.style.display = 'none';
+            meta.style.display = 'none';
+
+            // Clear all tiles
+            ['signal_quality','timing','symbol_performance','risk','portfolio'].forEach(cat => {
+                const el = document.getElementById(`insights-tiles-${cat}`);
+                if (el) el.innerHTML = '';
+                const sec = document.getElementById(`insights-section-${cat}`);
+                if (sec) sec.style.display = 'none';
+            });
+
+            try {
+                const resp = await apiFetch(`/api/analytics/insights?period=${period}`);
+                loading.style.display = 'none';
+
+                meta.textContent = `${resp.trade_count} trades analysed · ${resp.insights.length} insights generated · as of ${new Date(resp.generated_at).toLocaleTimeString()}`;
+                meta.style.display = 'block';
+
+                if (!resp.insights || resp.insights.length === 0) {
+                    empty.style.display = 'block';
+                    return;
+                }
+
+                resp.insights.forEach(insight => {
+                    const cat = insight.category;
+                    const tilesEl = document.getElementById(`insights-tiles-${cat}`);
+                    const secEl = document.getElementById(`insights-section-${cat}`);
+                    if (tilesEl && secEl) {
+                        tilesEl.insertAdjacentHTML('beforeend', _insightTile(insight));
+                        secEl.style.display = 'block';
+                    }
+                });
+
+                grid.style.display = 'block';
+            } catch (e) {
+                loading.style.display = 'none';
+                errorEl.textContent = 'Error loading insights: ' + (e.message || String(e));
+                errorEl.style.display = 'block';
             }
         }
 
