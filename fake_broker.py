@@ -14,10 +14,11 @@ from types import SimpleNamespace
 import pandas as pd
 
 import config
+from brokers.base import BaseBroker
 from universe import Universe
 
 
-class FakeBroker:
+class FakeBroker(BaseBroker):
     """
     A fake broker that simulates a trading environment.
     - Manages an in-memory account and positions.

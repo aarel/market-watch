@@ -10,6 +10,7 @@ from agents import Coordinator
 from alerts.runtime import configure_alerts
 from analytics.store import AnalyticsStore
 from broker import AlpacaBroker
+from brokers.ibkr import IBKRBroker
 from fake_broker import FakeBroker
 from universe import Universe
 
@@ -43,8 +44,18 @@ async def lifespan(app: FastAPI):
 
     # Rebuild universe-bound components via factories
     def broker_factory(u: Universe):
-        Broker = FakeBroker if u == Universe.SIMULATION else AlpacaBroker
-        return Broker(universe=u)
+        if u == Universe.SIMULATION:
+            return FakeBroker(universe=u)
+        # For LIVE/PAPER: use BROKER_TYPE to select the real brokerage
+        broker_type = config.BROKER_TYPE
+        if broker_type == "ibkr":
+            return IBKRBroker(universe=u)
+        if broker_type == "alpaca":
+            return AlpacaBroker(universe=u)
+        raise ValueError(
+            f"Unknown BROKER_TYPE: '{broker_type}'. "
+            f"Valid values: 'alpaca', 'ibkr'."
+        )
 
     def analytics_factory(u: Universe):
         return AnalyticsStore(u) if config.ANALYTICS_ENABLED else None

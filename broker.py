@@ -13,12 +13,13 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 import config
+from brokers.base import BaseBroker
 from universe import Universe
 
 logger = logging.getLogger(__name__)
 
 
-class AlpacaBroker:
+class AlpacaBroker(BaseBroker):
     """Handles all interactions with Alpaca brokerage."""
 
     def __init__(self, universe: Universe, base_url: str | None = None):

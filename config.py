@@ -23,6 +23,11 @@ REPLAY_RECORDER_INTERVAL_MINUTES = int(os.getenv("REPLAY_RECORDER_INTERVAL_MINUT
 _default_replay_symbols = os.getenv("REPLAY_RECORDER_SYMBOLS", "")
 REPLAY_RECORDER_DIR = os.getenv("REPLAY_RECORDER_DIR", "data/replay")
 
+# Broker selection for LIVE and PAPER universes.
+# "alpaca" (default) uses AlpacaBroker; "ibkr" uses IBKRBroker.
+# SIMULATION universe always uses FakeBroker regardless of this setting.
+BROKER_TYPE = os.getenv("BROKER_TYPE", "alpaca").lower()
+
 # Market data feed: "iex" (free) or "sip" (paid - requires Algo Trader Plus)
 DATA_FEED = os.getenv("DATA_FEED", "iex")
 
